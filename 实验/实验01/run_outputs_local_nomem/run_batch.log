@@ -1,0 +1,49 @@
+2026-02-19 17:10:01,038 - INFO - swea-run - Starting run. Find output files at /home/pt/SWE-bench/PDDL_work_mem/实验/实验01/run_outputs_local_nomem
+2026-02-19 17:10:01,039 - INFO - swea-run - Running on instance django__django-16255
+2026-02-19 17:10:01,166 - ERROR - swea-run - Traceback (most recent call last):
+  File "/home/pt/SWE-bench/SWE-agent/sweagent/run/run_batch.py", line 312, in run_instance
+    result = self._run_instance(instance)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/pt/SWE-bench/SWE-agent/sweagent/run/run_batch.py", line 360, in _run_instance
+    env.start()
+  File "/home/pt/SWE-bench/SWE-agent/sweagent/environment/swe_env.py", line 112, in start
+    self._init_deployment()
+  File "/home/pt/SWE-bench/SWE-agent/sweagent/environment/swe_env.py", line 185, in _init_deployment
+    asyncio.run(
+  File "/usr/lib/python3.12/asyncio/runners.py", line 194, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/home/pt/SWE-bench/SWE-agent/.venv/lib/python3.12/site-packages/swerex/runtime/local.py", line 400, in create_session
+    return await session.start()
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/pt/SWE-bench/SWE-agent/.venv/lib/python3.12/site-packages/swerex/runtime/local.py", line 158, in start
+    self._shell = pexpect.spawn(
+                  ^^^^^^^^^^^^^^
+  File "/home/pt/SWE-bench/SWE-agent/.venv/lib/python3.12/site-packages/pexpect/pty_spawn.py", line 205, in __init__
+    self._spawn(command, args, preexec_fn, dimensions)
+  File "/home/pt/SWE-bench/SWE-agent/.venv/lib/python3.12/site-packages/pexpect/pty_spawn.py", line 303, in _spawn
+    self.ptyproc = self._spawnpty(self.args, env=self.env,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/pt/SWE-bench/SWE-agent/.venv/lib/python3.12/site-packages/pexpect/pty_spawn.py", line 315, in _spawnpty
+    return ptyprocess.PtyProcess.spawn(args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/pt/SWE-bench/SWE-agent/.venv/lib/python3.12/site-packages/ptyprocess/ptyprocess.py", line 230, in spawn
+    pid, fd = pty.fork()
+              ^^^^^^^^^^
+  File "/usr/lib/python3.12/pty.py", line 107, in fork
+    master_fd, slave_fd = openpty()
+                          ^^^^^^^^^
+  File "/usr/lib/python3.12/pty.py", line 34, in openpty
+    master_fd, slave_name = _open_terminal()
+                            ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/pty.py", line 67, in _open_terminal
+    raise OSError('out of pty devices')
+OSError: out of pty devices
+
+2026-02-19 17:10:01,171 - ERROR - swea-run - ❌ Failed on django__django-16255: out of pty devices

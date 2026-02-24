@@ -1,0 +1,66 @@
+diff --git a/reproduce_issue.py b/reproduce_issue.py
+new file mode 100644
+index 0000000000..d34bddb61e
+--- /dev/null
++++ b/reproduce_issue.py
+@@ -0,0 +1,59 @@
++from sympy import *
++
++print("Test 1: sin/cos with symbols")
++x, y = symbols('x, y', real=True)
++r = sin(x)*sin(y) + cos(x)*cos(y)
++print("r =", r)
++print("r.simplify() =", r.simplify())
++print()
++
++print("Test 2: Rational numbers")
++r = Rational(1, 50) - Rational(1, 25)
++print("r =", r)
++print("r.simplify() =", r.simplify())
++print()
++
++print("Test 3: Matrix dot product with rational sin/cos")
++t1 = Matrix([sin(Rational(1, 50)), cos(Rational(1, 50)), 0])
++t2 = Matrix([sin(Rational(1, 25)), cos(Rational(1, 25)), 0])
++r = t1.dot(t2)
++print("r =", r)
++print("r.simplify() =", r.simplify())
++print()
++
++print("Test 4: Direct sin/cos with rational arguments")
++r = sin(Rational(1, 50))*sin(Rational(1, 25)) + cos(Rational(1, 50))*cos(Rational(1, 25))
++print("r =", r)
++print("r.simplify() =", r.simplify())
++print()
++
++print("Test 5: acos of the expression")
++print("acos(r) =", acos(r))
++print("acos(r).simplify() =", acos(r).simplify())
++print()
++
++# Let's also test some other trigonometric identities
++print("Test 6: cos(a - b) identity")
++a = Rational(1, 50)
++b = Rational(1, 25)
++r = cos(a - b)
++print("cos(a - b) =", r)
++print("cos(a - b).simplify() =", r.simplify())
++print()
++
++print("Test 7: sin(a - b) identity")
++r = sin(a - b)
++print("sin(a - b) =", r)
++print("sin(a - b).simplify() =", r.simplify())
++print()
++
++print("Test 8: cos(a + b) identity")
++r = cos(a + b)
++print("cos(a + b) =", r)
++print("cos(a + b).simplify() =", r.simplify())
++print()
++
++print("Test 9: sin(a + b) identity")
++r = sin(a + b)
++print("sin(a + b) =", r)
++print("sin(a + b).simplify() =", r.simplify())
+\ No newline at end of file

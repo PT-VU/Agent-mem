@@ -1,0 +1,54 @@
+diff --git a/reproduce_bug.py b/reproduce_bug.py
+new file mode 100644
+index 0000000000..8961759ca9
+--- /dev/null
++++ b/reproduce_bug.py
+@@ -0,0 +1,47 @@
++from sympy import *
++from sympy.physics.quantum import *
++
++U = Operator('U')
++V = Operator('V')
++P = TensorProduct(2*U - V, U + V)
++print("Original TensorProduct:")
++print(P) 
++# (2*U - V)x(U + V)
++
++print("\nExpanded TensorProduct:")
++result = P.expand(tensorproduct=True)
++print(result) 
++# Expected: 2*UxU + 2*UxV - VxU - VxV
++# Actual bug: 2*Ux(U + V) - Vx(U + V) #expansion has missed 2nd tensor factor and is incomplete
++
++print("\nExpected expansion should be:")
++print("2*UxU + 2*UxV - VxU - VxV")
++
++# Let's also test the workaround mentioned in the PR
++print("\nWorkaround - applying expand multiple times:")
++result1 = P.expand(tensorproduct=True)
++print("First expand:", result1)
++result2 = result1.expand(tensorproduct=True)
++print("Second expand:", result2)
++print("Are they equal?", result1 == result2)
++
++# Test another example
++print("\n\nAnother example: TensorProduct(U + V, 2*U - V)")
++P2 = TensorProduct(U + V, 2*U - V)
++print("Original:", P2)
++print("Expanded:", P2.expand(tensorproduct=True))
++print("Expected: Ux(2*U) + Ux(-V) + Vx(2*U) + Vx(-V) = 2*UxU - UxV + 2*VxU - VxV")
++
++# Test with scalar factors in both positions
++print("\n\nTest with scalar factors in both positions:")
++P3 = TensorProduct(2*U, 3*V)
++print("Original:", P3)
++print("Expanded:", P3.expand(tensorproduct=True))
++print("Expected: 6*UxV")
++
++# Test with zero
++print("\n\nTest with zero factor:")
++P4 = TensorProduct(U - U, U + V)
++print("Original:", P4)
++print("Expanded:", P4.expand(tensorproduct=True))
++print("Expected: 0")
+\ No newline at end of file

@@ -1,0 +1,92 @@
+diff --git a/django/db/models/fields/related_lookups.py b/django/db/models/fields/related_lookups.py
+index c20e220141..dd04b515c9 100644
+--- a/django/db/models/fields/related_lookups.py
++++ b/django/db/models/fields/related_lookups.py
+@@ -86,16 +86,28 @@ class RelatedIn(In):
+         else:
+             if (not getattr(self.rhs, 'has_select_fields', True) and
+                     not getattr(self.lhs.field.target_field, 'primary_key', False)):
+-                self.rhs.clear_select_clause()
+-                if (getattr(self.lhs.output_field, 'primary_key', False) and
+-                        self.lhs.output_field.model == self.rhs.model):
+-                    # A case like Restaurant.objects.filter(place__in=restaurant_qs),
+-                    # where place is a OneToOneField and the primary key of
+-                    # Restaurant.
+-                    target_field = self.lhs.field.name
++                # Check if the query has any selected annotations (aggregates)
++                if self.rhs.annotation_select:
++                    # Query has aggregates in select, preserve them
++                    # Clear select but keep annotations
++                    self.rhs.select = ()
++                    self.rhs.default_cols = False
++                    self.rhs.select_related = False
++                    self.rhs.set_extra_mask(())
++                    # Don't clear annotation mask - keep aggregates
+                 else:
+-                    target_field = self.lhs.field.target_field.name
+-                self.rhs.add_fields([target_field], True)
++                    # No aggregates in select, clear everything and select target field
++                    self.rhs.clear_select_clause()
++                    self.rhs.group_by = None
++                    if (getattr(self.lhs.output_field, 'primary_key', False) and
++                            self.lhs.output_field.model == self.rhs.model):
++                        # A case like Restaurant.objects.filter(place__in=restaurant_qs),
++                        # where place is a OneToOneField and the primary key of
++                        # Restaurant.
++                        target_field = self.lhs.field.name
++                    else:
++                        target_field = self.lhs.field.target_field.name
++                    self.rhs.add_fields([target_field], True)
+             return super().as_sql(compiler, connection)
+ 
+ 
+diff --git a/django/db/models/lookups.py b/django/db/models/lookups.py
+index 105dc93251..b0c4c7676e 100644
+--- a/django/db/models/lookups.py
++++ b/django/db/models/lookups.py
+@@ -263,8 +263,20 @@ class Exact(FieldGetDbPrepValueMixin, BuiltinLookup):
+         if isinstance(self.rhs, Query):
+             if self.rhs.has_limit_one():
+                 # The subquery must select only the pk.
+-                self.rhs.clear_select_clause()
+-                self.rhs.add_fields(['pk'])
++                # Check if the query has any selected annotations (aggregates)
++                if self.rhs.annotation_select:
++                    # Query has aggregates in select, preserve them
++                    # Clear select but keep annotations
++                    self.rhs.select = ()
++                    self.rhs.default_cols = False
++                    self.rhs.select_related = False
++                    self.rhs.set_extra_mask(())
++                    # Don't clear annotation mask - keep aggregates
++                else:
++                    # No aggregates in select, clear everything and select pk
++                    self.rhs.clear_select_clause()
++                    self.rhs.group_by = None
++                    self.rhs.add_fields(['pk'])
+             else:
+                 raise ValueError(
+                     'The QuerySet value for an exact lookup must be limited to '
+@@ -354,8 +366,20 @@ class In(FieldGetDbPrepValueIterableMixin, BuiltinLookup):
+             return (placeholder, sqls_params)
+         else:
+             if not getattr(self.rhs, 'has_select_fields', True):
+-                self.rhs.clear_select_clause()
+-                self.rhs.add_fields(['pk'])
++                # Check if the query has any selected annotations (aggregates)
++                if self.rhs.annotation_select:
++                    # Query has aggregates in select, preserve them
++                    # Clear select but keep annotations
++                    self.rhs.select = ()
++                    self.rhs.default_cols = False
++                    self.rhs.select_related = False
++                    self.rhs.set_extra_mask(())
++                    # Don't clear annotation mask - keep aggregates
++                else:
++                    # No aggregates in select, clear everything and select pk
++                    self.rhs.clear_select_clause()
++                    self.rhs.group_by = None
++                    self.rhs.add_fields(['pk'])
+             return super().process_rhs(compiler, connection)
+ 
+     def get_rhs_op(self, connection, rhs):

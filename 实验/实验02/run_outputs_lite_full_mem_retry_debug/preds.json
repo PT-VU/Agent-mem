@@ -1,0 +1,127 @@
+{
+    "django__django-11583": {
+        "model_name_or_path": "run_outputs_lite_full_mem_retry_debug",
+        "instance_id": "django__django-11583",
+        "model_patch": ""
+    },
+    "django__django-11620": {
+        "model_name_or_path": "run_outputs_lite_full_mem_retry_debug",
+        "instance_id": "django__django-11620",
+        "model_patch": ""
+    },
+    "django__django-11630": {
+        "model_name_or_path": "run_outputs_lite_full_mem_retry_debug",
+        "instance_id": "django__django-11630",
+        "model_patch": ""
+    },
+    "django__django-11742": {
+        "model_name_or_path": "run_outputs_lite_full_mem_retry_debug",
+        "instance_id": "django__django-11742",
+        "model_patch": ""
+    },
+    "django__django-11797": {
+        "model_name_or_path": "run_outputs_lite_full_mem_retry_debug",
+        "instance_id": "django__django-11797",
+        "model_patch": "diff --git a/reproduce_issue.py b/reproduce_issue.py\nnew file mode 100644\nindex 0000000000..59a0bcae3d\n--- /dev/null\n+++ b/reproduce_issue.py\n@@ -0,0 +1,51 @@\n+#!/usr/bin/env python\n+import os\n+import sys\n+import django\n+from django.conf import settings\n+from django.db.models import Max\n+\n+# Configure Django settings\n+if not settings.configured:\n+    settings.configure(\n+        DEBUG=True,\n+        DATABASES={\n+            'default': {\n+                'ENGINE': 'django.db.backends.sqlite3',\n+                'NAME': ':memory:',\n+            }\n+        },\n+        INSTALLED_APPS=[\n+            'django.contrib.auth',\n+            'django.contrib.contenttypes',\n+        ],\n+        USE_TZ=True,\n+    )\n+\n+django.setup()\n+\n+from django.contrib.auth import models\n+\n+# Create the issue as described in the PR\n+print(\"=== Reproducing the issue ===\")\n+print()\n+\n+# Create query a\n+a = models.User.objects.filter(email__isnull=True).values('email').annotate(m=models.Max('id')).values('m')\n+print(\"Query a.query:\")\n+print(a.query)\n+print()\n+\n+# Check sliced query\n+print(\"Query a[:1].query:\")\n+print(a[:1].query)\n+print()\n+\n+# Create query b using a[:1] in filter\n+b = models.User.objects.filter(id=a[:1])\n+print(\"Query b.query:\")\n+print(b.query)\n+print()\n+\n+# The issue is that the GROUP BY in the subquery should be GROUP BY U0.\"email\" \n+# but it shows GROUP BY U0.\"id\"\n\\ No newline at end of file\n"
+    },
+    "django__django-11815": {
+        "model_name_or_path": "run_outputs_lite_full_mem_retry_debug",
+        "instance_id": "django__django-11815",
+        "model_patch": "diff --git a/reproduce_issue.py b/reproduce_issue.py\nnew file mode 100644\nindex 0000000000..c813dffafc\n--- /dev/null\n+++ b/reproduce_issue.py\n@@ -0,0 +1,133 @@\n+#!/usr/bin/env python\n+\"\"\"Script to reproduce the Enum migration issue.\"\"\"\n+\n+import os\n+import sys\n+import tempfile\n+import shutil\n+from pathlib import Path\n+\n+# Add Django to path\n+sys.path.insert(0, '/testbed')\n+\n+# Create a temporary directory for our test project\n+temp_dir = tempfile.mkdtemp()\n+print(f\"Created temp directory: {temp_dir}\")\n+\n+# Create a minimal Django project structure\n+project_dir = Path(temp_dir) / \"test_project\"\n+project_dir.mkdir()\n+\n+# Create manage.py\n+manage_py = project_dir / \"manage.py\"\n+manage_py.write_text(\"\"\"#!/usr/bin/env python\n+import os\n+import sys\n+\n+if __name__ == \"__main__\":\n+    os.environ.setdefault(\"DJANGO_SETTINGS_MODULE\", \"test_project.settings\")\n+    try:\n+        from django.core.management import execute_from_command_line\n+    except ImportError as exc:\n+        raise ImportError(\n+            \"Couldn't import Django. Are you sure it's installed and \"\n+            \"available on your PYTHONPATH environment variable?\"\n+        ) from exc\n+    execute_from_command_line(sys.argv)\n+\"\"\")\n+\n+# Create settings.py\n+settings_dir = project_dir / \"test_project\"\n+settings_dir.mkdir()\n+settings_file = settings_dir / \"settings.py\"\n+settings_file.write_text(\"\"\"\n+import os\n+\n+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))\n+SECRET_KEY = 'test-secret-key'\n+DEBUG = True\n+ALLOWED_HOSTS = []\n+INSTALLED_APPS = [\n+    'django.contrib.contenttypes',\n+    'django.contrib.auth',\n+    'test_app',\n+]\n+DATABASES = {\n+    'default': {\n+        'ENGINE': 'django.db.backends.sqlite3',\n+        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),\n+    }\n+}\n+LANGUAGE_CODE = 'en-us'\n+TIME_ZONE = 'UTC'\n+USE_I18N = True\n+USE_TZ = True\n+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'\n+\"\"\")\n+\n+# Create test app\n+app_dir = project_dir / \"test_app\"\n+app_dir.mkdir()\n+(app_dir / \"__init__.py\").write_text(\"\")\n+\n+# Create apps.py\n+apps_file = app_dir / \"apps.py\"\n+apps_file.write_text(\"\"\"\n+from django.apps import AppConfig\n+\n+class TestAppConfig(AppConfig):\n+    default_auto_field = 'django.db.models.BigAutoField'\n+    name = 'test_app'\n+\"\"\")\n+\n+# Create models.py with the example from the PR\n+models_file = app_dir / \"models.py\"\n+models_file.write_text(\"\"\"\n+from enum import Enum\n+from django.utils.translation import gettext_lazy as _\n+from django.db import models\n+\n+class Status(Enum):\n+    GOOD = _('Good')  # 'Good' will be translated\n+    BAD = _('Bad')    # 'Bad' will be translated\n+    \n+    def __str__(self):\n+        return self.name\n+\n+class Item(models.Model):\n+    status = models.CharField(default=Status.GOOD, max_length=128)\n+    \n+    class Meta:\n+        app_label = 'test_app'\n+\"\"\")\n+\n+# Change to the project directory\n+os.chdir(project_dir)\n+\n+# Now let's try to create migrations\n+print(\"\\n=== Creating migrations ===\")\n+os.system(f\"python manage.py makemigrations test_app\")\n+\n+# Let's also look at what gets generated\n+migrations_dir = app_dir / \"migrations\"\n+if migrations_dir.exists():\n+    migration_files = list(migrations_dir.glob(\"*.py\"))\n+    if migration_files:\n+        latest_migration = sorted(migration_files)[-1]\n+        print(f\"\\n=== Generated migration file: {latest_migration.name} ===\")\n+        with open(latest_migration, 'r') as f:\n+            content = f.read()\n+            print(content)\n+            \n+            # Check if it contains Status('Good') or Status['GOOD']\n+            if \"Status('Good')\" in content:\n+                print(\"\\n\u274c ISSUE CONFIRMED: Migration uses Status('Good') instead of Status['GOOD']\")\n+            elif \"Status['GOOD']\" in content:\n+                print(\"\\n\u2705 CORRECT: Migration uses Status['GOOD']\")\n+            else:\n+                print(\"\\n\u26a0\ufe0f  Could not find Status reference in migration\")\n+\n+# Clean up\n+os.chdir(\"/\")\n+shutil.rmtree(temp_dir)\n+print(f\"\\nCleaned up temp directory: {temp_dir}\")\n\\ No newline at end of file\n"
+    },
+    "django__django-11848": {
+        "model_name_or_path": "run_outputs_lite_full_mem_retry_debug",
+        "instance_id": "django__django-11848",
+        "model_patch": ""
+    },
+    "django__django-11905": {
+        "model_name_or_path": "run_outputs_lite_full_mem_retry_debug",
+        "instance_id": "django__django-11905",
+        "model_patch": ""
+    },
+    "django__django-11910": {
+        "model_name_or_path": "run_outputs_lite_full_mem_retry_debug",
+        "instance_id": "django__django-11910",
+        "model_patch": ""
+    },
+    "django__django-11964": {
+        "model_name_or_path": "run_outputs_lite_full_mem_retry_debug",
+        "instance_id": "django__django-11964",
+        "model_patch": ""
+    },
+    "django__django-11999": {
+        "model_name_or_path": "run_outputs_lite_full_mem_retry_debug",
+        "instance_id": "django__django-11999",
+        "model_patch": ""
+    },
+    "django__django-12113": {
+        "model_name_or_path": "run_outputs_lite_full_mem_retry_debug",
+        "instance_id": "django__django-12113",
+        "model_patch": ""
+    },
+    "django__django-12125": {
+        "model_name_or_path": "run_outputs_lite_full_mem_retry_debug",
+        "instance_id": "django__django-12125",
+        "model_patch": ""
+    },
+    "django__django-12184": {
+        "model_name_or_path": "run_outputs_lite_full_mem_retry_debug",
+        "instance_id": "django__django-12184",
+        "model_patch": ""
+    },
+    "django__django-12284": {
+        "model_name_or_path": "run_outputs_lite_full_mem_retry_debug",
+        "instance_id": "django__django-12284",
+        "model_patch": ""
+    },
+    "django__django-12286": {
+        "model_name_or_path": "run_outputs_lite_full_mem_retry_debug",
+        "instance_id": "django__django-12286",
+        "model_patch": ""
+    },
+    "django__django-12308": {
+        "model_name_or_path": "run_outputs_lite_full_mem_retry_debug",
+        "instance_id": "django__django-12308",
+        "model_patch": ""
+    },
+    "django__django-12453": {
+        "model_name_or_path": "run_outputs_lite_full_mem_retry_debug",
+        "instance_id": "django__django-12453",
+        "model_patch": ""
+    },
+    "django__django-12470": {
+        "model_name_or_path": "run_outputs_lite_full_mem_retry_debug",
+        "instance_id": "django__django-12470",
+        "model_patch": "diff --git a/reproduce_issue.py b/reproduce_issue.py\nnew file mode 100644\nindex 0000000000..8d55fdbae9\n--- /dev/null\n+++ b/reproduce_issue.py\n@@ -0,0 +1,52 @@\n+import os\n+import sys\n+import django\n+from django.conf import settings\n+\n+# Configure Django settings\n+settings.configure(\n+    DEBUG=True,\n+    DATABASES={\n+        'default': {\n+            'ENGINE': 'django.db.backends.sqlite3',\n+            'NAME': ':memory:',\n+        }\n+    },\n+    INSTALLED_APPS=[\n+        'django.contrib.contenttypes',\n+        'django.contrib.auth',\n+    ],\n+    USE_TZ=True,\n+)\n+\n+django.setup()\n+\n+# Now define the models\n+from django.db import models\n+\n+class Parent(models.Model):\n+    class Meta:\n+        app_label = 'testapp'\n+        ordering = [\"-pk\"]\n+\n+class Child(Parent):\n+    class Meta:\n+        app_label = 'testapp'\n+\n+# Create the tables\n+from django.db import connection\n+from django.apps import apps\n+\n+# Register the models\n+from django.apps.registry import Apps\n+apps = Apps(['testapp'])\n+\n+# Test the query\n+print(\"Parent query:\")\n+print(Parent.objects.all().query)\n+print(\"\\nChild query:\")\n+print(Child.objects.all().query)\n+\n+# Check the ordering\n+print(\"\\nParent ordering:\", Parent._meta.ordering)\n+print(\"Child ordering:\", Child._meta.ordering)\n\\ No newline at end of file\n"
+    },
+    "django__django-12497": {
+        "model_name_or_path": "run_outputs_lite_full_mem_retry_debug",
+        "instance_id": "django__django-12497",
+        "model_patch": ""
+    },
+    "django__django-12589": {
+        "model_name_or_path": "run_outputs_lite_full_mem_retry_debug",
+        "instance_id": "django__django-12589",
+        "model_patch": ""
+    },
+    "django__django-12700": {
+        "model_name_or_path": "run_outputs_lite_full_mem_retry_debug",
+        "instance_id": "django__django-12700",
+        "model_patch": ""
+    },
+    "django__django-12708": {
+        "model_name_or_path": "run_outputs_lite_full_mem_retry_debug",
+        "instance_id": "django__django-12708",
+        "model_patch": ""
+    },
+    "django__django-12747": {
+        "model_name_or_path": "run_outputs_lite_full_mem_retry_debug",
+        "instance_id": "django__django-12747",
+        "model_patch": ""
+    },
+    "django__django-12856": {
+        "model_name_or_path": "run_outputs_lite_full_mem_retry_debug",
+        "instance_id": "django__django-12856",
+        "model_patch": ""
+    }
+}

@@ -1,0 +1,104 @@
+diff --git a/test_format_parsing.py b/test_format_parsing.py
+new file mode 100644
+index 000000000..702e7c043
+--- /dev/null
++++ b/test_format_parsing.py
+@@ -0,0 +1,50 @@
++#!/usr/bin/env python3
++"""Test how Python's str.format parses format strings."""
++
++import string
++
++# Test 1: Simple format string
++formatter = string.Formatter()
++template = '{category}'
++print(f"Template: {template}")
++for literal_text, field_name, format_spec, conversion in formatter.parse(template):
++    print(f"  Literal: {repr(literal_text)}, Field: {repr(field_name)}, Format: {repr(format_spec)}, Conversion: {repr(conversion)}")
++
++print("\nTest 2: Template with escaped braces")
++template = '{{ "Category": "{category}" }}'
++print(f"Template: {template}")
++for literal_text, field_name, format_spec, conversion in formatter.parse(template):
++    print(f"  Literal: {repr(literal_text)}, Field: {repr(field_name)}, Format: {repr(format_spec)}, Conversion: {repr(conversion)}")
++
++print("\nTest 3: Actually formatting with str.format")
++try:
++    result = template.format(category='test')
++    print(f"Formatted result: {result}")
++except Exception as e:
++    print(f"Error: {e}")
++
++print("\nTest 4: What the template should be")
++template = '{ "Category": "{category}" }'
++print(f"Template: {template}")
++for literal_text, field_name, format_spec, conversion in formatter.parse(template):
++    print(f"  Literal: {repr(literal_text)}, Field: {repr(field_name)}, Format: {repr(format_spec)}, Conversion: {repr(conversion)}")
++
++print("\nTest 5: Formatting the correct template")
++try:
++    result = template.format(category='test')
++    print(f"Formatted result: {result}")
++except Exception as e:
++    print(f"Error: {e}")
++
++print("\nTest 6: Testing with double braces")
++template = '{{{{ "Category": "{category}" }}}}'
++print(f"Template: {template}")
++for literal_text, field_name, format_spec, conversion in formatter.parse(template):
++    print(f"  Literal: {repr(literal_text)}, Field: {repr(field_name)}, Format: {repr(format_spec)}, Conversion: {repr(conversion)}")
++
++print("\nTest 7: Formatting with double braces")
++try:
++    result = template.format(category='test')
++    print(f"Formatted result: {result}")
++except Exception as e:
++    print(f"Error: {e}")
+\ No newline at end of file
+diff --git a/test_reproduce.py b/test_reproduce.py
+new file mode 100644
+index 000000000..fdd2ed4c6
+--- /dev/null
++++ b/test_reproduce.py
+@@ -0,0 +1,40 @@
++#!/usr/bin/env python3
++"""Script to reproduce the message template issue."""
++
++import re
++import warnings
++
++# Simulate the issue
++MESSAGE_FIELDS = {'category', 'msg_id', 'symbol', 'msg', 'path', 'line', 'column', 'end_line', 'end_column', 'module', 'obj', 'C'}
++
++def check_template(template):
++    """Check template arguments like in text.py."""
++    arguments = re.findall(r"\{(.+?)(:.*)?\}", template)
++    print(f"Template: {template}")
++    print(f"Arguments found: {arguments}")
++    
++    for argument in arguments:
++        if argument[0] not in MESSAGE_FIELDS:
++            warnings.warn(
++                f"Don't recognize the argument '{argument[0]}' in the --msg-template. "
++                "Are you sure it is supported on the current version of pylint?"
++            )
++            template = re.sub(r"\{" + argument[0] + r"(:.*?)?\}", "", template)
++    print(f"Fixed template: {template}")
++    print()
++
++# Test cases
++print("Test 1: Simple template")
++check_template("{category}")
++
++print("\nTest 2: Template with custom braces (the problematic case)")
++check_template('{{ "Category": "{category}" }}')
++
++print("\nTest 3: Template with multiple fields")
++check_template('{{ "Category": "{category}", "Message": "{msg}" }}')
++
++print("\nTest 4: Template with format specifier")
++check_template('{category:10}')
++
++print("\nTest 5: Nested braces test")
++check_template('{{{category}}}')
+\ No newline at end of file

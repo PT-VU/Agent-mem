@@ -1,0 +1,60 @@
+diff --git a/test_inverse_trig.py b/test_inverse_trig.py
+new file mode 100644
+index 0000000000..2a986d294e
+--- /dev/null
++++ b/test_inverse_trig.py
+@@ -0,0 +1,53 @@
++#!/usr/bin/env python
++"""Test script to reproduce the inverse trig LaTeX printing issue."""
++
++from sympy import latex, asin, acos, atan, acot, acsc, asec
++from sympy import symbols
++
++x = symbols('x')
++
++print("Testing inverse trig functions with inv_trig_style='full':")
++print()
++
++# Test asin - should work
++print(f"latex(asin(x), inv_trig_style='full'): {latex(asin(x), inv_trig_style='full')}")
++print(f"Expected: '\\\\arcsin{{\\\\left (x \\\\right )}}'")
++print()
++
++# Test acos - should work
++print(f"latex(acos(x), inv_trig_style='full'): {latex(acos(x), inv_trig_style='full')}")
++print(f"Expected: '\\\\arccos{{\\\\left (x \\\\right )}}'")
++print()
++
++# Test atan - should work
++print(f"latex(atan(x), inv_trig_style='full'): {latex(atan(x), inv_trig_style='full')}")
++print(f"Expected: '\\\\arctan{{\\\\left (x \\\\right )}}'")
++print()
++
++# Test acot - should work
++print(f"latex(acot(x), inv_trig_style='full'): {latex(acot(x), inv_trig_style='full')}")
++print(f"Expected: '\\\\operatorname{arccot}{{\\\\left (x \\\\right )}}'")
++print()
++
++# Test acsc - currently broken
++print(f"latex(acsc(x), inv_trig_style='full'): {latex(acsc(x), inv_trig_style='full')}")
++print(f"Expected: '\\\\operatorname{arccsc}{{\\\\left (x \\\\right )}}'")
++print()
++
++# Test asec - currently broken
++print(f"latex(asec(x), inv_trig_style='full'): {latex(asec(x), inv_trig_style='full')}")
++print(f"Expected: '\\\\operatorname{arcsec}{{\\\\left (x \\\\right )}}'")
++print()
++
++# Also test abbreviated style to make sure it still works
++print("\nTesting with inv_trig_style='abbreviated' (default):")
++print(f"latex(asin(x)): {latex(asin(x))}")
++print(f"latex(acsc(x)): {latex(acsc(x))}")
++print(f"latex(asec(x)): {latex(asec(x))}")
++print()
++
++# Test power style
++print("\nTesting with inv_trig_style='power':")
++print(f"latex(asin(x), inv_trig_style='power'): {latex(asin(x), inv_trig_style='power')}")
++print(f"latex(acsc(x), inv_trig_style='power'): {latex(acsc(x), inv_trig_style='power')}")
++print(f"latex(asec(x), inv_trig_style='power'): {latex(asec(x), inv_trig_style='power')}")
+\ No newline at end of file

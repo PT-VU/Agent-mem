@@ -1,0 +1,38 @@
+diff --git a/reproduce_issue.py b/reproduce_issue.py
+new file mode 100644
+index 0000000000..4cd702f06a
+--- /dev/null
++++ b/reproduce_issue.py
+@@ -0,0 +1,31 @@
++import sympy as sp
++
++# Test the issue described in the PR
++x = sp.symbols('x')
++expr = sp.cos(x) + sp.sqrt(sp.sin(x)**2)
++print("Original expression:", expr)
++print("trigsimp result:", sp.trigsimp(expr))
++print("Expected: cos(x) + sqrt(sin(x)**2) or cos(x) + |sin(x)|")
++print()
++
++# Test with real assumption
++x_real = sp.symbols('x', real=True)
++expr_real = sp.cos(x_real) + sp.sqrt(sp.sin(x_real)**2)
++print("With real x:")
++print("Original expression:", expr_real)
++print("trigsimp result:", sp.trigsimp(expr_real))
++print()
++
++# Test with complex assumption
++x_complex = sp.symbols('x', complex=True)
++expr_complex = sp.cos(x_complex) + sp.sqrt(sp.sin(x_complex)**2)
++print("With complex x:")
++print("Original expression:", expr_complex)
++print("trigsimp result:", sp.trigsimp(expr_complex))
++print()
++
++# Test simplify as well
++print("Using simplify():")
++print("With complex x:", sp.simplify(expr_complex))
++print("With real x:", sp.simplify(expr_real))
++print("With no assumption:", sp.simplify(expr))
+\ No newline at end of file

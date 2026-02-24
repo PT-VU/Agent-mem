@@ -1,0 +1,86 @@
+diff --git a/reproduce_issue.py b/reproduce_issue.py
+new file mode 100644
+index 000000000..8ef964c8e
+--- /dev/null
++++ b/reproduce_issue.py
+@@ -0,0 +1,79 @@
++#!/usr/bin/env python3
++"""Script to reproduce the issue described in the PR."""
++
++import os
++import shutil
++import subprocess
++import tempfile
++
++def create_test_structure():
++    """Create the test directory structure."""
++    # Create a temporary directory
++    test_dir = tempfile.mkdtemp(prefix="pylint_test_")
++    print(f"Created test directory: {test_dir}")
++    
++    # Create directory 'a'
++    a_dir = os.path.join(test_dir, "a")
++    os.makedirs(a_dir, exist_ok=True)
++    
++    # Create empty files a/a.py and a/b.py
++    with open(os.path.join(a_dir, "a.py"), "w") as f:
++        f.write("")
++    with open(os.path.join(a_dir, "b.py"), "w") as f:
++        f.write("")
++    
++    return test_dir, a_dir
++
++def test_pylint_on_directory():
++    """Test pylint on directory 'a'."""
++    test_dir, a_dir = create_test_structure()
++    
++    try:
++        # Change to test directory
++        original_cwd = os.getcwd()
++        os.chdir(test_dir)
++        
++        print("\n=== Test 1: Running 'pylint a' with a/a.py present ===")
++        result = subprocess.run(["pylint", "a"], capture_output=True, text=True)
++        print(f"Return code: {result.returncode}")
++        print(f"Stdout:\n{result.stdout}")
++        print(f"Stderr:\n{result.stderr}")
++        
++        # Test 2: Rename a.py to c.py and try again
++        print("\n=== Test 2: Renaming a.py to c.py and running 'pylint a' ===")
++        os.rename(os.path.join(a_dir, "a.py"), os.path.join(a_dir, "c.py"))
++        result = subprocess.run(["pylint", "a"], capture_output=True, text=True)
++        print(f"Return code: {result.returncode}")
++        print(f"Stdout:\n{result.stdout}")
++        print(f"Stderr:\n{result.stderr}")
++        
++        # Test 3: Create r.py with import and test both
++        print("\n=== Test 3: Creating r.py with 'from a import b' and running 'pylint -E r a' ===")
++        with open(os.path.join(test_dir, "r.py"), "w") as f:
++            f.write("from a import b\n")
++        
++        # Rename back to a.py for this test
++        os.rename(os.path.join(a_dir, "c.py"), os.path.join(a_dir, "a.py"))
++        
++        result = subprocess.run(["pylint", "-E", "r", "a"], capture_output=True, text=True)
++        print(f"Return code: {result.returncode}")
++        print(f"Stdout:\n{result.stdout}")
++        print(f"Stderr:\n{result.stderr}")
++        
++        # Test 4: Rename a.py to c.py again and test
++        print("\n=== Test 4: Renaming a.py to c.py and running 'pylint -E r a' ===")
++        os.rename(os.path.join(a_dir, "a.py"), os.path.join(a_dir, "c.py"))
++        result = subprocess.run(["pylint", "-E", "r", "a"], capture_output=True, text=True)
++        print(f"Return code: {result.returncode}")
++        print(f"Stdout:\n{result.stdout}")
++        print(f"Stderr:\n{result.stderr}")
++        
++        os.chdir(original_cwd)
++        
++    finally:
++        # Clean up
++        shutil.rmtree(test_dir)
++        print(f"\nCleaned up test directory: {test_dir}")
++
++if __name__ == "__main__":
++    test_pylint_on_directory()
+\ No newline at end of file

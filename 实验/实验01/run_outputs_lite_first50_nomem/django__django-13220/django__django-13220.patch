@@ -1,0 +1,91 @@
+diff --git a/django/core/exceptions.py b/django/core/exceptions.py
+index dc084b8692..27b0379939 100644
+--- a/django/core/exceptions.py
++++ b/django/core/exceptions.py
+@@ -182,6 +182,86 @@ class ValidationError(Exception):
+     def __repr__(self):
+         return 'ValidationError(%s)' % self
+ 
++    def __eq__(self, other):
++        if not isinstance(other, ValidationError):
++            return NotImplemented
++        
++        # Check if both have error_dict
++        self_has_error_dict = hasattr(self, 'error_dict')
++        other_has_error_dict = hasattr(other, 'error_dict')
++        
++        if self_has_error_dict and other_has_error_dict:
++            # Both have error_dict
++            if set(self.error_dict.keys()) != set(other.error_dict.keys()):
++                return False
++            
++            # Compare values for each field
++            for field in self.error_dict:
++                # Get lists of ValidationError instances for this field
++                self_errors = self.error_dict[field]
++                other_errors = other.error_dict[field]
++                
++                # Compare lists of ValidationError instances (order-independent)
++                if len(self_errors) != len(other_errors):
++                    return False
++                
++                # For order-independent comparison, we need to check if each error
++                # in self_errors has a matching error in other_errors
++                # We'll create a list of matched indices to handle duplicates
++                matched = [False] * len(other_errors)
++                for self_error in self_errors:
++                    found = False
++                    for i, other_error in enumerate(other_errors):
++                        if not matched[i] and self_error == other_error:
++                            matched[i] = True
++                            found = True
++                            break
++                    if not found:
++                        return False
++                # All errors matched for this field, continue to next field
++            
++            # All fields matched
++            return True
++        elif self_has_error_dict != other_has_error_dict:
++            # One has error_dict, the other doesn't
++            return False
++        
++        # Check if both have message attribute (simple errors)
++        self_has_message = hasattr(self, 'message')
++        other_has_message = hasattr(other, 'message')
++        
++        if self_has_message and other_has_message:
++            # Both are simple errors
++            if self.message != other.message:
++                return False
++            if self.code != other.code:
++                return False
++            if self.params != other.params:
++                return False
++            return True
++        elif self_has_message != other_has_message:
++            # One is simple error, the other is list error
++            return False
++        
++        # Both must be list errors (have error_list but not message or error_dict)
++        # Compare lists of ValidationError instances (order-independent)
++        if len(self.error_list) != len(other.error_list):
++            return False
++        
++        matched = [False] * len(other.error_list)
++        for self_error in self.error_list:
++            found = False
++            for i, other_error in enumerate(other.error_list):
++                if not matched[i] and self_error == other_error:
++                    matched[i] = True
++                    found = True
++                    break
++            if not found:
++                return False
++        
++        # All errors matched
++        return True
++
+ 
+ class EmptyResultSet(Exception):
+     """A database query predicate is impossible."""

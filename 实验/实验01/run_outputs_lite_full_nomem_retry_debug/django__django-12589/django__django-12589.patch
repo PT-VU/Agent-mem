@@ -1,0 +1,106 @@
+diff --git a/reproduce_issue.py b/reproduce_issue.py
+new file mode 100644
+index 0000000000..56e11b527f
+--- /dev/null
++++ b/reproduce_issue.py
+@@ -0,0 +1,99 @@
++import os
++import sys
++import django
++from django.conf import settings
++
++# Create a test app module
++import types
++test_app = types.ModuleType('test_app')
++sys.modules['test_app'] = test_app
++
++# Configure Django settings
++settings.configure(
++    DEBUG=True,
++    DATABASES={
++        'default': {
++            'ENGINE': 'django.db.backends.sqlite3',
++            'NAME': ':memory:',
++        }
++    },
++    INSTALLED_APPS=[
++        'django.contrib.contenttypes',
++        'django.contrib.auth',
++    ],
++    USE_TZ=True,
++)
++
++django.setup()
++
++# Now define the models
++from django.db import models
++from django.db.models import OuterRef, Subquery, Count, Q
++
++class A(models.Model):
++    class Meta:
++        app_label = 'test_app'
++
++class B(models.Model):
++    class Meta:
++        app_label = 'test_app'
++
++class AB(models.Model):
++    a = models.ForeignKey(A, on_delete=models.CASCADE, related_name="ab_a")
++    b = models.ForeignKey(B, on_delete=models.CASCADE, related_name="ab_b")
++    status = models.IntegerField()
++    
++    class Meta:
++        app_label = 'test_app'
++
++class C(models.Model):
++    a = models.ForeignKey(
++        A,
++        null=True,
++        blank=True,
++        on_delete=models.SET_NULL,
++        related_name="c",
++    )
++    status = models.IntegerField()
++    
++    class Meta:
++        app_label = 'test_app'
++
++# Create tables
++from django.db import connection
++with connection.schema_editor() as schema_editor:
++    schema_editor.create_model(A)
++    schema_editor.create_model(B)
++    schema_editor.create_model(AB)
++    schema_editor.create_model(C)
++
++# Now run the query from the PR description
++from django.db.models import OuterRef, Subquery, Count, Q
++
++# Create test data
++a1 = A.objects.create()
++b1 = B.objects.create()
++ab1 = AB.objects.create(a=a1, b=b1, status=1)
++c1 = C.objects.create(a=a1, status=1)
++
++# Build the query
++ab_query = AB.objects.filter(a=OuterRef("pk"), b=1)
++filter_conditions = Q(pk=1) | Q(ab_a__b=1)
++query = A.objects.\
++    filter(filter_conditions).\
++    annotate(
++        status=Subquery(ab_query.values("status")),
++        c_count=Count("c"),
++    )
++
++answer = query.values("status").annotate(total_count=Count("status"))
++
++try:
++    print("Query SQL:")
++    print(answer.query)
++    print("\nResults:")
++    print(list(answer))
++except Exception as e:
++    print(f"Error: {e}")
++    import traceback
++    traceback.print_exc()
+\ No newline at end of file

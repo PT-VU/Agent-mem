@@ -1,0 +1,68 @@
+diff --git a/reproduce_issue.py b/reproduce_issue.py
+new file mode 100644
+index 000000000..39ad304ad
+--- /dev/null
++++ b/reproduce_issue.py
+@@ -0,0 +1,61 @@
++#!/usr/bin/env python
++"""Script to reproduce the skipif caching issue."""
++
++import os
++import tempfile
++import subprocess
++import sys
++
++# Create test files
++test_module_1 = """
++import pytest
++
++skip = True
++
++@pytest.mark.skipif("skip")
++def test_should_skip():
++    assert False
++"""
++
++test_module_2 = """
++import pytest
++
++skip = False
++
++@pytest.mark.skipif("skip")
++def test_should_not_skip():
++    assert False
++"""
++
++# Write test files
++with tempfile.TemporaryDirectory() as tmpdir:
++    test1_path = os.path.join(tmpdir, "test_module_1.py")
++    test2_path = os.path.join(tmpdir, "test_module_2.py")
++    
++    with open(test1_path, "w") as f:
++        f.write(test_module_1)
++    
++    with open(test2_path, "w") as f:
++        f.write(test_module_2)
++    
++    # Run pytest
++    print("Running pytest on both test files...")
++    result = subprocess.run(
++        [sys.executable, "-m", "pytest", test1_path, test2_path, "-v"],
++        capture_output=True,
++        text=True
++    )
++    
++    print("STDOUT:")
++    print(result.stdout)
++    print("\nSTDERR:")
++    print(result.stderr)
++    print(f"\nReturn code: {result.returncode}")
++    
++    # Check if both tests are skipped (which would be wrong)
++    if "test_should_skip SKIPPED" in result.stdout and "test_should_not_skip SKIPPED" in result.stdout:
++        print("\n❌ BUG REPRODUCED: Both tests are skipped (test_should_not_skip should NOT be skipped)")
++    elif "test_should_skip SKIPPED" in result.stdout and "test_should_not_skip FAILED" in result.stdout:
++        print("\n✅ CORRECT: test_should_skip is skipped, test_should_not_skip is not skipped")
++    else:
++        print("\n⚠️  Unexpected result")
+\ No newline at end of file

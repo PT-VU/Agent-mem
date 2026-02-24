@@ -1,0 +1,53 @@
+diff --git a/reproduce_issue.py b/reproduce_issue.py
+new file mode 100644
+index 0000000000..e4ddb62bde
+--- /dev/null
++++ b/reproduce_issue.py
+@@ -0,0 +1,46 @@
++#!/usr/bin/env python3
++"""Script to reproduce the milli prefix bug."""
++
++from sympy.physics.units import milli, W, V
++
++print("Testing milli*W == 1 bug")
++print("=" * 50)
++
++# Test case 1: milli * W
++print("Test 1: milli * W")
++result1 = milli * W
++print(f"milli * W = {result1}")
++print(f"milli * W == 1: {result1 == 1}")
++print()
++
++# Test case 2: W * milli
++print("Test 2: W * milli")
++result2 = W * milli
++print(f"W * milli = {result2}")
++print(f"W * milli == 1: {result2 == 1}")
++print()
++
++# Test case 3: milli * V
++print("Test 3: milli * V")
++result3 = milli * V
++print(f"milli * V = {result3}")
++print(f"milli * V == 1: {result3 == 1}")
++print()
++
++# Test case 4: V * milli
++print("Test 4: V * milli")
++result4 = V * milli
++print(f"V * milli = {result4}")
++print(f"V * milli == 1: {result4 == 1}")
++print()
++
++# Let's also check what milli is
++print("What is milli?")
++print(f"milli = {milli}")
++print(f"type(milli) = {type(milli)}")
++print()
++
++# Let's check what W is
++print("What is W?")
++print(f"W = {W}")
++print(f"type(W) = {type(W)}")
+\ No newline at end of file

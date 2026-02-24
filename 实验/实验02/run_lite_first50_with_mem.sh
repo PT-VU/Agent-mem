@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+WS_ROOT="/home/pt/SWE-bench"
+BASE_SCRIPT="$WS_ROOT/PDDL_work_mem/实验/实验02/run_lite_windowed_with_mem.sh"
+
+OUTDIR_DEFAULT="$WS_ROOT/PDDL_work_mem/实验/实验02/run_outputs_lite_first50_with_mem"
+OUTDIR="${OUTDIR:-$OUTDIR_DEFAULT}"
+WINDOW_SIZE="${WINDOW_SIZE:-25}"
+KEEP_BASE_RANGES="${KEEP_BASE_RANGES:-0:25}"
+PER_INSTANCE_CALL_LIMIT="${PER_INSTANCE_CALL_LIMIT:-0}"
+
+exec env \
+  OUTDIR="$OUTDIR" \
+  START_INDEX=0 \
+  STOP_INDEX=50 \
+  AUTO_CONTINUE=1 \
+  WINDOW_SIZE="$WINDOW_SIZE" \
+  KEEP_BASE_RANGES="$KEEP_BASE_RANGES" \
+  PER_INSTANCE_CALL_LIMIT="$PER_INSTANCE_CALL_LIMIT" \
+  "$BASE_SCRIPT"

@@ -1,0 +1,367 @@
+diff --git a/astropy/nddata/nduncertainty.py b/astropy/nddata/nduncertainty.py
+index 05ce66c559..316bfce581 100644
+--- a/astropy/nddata/nduncertainty.py
++++ b/astropy/nddata/nduncertainty.py
+@@ -13,7 +13,9 @@ from astropy.units import Unit, Quantity, UnitConversionError
+ __all__ = ['MissingDataAssociationException',
+            'IncompatibleUncertaintiesException', 'NDUncertainty',
+            'StdDevUncertainty', 'UnknownUncertainty',
+-           'VarianceUncertainty', 'InverseVariance']
++           'VarianceUncertainty', 'InverseVariance',
++           'std_to_var', 'var_to_std', 'var_to_invvar', 'invvar_to_var',
++           'convert_uncertainty']
+ 
+ 
+ class IncompatibleUncertaintiesException(Exception):
+@@ -395,6 +397,81 @@ class NDUncertainty(metaclass=ABCMeta):
+     def _propagate_divide(self, other_uncert, result_data, correlation):
+         return None
+ 
++    def to(self, other_class, copy=True):
++        """
++        Convert the uncertainty to a different uncertainty type.
++        
++        Parameters
++        ----------
++        other_class : class
++            The uncertainty class to convert to. Must be a subclass of
++            `NDUncertainty`.
++        copy : bool, optional
++            If `True` (default), then the uncertainty array is copied.
++            Otherwise, a copy will only be made if necessary.
++            
++        Returns
++        -------
++        result : `NDUncertainty` instance
++            A new uncertainty instance of type `other_class`.
++            
++        Raises
++        ------
++        TypeError
++            If `other_class` is not a subclass of `NDUncertainty`.
++        ValueError
++            If the uncertainty cannot be converted to the requested type.
++            
++        Examples
++        --------
++        >>> from astropy.nddata import StdDevUncertainty, VarianceUncertainty
++        >>> import astropy.units as u
++        >>> std = StdDevUncertainty([1., 2., 3.], unit=u.m)
++        >>> var = std.to(VarianceUncertainty)
++        >>> var
++        VarianceUncertainty([1., 4., 9.])
++        >>> var.unit
++        Unit("m2")
++        """
++        if not issubclass(other_class, NDUncertainty):
++            raise TypeError(f"{other_class} is not a subclass of NDUncertainty")
++        
++        # If already the right type, return self or a copy
++        if isinstance(self, other_class):
++            if copy:
++                return other_class(self.array, unit=self.unit, copy=True)
++            else:
++                return self
++        
++        # Get the conversion function
++        converter = self._get_converter(other_class)
++        if converter is None:
++            raise ValueError(
++                f"Cannot convert {self.__class__.__name__} to {other_class.__name__}"
++            )
++        
++        return converter(self, copy=copy)
++    
++    def _get_converter(self, other_class):
++        """
++        Get a function that converts this uncertainty to another type.
++        
++        This method should be overridden by subclasses that support conversion
++        to other uncertainty types.
++        
++        Parameters
++        ----------
++        other_class : class
++            The uncertainty class to convert to.
++            
++        Returns
++        -------
++        converter : callable or None
++            A function that takes (self, copy=True) and returns an instance
++            of `other_class`, or None if conversion is not supported.
++        """
++        return None
++
+ 
+ class UnknownUncertainty(NDUncertainty):
+     """This class implements any unknown uncertainty type.
+@@ -747,6 +824,19 @@ class StdDevUncertainty(_VariancePropagationMixin, NDUncertainty):
+ 
+     def _data_unit_to_uncertainty_unit(self, value):
+         return value
++    
++    def _get_converter(self, other_class):
++        """Get a function that converts this uncertainty to another type."""
++        if other_class is VarianceUncertainty:
++            return std_to_var
++        elif other_class is InverseVariance:
++            # Convert via variance
++            def std_to_invvar(std_uncert, copy=True):
++                var_uncert = std_to_var(std_uncert, copy=copy)
++                return var_to_invvar(var_uncert, copy=False)
++            return std_to_invvar
++        else:
++            return super()._get_converter(other_class)
+ 
+ 
+ class VarianceUncertainty(_VariancePropagationMixin, NDUncertainty):
+@@ -833,6 +923,15 @@ class VarianceUncertainty(_VariancePropagationMixin, NDUncertainty):
+ 
+     def _data_unit_to_uncertainty_unit(self, value):
+         return value ** 2
++    
++    def _get_converter(self, other_class):
++        """Get a function that converts this uncertainty to another type."""
++        if other_class is StdDevUncertainty:
++            return var_to_std
++        elif other_class is InverseVariance:
++            return var_to_invvar
++        else:
++            return super()._get_converter(other_class)
+ 
+ 
+ def _inverse(x):
+@@ -840,6 +939,216 @@ def _inverse(x):
+     return 1 / x
+ 
+ 
++# Conversion functions between uncertainty types
++def std_to_var(std_uncert, copy=True):
++    """Convert StdDevUncertainty to VarianceUncertainty.
++    
++    Parameters
++    ----------
++    std_uncert : `StdDevUncertainty`
++        The standard deviation uncertainty to convert.
++    copy : bool, optional
++        If `True` (default), then the uncertainty array is copied.
++        Otherwise, a copy will only be made if necessary.
++        
++    Returns
++    -------
++    var_uncert : `VarianceUncertainty`
++        The variance uncertainty.
++        
++    Examples
++    --------
++    >>> from astropy.nddata import StdDevUncertainty, VarianceUncertainty
++    >>> import astropy.units as u
++    >>> std = StdDevUncertainty([1., 2., 3.], unit=u.m)
++    >>> var = std_to_var(std)
++    >>> var
++    VarianceUncertainty([1., 4., 9.])
++    >>> var.unit
++    Unit("m2")
++    """
++    if std_uncert.array is None:
++        array = None
++    else:
++        array = std_uncert.array ** 2
++    
++    if std_uncert.unit is None:
++        unit = None
++    else:
++        unit = std_uncert.unit ** 2
++    
++    return VarianceUncertainty(array, unit=unit, copy=copy)
++
++
++def var_to_std(var_uncert, copy=True):
++    """Convert VarianceUncertainty to StdDevUncertainty.
++    
++    Parameters
++    ----------
++    var_uncert : `VarianceUncertainty`
++        The variance uncertainty to convert.
++    copy : bool, optional
++        If `True` (default), then the uncertainty array is copied.
++        Otherwise, a copy will only be made if necessary.
++        
++    Returns
++    -------
++    std_uncert : `StdDevUncertainty`
++        The standard deviation uncertainty.
++        
++    Examples
++    --------
++    >>> from astropy.nddata import StdDevUncertainty, VarianceUncertainty
++    >>> import astropy.units as u
++    >>> var = VarianceUncertainty([1., 4., 9.], unit=u.m**2)
++    >>> std = var_to_std(var)
++    >>> std
++    StdDevUncertainty([1., 2., 3.])
++    >>> std.unit
++    Unit("m")
++    """
++    if var_uncert.array is None:
++        array = None
++    else:
++        array = np.sqrt(var_uncert.array)
++    
++    if var_uncert.unit is None:
++        unit = None
++    else:
++        unit = var_uncert.unit ** 0.5
++    
++    return StdDevUncertainty(array, unit=unit, copy=copy)
++
++
++def var_to_invvar(var_uncert, copy=True):
++    """Convert VarianceUncertainty to InverseVariance.
++    
++    Parameters
++    ----------
++    var_uncert : `VarianceUncertainty`
++        The variance uncertainty to convert.
++    copy : bool, optional
++        If `True` (default), then the uncertainty array is copied.
++        Otherwise, a copy will only be made if necessary.
++        
++    Returns
++    -------
++    invvar_uncert : `InverseVariance`
++        The inverse variance uncertainty.
++        
++    Examples
++    --------
++    >>> from astropy.nddata import VarianceUncertainty, InverseVariance
++    >>> import astropy.units as u
++    >>> var = VarianceUncertainty([1., 4., 9.], unit=u.m**2)
++    >>> invvar = var_to_invvar(var)
++    >>> invvar
++    InverseVariance([1.        , 0.25      , 0.11111111])
++    >>> invvar.unit
++    Unit("1 / m2")
++    """
++    if var_uncert.array is None:
++        array = None
++    else:
++        # Handle zeros - inverse of zero is inf
++        array = 1.0 / var_uncert.array
++    
++    if var_uncert.unit is None:
++        unit = None
++    else:
++        unit = 1.0 / var_uncert.unit
++    
++    return InverseVariance(array, unit=unit, copy=copy)
++
++
++def invvar_to_var(invvar_uncert, copy=True):
++    """Convert InverseVariance to VarianceUncertainty.
++    
++    Parameters
++    ----------
++    invvar_uncert : `InverseVariance`
++        The inverse variance uncertainty to convert.
++    copy : bool, optional
++        If `True` (default), then the uncertainty array is copied.
++        Otherwise, a copy will only be made if necessary.
++        
++    Returns
++    -------
++    var_uncert : `VarianceUncertainty`
++        The variance uncertainty.
++        
++    Examples
++    --------
++    >>> from astropy.nddata import VarianceUncertainty, InverseVariance
++    >>> import astropy.units as u
++    >>> invvar = InverseVariance([1., 0.25, 1./9.], unit=1/u.m**2)
++    >>> var = invvar_to_var(invvar)
++    >>> var
++    VarianceUncertainty([1., 4., 9.])
++    >>> var.unit
++    Unit("m2")
++    """
++    if invvar_uncert.array is None:
++        array = None
++    else:
++        # Handle zeros - inverse of zero is inf
++        array = 1.0 / invvar_uncert.array
++    
++    if invvar_uncert.unit is None:
++        unit = None
++    else:
++        unit = 1.0 / invvar_uncert.unit
++    
++    return VarianceUncertainty(array, unit=unit, copy=copy)
++
++
++def convert_uncertainty(uncert, new_class, copy=True):
++    """Convert an uncertainty to a different uncertainty type.
++    
++    This is a convenience function that provides a simple interface
++    for converting between different uncertainty types.
++    
++    Parameters
++    ----------
++    uncert : `NDUncertainty`
++        The uncertainty to convert.
++    new_class : class
++        The uncertainty class to convert to. Must be a subclass of
++        `NDUncertainty`.
++    copy : bool, optional
++        If `True` (default), then the uncertainty array is copied.
++        Otherwise, a copy will only be made if necessary.
++        
++    Returns
++    -------
++    result : `NDUncertainty` instance
++        A new uncertainty instance of type `new_class`.
++        
++    Raises
++    ------
++    TypeError
++        If `new_class` is not a subclass of `NDUncertainty`.
++    ValueError
++        If the uncertainty cannot be converted to the requested type.
++        
++    Examples
++    --------
++    >>> from astropy.nddata import StdDevUncertainty, VarianceUncertainty
++    >>> import astropy.units as u
++    >>> std = StdDevUncertainty([1., 2., 3.], unit=u.m)
++    >>> var = convert_uncertainty(std, VarianceUncertainty)
++    >>> var
++    VarianceUncertainty([1., 4., 9.])
++    >>> var.unit
++    Unit("m2")
++    
++    Notes
++    -----
++    This function is equivalent to calling ``uncert.to(new_class, copy=copy)``.
++    """
++    return uncert.to(new_class, copy=copy)
++
++
+ class InverseVariance(_VariancePropagationMixin, NDUncertainty):
+     """
+     Inverse variance uncertainty assuming first order Gaussian error
+@@ -933,3 +1242,16 @@ class InverseVariance(_VariancePropagationMixin, NDUncertainty):
+ 
+     def _data_unit_to_uncertainty_unit(self, value):
+         return 1 / value ** 2
++    
++    def _get_converter(self, other_class):
++        """Get a function that converts this uncertainty to another type."""
++        if other_class is VarianceUncertainty:
++            return invvar_to_var
++        elif other_class is StdDevUncertainty:
++            # Convert via variance
++            def invvar_to_std(invvar_uncert, copy=True):
++                var_uncert = invvar_to_var(invvar_uncert, copy=copy)
++                return var_to_std(var_uncert, copy=False)
++            return invvar_to_std
++        else:
++            return super()._get_converter(other_class)

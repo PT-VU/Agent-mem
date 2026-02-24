@@ -1,0 +1,42 @@
+diff --git a/reproduce_issue.py b/reproduce_issue.py
+new file mode 100644
+index 0000000000..4bda0f21fc
+--- /dev/null
++++ b/reproduce_issue.py
+@@ -0,0 +1,35 @@
++#!/usr/bin/env python
++"""Script to reproduce the pi**(1/E) pretty printing issue."""
++
++import sympy
++from sympy import pi, E
++from sympy.printing import pretty
++
++# Create the expression
++expr = pi**(1/E)
++print("Expression:", expr)
++print()
++
++# Test pretty printing
++print("Pretty print:")
++print(pretty(expr))
++print()
++
++# Test LaTeX
++print("LaTeX:")
++print(sympy.latex(expr))
++print()
++
++# Test str
++print("str:")
++print(str(expr))
++print()
++
++# Let's also test some related expressions
++print("\n--- Testing related expressions ---")
++print("pi**E:", pretty(pi**E))
++print("pi**(1/2):", pretty(pi**(1/2)))
++print("pi**(-1):", pretty(pi**(-1)))
++print("2**(1/E):", pretty(2**(1/E)))
++print("E**(-1):", pretty(E**(-1)))
++print("1/E:", pretty(1/E))
+\ No newline at end of file

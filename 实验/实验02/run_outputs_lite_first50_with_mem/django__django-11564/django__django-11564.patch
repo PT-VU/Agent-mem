@@ -1,0 +1,74 @@
+diff --git a/django/core/files/storage.py b/django/core/files/storage.py
+index 4c27fce605..6620051227 100644
+--- a/django/core/files/storage.py
++++ b/django/core/files/storage.py
+@@ -332,7 +332,16 @@ class FileSystemStorage(Storage):
+         url = filepath_to_uri(name)
+         if url is not None:
+             url = url.lstrip('/')
+-        return urljoin(self.base_url, url)
++        url = urljoin(self.base_url, url)
++        # Prepend SCRIPT_NAME prefix if not already included
++        from django.urls import get_script_prefix
++        script_prefix = get_script_prefix()
++        if script_prefix != '/' and not url.startswith(script_prefix):
++            # Make url relative before joining with script_prefix
++            if url.startswith('/'):
++                url = url[1:]
++            url = urljoin(script_prefix, url)
++        return url
+ 
+     def _datetime_from_timestamp(self, ts):
+         """
+diff --git a/django/templatetags/static.py b/django/templatetags/static.py
+index 39712aaba0..8862d42676 100644
+--- a/django/templatetags/static.py
++++ b/django/templatetags/static.py
+@@ -48,6 +48,14 @@ class PrefixNode(template.Node):
+ 
+     def render(self, context):
+         prefix = self.handle_simple(self.name)
++        # Prepend SCRIPT_NAME prefix if not already included
++        from django.urls import get_script_prefix
++        script_prefix = get_script_prefix()
++        if script_prefix != '/' and not prefix.startswith(script_prefix):
++            # Make prefix relative before joining with script_prefix
++            if prefix.startswith('/'):
++                prefix = prefix[1:]
++            prefix = urljoin(script_prefix, prefix)
+         if self.varname is None:
+             return prefix
+         context[self.varname] = prefix
+@@ -100,7 +108,16 @@ class StaticNode(template.Node):
+ 
+     def url(self, context):
+         path = self.path.resolve(context)
+-        return self.handle_simple(path)
++        url = self.handle_simple(path)
++        # Prepend SCRIPT_NAME prefix if not already included
++        from django.urls import get_script_prefix
++        script_prefix = get_script_prefix()
++        if script_prefix != '/' and not url.startswith(script_prefix):
++            # Make url relative before joining with script_prefix
++            if url.startswith('/'):
++                url = url[1:]
++            url = urljoin(script_prefix, url)
++        return url
+ 
+     def render(self, context):
+         url = self.url(context)
+@@ -164,4 +181,13 @@ def static(path):
+     Given a relative path to a static asset, return the absolute path to the
+     asset.
+     """
+-    return StaticNode.handle_simple(path)
++    url = StaticNode.handle_simple(path)
++    # Prepend SCRIPT_NAME prefix if not already included
++    from django.urls import get_script_prefix
++    script_prefix = get_script_prefix()
++    if script_prefix != '/' and not url.startswith(script_prefix):
++        # Make url relative before joining with script_prefix
++        if url.startswith('/'):
++            url = url[1:]
++        url = urljoin(script_prefix, url)
++    return url

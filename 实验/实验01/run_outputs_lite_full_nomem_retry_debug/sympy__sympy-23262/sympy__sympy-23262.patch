@@ -1,0 +1,25 @@
+diff --git a/reproduce_issue.py b/reproduce_issue.py
+new file mode 100644
+index 0000000000..ea134690db
+--- /dev/null
++++ b/reproduce_issue.py
+@@ -0,0 +1,18 @@
++import inspect
++from sympy import lambdify
++
++print("Testing single-element tuple:")
++print("SymPy version:", inspect.getsource(lambdify([], tuple([1]))))
++print()
++
++print("Testing two-element tuple:")
++print("SymPy version:", inspect.getsource(lambdify([], tuple([1, 2]))))
++print()
++
++# Let's also test what the actual function returns
++print("Testing actual function execution:")
++f1 = lambdify([], tuple([1]))
++f2 = lambdify([], tuple([1, 2]))
++
++print("Single-element tuple function returns:", f1(), "Type:", type(f1()))
++print("Two-element tuple function returns:", f2(), "Type:", type(f2()))
+\ No newline at end of file

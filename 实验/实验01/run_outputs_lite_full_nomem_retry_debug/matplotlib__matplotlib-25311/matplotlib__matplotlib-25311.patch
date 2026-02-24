@@ -1,0 +1,28 @@
+diff --git a/reproduce_bug.py b/reproduce_bug.py
+new file mode 100644
+index 0000000000..2489756002
+--- /dev/null
++++ b/reproduce_bug.py
+@@ -0,0 +1,21 @@
++import matplotlib.pyplot as plt
++import pickle
++
++fig = plt.figure()
++ax = fig.add_subplot(111)
++
++time=[0,1,2,3,4]
++speed=[40,43,45,47,48]
++
++ax.plot(time,speed,label="speed")
++
++leg=ax.legend()
++leg.set_draggable(True) #pickling works after removing this line 
++
++try:
++    pickle.dumps(fig)
++    print("Pickling successful!")
++except Exception as e:
++    print(f"Error: {type(e).__name__}: {e}")
++
++plt.close(fig)
+\ No newline at end of file

@@ -1,0 +1,79 @@
+diff --git a/reproduce_issue.py b/reproduce_issue.py
+new file mode 100644
+index 0000000000..e0b9bf7805
+--- /dev/null
++++ b/reproduce_issue.py
+@@ -0,0 +1,72 @@
++#!/usr/bin/env python3
++"""Script to reproduce the issue described in the PR."""
++
++from sympy import symbols, Poly
++from sympy.solvers.polysys import solve_poly_system
++
++x, y = symbols('x y')
++
++print("Testing the issue from PR description:")
++print("=" * 60)
++
++# Test case 1: This should raise NotImplementedError (and does)
++print("Test 1: solve_poly_system((x - 1,), x, y)")
++try:
++    result = solve_poly_system((x - 1,), x, y)
++    print(f"Result: {result}")
++except NotImplementedError as e:
++    print(f"NotImplementedError raised: {e}")
++
++print()
++
++# Test case 2: This should also raise NotImplementedError but currently returns [(1,)]
++print("Test 2: solve_poly_system((y - 1,), x, y)")
++try:
++    result = solve_poly_system((y - 1,), x, y)
++    print(f"Result: {result}")
++except NotImplementedError as e:
++    print(f"NotImplementedError raised: {e}")
++
++print()
++
++# Test case 3: Using Poly objects as mentioned in the test
++print("Test 3: solve_poly_system(Poly(x - 1, x, y), (x, y))")
++try:
++    result = solve_poly_system(Poly(x - 1, x, y), (x, y))
++    print(f"Result: {result}")
++except NotImplementedError as e:
++    print(f"NotImplementedError raised: {e}")
++
++print()
++
++# Test case 4: Using Poly objects as mentioned in the test
++print("Test 4: solve_poly_system(Poly(y - 1, x, y), (x, y))")
++try:
++    result = solve_poly_system(Poly(y - 1, x, y), (x, y))
++    print(f"Result: {result}")
++except NotImplementedError as e:
++    print(f"NotImplementedError raised: {e}")
++
++print()
++
++# Let's also test some edge cases
++print("Edge cases:")
++print("=" * 60)
++
++# Test with single variable system (should work)
++print("Test 5: solve_poly_system((x - 1,), x)")
++try:
++    result = solve_poly_system((x - 1,), x)
++    print(f"Result: {result}")
++except NotImplementedError as e:
++    print(f"NotImplementedError raised: {e}")
++
++print()
++
++# Test with single variable system but with Poly
++print("Test 6: solve_poly_system(Poly(x - 1, x), (x,))")
++try:
++    result = solve_poly_system(Poly(x - 1, x), (x,))
++    print(f"Result: {result}")
++except NotImplementedError as e:
++    print(f"NotImplementedError raised: {e}")
+\ No newline at end of file

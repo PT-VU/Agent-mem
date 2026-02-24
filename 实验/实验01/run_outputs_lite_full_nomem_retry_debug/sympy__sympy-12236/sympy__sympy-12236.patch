@@ -1,0 +1,83 @@
+diff --git a/analyze_expression.py b/analyze_expression.py
+new file mode 100644
+index 0000000000..cfb1e71836
+--- /dev/null
++++ b/analyze_expression.py
+@@ -0,0 +1,47 @@
++from sympy import symbols, simplify, expand, cancel, together, apart
++
++a = symbols('a', real=True)
++t = symbols('t', real=True, negative=False)
++
++bug = a * (-t + (-t + 1) * (2 * t - 1)) / (2 * t - 1)
++
++print("Original expression:")
++print("bug =", bug)
++print()
++
++# Let's simplify the numerator
++numerator = -t + (-t + 1) * (2 * t - 1)
++print("Numerator (-t + (-t + 1)*(2*t - 1)):")
++print("Expanded numerator =", expand(numerator))
++print("Simplified numerator =", simplify(numerator))
++print()
++
++# So the expression is:
++simplified_numerator = simplify(numerator)
++print(f"So bug = a * ({simplified_numerator}) / (2*t - 1)")
++print()
++
++# Let's compute what it should be
++print("What should bug.apart(t) return?")
++print("First, let's compute bug with a=1:")
++bug_a1 = bug.subs(a, 1)
++print("bug.subs(a, 1) =", bug_a1)
++print("bug.subs(a, 1).apart(t) =", bug_a1.apart(t))
++print()
++
++# So for general a, it should be a * (-t + 1/2 - 1/(2*(2*t - 1)))
++expected = a * (-t + 1/2 - 1/(2*(2*t - 1)))
++print("Expected result (a * result when a=1):")
++print("expected =", expected)
++print("expected.expand() =", expected.expand())
++print()
++
++# Let's verify that expected equals bug
++print("Does expected equal bug?")
++print("bug - expected =", simplify(bug - expected))
++print("bug.equals(expected) =", bug.equals(expected))
++print()
++
++# Let's also check cancel
++print("bug.cancel() =", bug.cancel())
++print("bug.together() =", bug.together())
+\ No newline at end of file
+diff --git a/reproduce_issue.py b/reproduce_issue.py
+new file mode 100644
+index 0000000000..0626ac2134
+--- /dev/null
++++ b/reproduce_issue.py
+@@ -0,0 +1,22 @@
++from sympy import symbols
++
++# Reproduce the issue from the PR description
++a = symbols('a', real=True)
++t = symbols('t', real=True, negative=False)
++
++bug = a * (-t + (-t + 1) * (2 * t - 1)) / (2 * t - 1)
++
++print("bug =", bug)
++print("\nbug.subs(a, 1) =", bug.subs(a, 1))
++print("bug.subs(a, 1).apart() =", bug.subs(a, 1).apart())
++print("bug.subs(a, 1).apart(t) =", bug.subs(a, 1).apart(t))
++print("\nbug.apart(t) =", bug.apart(t))
++
++# Let's also compute what the correct result should be
++print("\n--- Manual calculation ---")
++print("Simplify bug first:")
++simplified = bug.simplify()
++print("bug.simplify() =", simplified)
++print("\nbug.expand() =", bug.expand())
++print("\nbug.apart() =", bug.apart())
++print("bug.apart(t) =", bug.apart(t))
+\ No newline at end of file

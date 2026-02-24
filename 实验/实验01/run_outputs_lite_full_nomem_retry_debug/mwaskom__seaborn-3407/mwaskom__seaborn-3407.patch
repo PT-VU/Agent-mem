@@ -1,0 +1,31 @@
+diff --git a/reproduce_error.py b/reproduce_error.py
+new file mode 100644
+index 00000000..e16a93a0
+--- /dev/null
++++ b/reproduce_error.py
+@@ -0,0 +1,24 @@
++import numpy as np
++import pandas as pd
++import seaborn as sns
++
++# Create MultiIndex DataFrame as in the PR description
++data = {
++    ("A", "1"): np.random.rand(100),
++    ("A", "2"): np.random.rand(100),
++    ("B", "1"): np.random.rand(100),
++    ("B", "2"): np.random.rand(100),
++}
++df = pd.DataFrame(data)
++
++print("DataFrame columns:", df.columns)
++print("DataFrame shape:", df.shape)
++print("\nTrying to create pairplot...")
++
++try:
++    sns.pairplot(df)
++    print("Success!")
++except Exception as e:
++    print(f"Error: {type(e).__name__}: {e}")
++    import traceback
++    traceback.print_exc()
+\ No newline at end of file

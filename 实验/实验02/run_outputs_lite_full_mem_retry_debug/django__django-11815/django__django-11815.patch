@@ -1,0 +1,140 @@
+diff --git a/reproduce_issue.py b/reproduce_issue.py
+new file mode 100644
+index 0000000000..c813dffafc
+--- /dev/null
++++ b/reproduce_issue.py
+@@ -0,0 +1,133 @@
++#!/usr/bin/env python
++"""Script to reproduce the Enum migration issue."""
++
++import os
++import sys
++import tempfile
++import shutil
++from pathlib import Path
++
++# Add Django to path
++sys.path.insert(0, '/testbed')
++
++# Create a temporary directory for our test project
++temp_dir = tempfile.mkdtemp()
++print(f"Created temp directory: {temp_dir}")
++
++# Create a minimal Django project structure
++project_dir = Path(temp_dir) / "test_project"
++project_dir.mkdir()
++
++# Create manage.py
++manage_py = project_dir / "manage.py"
++manage_py.write_text("""#!/usr/bin/env python
++import os
++import sys
++
++if __name__ == "__main__":
++    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "test_project.settings")
++    try:
++        from django.core.management import execute_from_command_line
++    except ImportError as exc:
++        raise ImportError(
++            "Couldn't import Django. Are you sure it's installed and "
++            "available on your PYTHONPATH environment variable?"
++        ) from exc
++    execute_from_command_line(sys.argv)
++""")
++
++# Create settings.py
++settings_dir = project_dir / "test_project"
++settings_dir.mkdir()
++settings_file = settings_dir / "settings.py"
++settings_file.write_text("""
++import os
++
++BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
++SECRET_KEY = 'test-secret-key'
++DEBUG = True
++ALLOWED_HOSTS = []
++INSTALLED_APPS = [
++    'django.contrib.contenttypes',
++    'django.contrib.auth',
++    'test_app',
++]
++DATABASES = {
++    'default': {
++        'ENGINE': 'django.db.backends.sqlite3',
++        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
++    }
++}
++LANGUAGE_CODE = 'en-us'
++TIME_ZONE = 'UTC'
++USE_I18N = True
++USE_TZ = True
++DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
++""")
++
++# Create test app
++app_dir = project_dir / "test_app"
++app_dir.mkdir()
++(app_dir / "__init__.py").write_text("")
++
++# Create apps.py
++apps_file = app_dir / "apps.py"
++apps_file.write_text("""
++from django.apps import AppConfig
++
++class TestAppConfig(AppConfig):
++    default_auto_field = 'django.db.models.BigAutoField'
++    name = 'test_app'
++""")
++
++# Create models.py with the example from the PR
++models_file = app_dir / "models.py"
++models_file.write_text("""
++from enum import Enum
++from django.utils.translation import gettext_lazy as _
++from django.db import models
++
++class Status(Enum):
++    GOOD = _('Good')  # 'Good' will be translated
++    BAD = _('Bad')    # 'Bad' will be translated
++    
++    def __str__(self):
++        return self.name
++
++class Item(models.Model):
++    status = models.CharField(default=Status.GOOD, max_length=128)
++    
++    class Meta:
++        app_label = 'test_app'
++""")
++
++# Change to the project directory
++os.chdir(project_dir)
++
++# Now let's try to create migrations
++print("\n=== Creating migrations ===")
++os.system(f"python manage.py makemigrations test_app")
++
++# Let's also look at what gets generated
++migrations_dir = app_dir / "migrations"
++if migrations_dir.exists():
++    migration_files = list(migrations_dir.glob("*.py"))
++    if migration_files:
++        latest_migration = sorted(migration_files)[-1]
++        print(f"\n=== Generated migration file: {latest_migration.name} ===")
++        with open(latest_migration, 'r') as f:
++            content = f.read()
++            print(content)
++            
++            # Check if it contains Status('Good') or Status['GOOD']
++            if "Status('Good')" in content:
++                print("\n❌ ISSUE CONFIRMED: Migration uses Status('Good') instead of Status['GOOD']")
++            elif "Status['GOOD']" in content:
++                print("\n✅ CORRECT: Migration uses Status['GOOD']")
++            else:
++                print("\n⚠️  Could not find Status reference in migration")
++
++# Clean up
++os.chdir("/")
++shutil.rmtree(temp_dir)
++print(f"\nCleaned up temp directory: {temp_dir}")
+\ No newline at end of file

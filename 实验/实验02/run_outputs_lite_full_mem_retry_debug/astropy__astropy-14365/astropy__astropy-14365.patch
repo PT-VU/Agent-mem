@@ -1,0 +1,66 @@
+diff --git a/reproduce_issue.py b/reproduce_issue.py
+new file mode 100644
+index 000000000..e9cb91c32
+--- /dev/null
++++ b/reproduce_issue.py
+@@ -0,0 +1,59 @@
++#!/usr/bin/env python
++"""Script to reproduce the QDP case sensitivity issue."""
++
++import tempfile
++import os
++from astropy.table import Table
++
++# Create a test QDP file with lowercase commands
++test_qdp_content = """read serr 1 2 
++1 0.5 1 0.5
++"""
++
++# Write to a temporary file
++with tempfile.NamedTemporaryFile(mode='w', suffix='.qdp', delete=False) as f:
++    f.write(test_qdp_content)
++    temp_file = f.name
++
++try:
++    print(f"Testing QDP file with lowercase command 'read serr 1 2'")
++    print(f"File content:\n{test_qdp_content}")
++    
++    # Try to read the table
++    print("\nAttempting to read the table...")
++    try:
++        table = Table.read(temp_file, format='ascii.qdp')
++        print("SUCCESS: Table read successfully!")
++        print(f"Table:\n{table}")
++    except Exception as e:
++        print(f"ERROR: {type(e).__name__}: {e}")
++        
++finally:
++    # Clean up
++    os.unlink(temp_file)
++
++# Also test with uppercase for comparison
++print("\n\n" + "="*60)
++print("Testing with uppercase command for comparison...")
++
++test_qdp_content_upper = """READ SERR 1 2 
++1 0.5 1 0.5
++"""
++
++with tempfile.NamedTemporaryFile(mode='w', suffix='.qdp', delete=False) as f:
++    f.write(test_qdp_content_upper)
++    temp_file = f.name
++
++try:
++    print(f"\nFile content:\n{test_qdp_content_upper}")
++    
++    print("\nAttempting to read the table...")
++    try:
++        table = Table.read(temp_file, format='ascii.qdp')
++        print("SUCCESS: Table read successfully!")
++        print(f"Table:\n{table}")
++    except Exception as e:
++        print(f"ERROR: {type(e).__name__}: {e}")
++        
++finally:
++    os.unlink(temp_file)
+\ No newline at end of file

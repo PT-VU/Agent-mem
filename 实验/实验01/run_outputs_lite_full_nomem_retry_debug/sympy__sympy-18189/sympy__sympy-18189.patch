@@ -1,0 +1,45 @@
+diff --git a/reproduce_issue.py b/reproduce_issue.py
+new file mode 100644
+index 0000000000..3a518ae0f7
+--- /dev/null
++++ b/reproduce_issue.py
+@@ -0,0 +1,38 @@
++#!/usr/bin/env python
++"""Reproduce the diophantine issue with permute=True and syms order."""
++
++from sympy import symbols, diophantine
++
++m, n = symbols('m n', integer=True)
++
++print("Testing diophantine with different syms order and permute=True")
++print("=" * 60)
++
++# Test case from the PR description
++eq = n**4 + m**4 - 2**4 - 3**4
++
++print(f"Equation: {eq} = 0")
++print()
++
++# Test with syms=(m, n)
++result1 = diophantine(eq, syms=(m, n), permute=True)
++print(f"diophantine(eq, syms=(m, n), permute=True):")
++print(f"  Result: {result1}")
++print(f"  Number of solutions: {len(result1)}")
++print()
++
++# Test with syms=(n, m)
++result2 = diophantine(eq, syms=(n, m), permute=True)
++print(f"diophantine(eq, syms=(n, m), permute=True):")
++print(f"  Result: {result2}")
++print(f"  Number of solutions: {len(result2)}")
++print()
++
++# Check if results are equivalent (just reordered)
++print("Checking if results are equivalent when reordered...")
++# Convert to sets of sorted tuples for comparison
++set1 = {tuple(sorted(sol)) for sol in result1}
++set2 = {tuple(sorted(sol)) for sol in result2}
++print(f"  Set of absolute values from result1: {set1}")
++print(f"  Set of absolute values from result2: {set2}")
++print(f"  Are they equal? {set1 == set2}")
+\ No newline at end of file

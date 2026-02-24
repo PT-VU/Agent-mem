@@ -1,0 +1,59 @@
+diff --git a/reproduce_issue.py b/reproduce_issue.py
+new file mode 100644
+index 0000000000..8d55fdbae9
+--- /dev/null
++++ b/reproduce_issue.py
+@@ -0,0 +1,52 @@
++import os
++import sys
++import django
++from django.conf import settings
++
++# Configure Django settings
++settings.configure(
++    DEBUG=True,
++    DATABASES={
++        'default': {
++            'ENGINE': 'django.db.backends.sqlite3',
++            'NAME': ':memory:',
++        }
++    },
++    INSTALLED_APPS=[
++        'django.contrib.contenttypes',
++        'django.contrib.auth',
++    ],
++    USE_TZ=True,
++)
++
++django.setup()
++
++# Now define the models
++from django.db import models
++
++class Parent(models.Model):
++    class Meta:
++        app_label = 'testapp'
++        ordering = ["-pk"]
++
++class Child(Parent):
++    class Meta:
++        app_label = 'testapp'
++
++# Create the tables
++from django.db import connection
++from django.apps import apps
++
++# Register the models
++from django.apps.registry import Apps
++apps = Apps(['testapp'])
++
++# Test the query
++print("Parent query:")
++print(Parent.objects.all().query)
++print("\nChild query:")
++print(Child.objects.all().query)
++
++# Check the ordering
++print("\nParent ordering:", Parent._meta.ordering)
++print("Child ordering:", Child._meta.ordering)
+\ No newline at end of file

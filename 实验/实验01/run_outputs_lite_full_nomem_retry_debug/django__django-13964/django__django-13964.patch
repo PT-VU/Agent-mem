@@ -1,0 +1,119 @@
+diff --git a/reproduce_issue.py b/reproduce_issue.py
+new file mode 100644
+index 0000000000..0cc37e7abf
+--- /dev/null
++++ b/reproduce_issue.py
+@@ -0,0 +1,112 @@
++import os
++import sys
++import django
++from django.conf import settings
++
++# Configure Django settings
++settings.configure(
++    DEBUG=True,
++    DATABASES={
++        'default': {
++            'ENGINE': 'django.db.backends.sqlite3',
++            'NAME': ':memory:',
++        }
++    },
++    INSTALLED_APPS=[
++        'django.contrib.contenttypes',
++        'django.contrib.auth',
++    ],
++    USE_TZ=True,
++)
++
++django.setup()
++
++from django.db import models, transaction
++
++# Define the models from the PR description
++class Product(models.Model):
++    sku = models.CharField(primary_key=True, max_length=50)
++    
++    class Meta:
++        app_label = 'test'
++
++class Order(models.Model):
++    product = models.ForeignKey(Product, on_delete=models.CASCADE)
++    
++    class Meta:
++        app_label = 'test'
++
++# Create the tables
++from django.db import connection
++with connection.schema_editor() as schema_editor:
++    schema_editor.create_model(Product)
++    schema_editor.create_model(Order)
++
++print("Testing the issue described in the PR...")
++print("=" * 60)
++
++# Test case 1: The problematic case from the PR
++print("\nTest case 1: Setting primary key after assignment")
++print("-" * 40)
++try:
++    with transaction.atomic():
++        order = Order()
++        order.product = Product()
++        print(f"After assignment, order.product_id: {order.product_id}")
++        order.product.sku = "foo"
++        print(f"After setting sku, order.product_id: {order.product_id}")
++        order.product.save()
++        print(f"After saving product, order.product_id: {order.product_id}")
++        order.save()
++        print(f"After saving order, order.product_id: {order.product_id}")
++        
++        # Check what was saved
++        print(f"Product saved with sku: {order.product.sku}")
++        
++        # The assertions from the PR
++        exists_empty = Order.objects.filter(product_id="").exists()
++        print(f"Order.objects.filter(product_id='').exists(): {exists_empty}")
++        
++        exists_correct = Order.objects.filter(product=order.product).exists()
++        print(f"Order.objects.filter(product=order.product).exists(): {exists_correct}")
++        
++        if exists_empty and not exists_correct:
++            print("✓ Issue reproduced: product_id is empty string instead of 'foo'")
++        else:
++            print("✗ Issue NOT reproduced")
++            
++except Exception as e:
++    print(f"Exception during test case 1: {e}")
++    import traceback
++    traceback.print_exc()
++
++# Test case 2: The working case from the PR
++print("\n\nTest case 2: Setting primary key before assignment")
++print("-" * 40)
++try:
++    with transaction.atomic():
++        order = Order()
++        order.product = Product(sku="bar")
++        order.product.save()
++        order.save()
++        
++        # Check what was saved
++        print(f"Product saved with sku: {order.product.sku}")
++        print(f"Order.product_id after save: {order.product_id}")
++        
++        # The assertions from the PR
++        exists_correct = Order.objects.filter(product=order.product).exists()
++        print(f"Order.objects.filter(product=order.product).exists(): {exists_correct}")
++        
++        if exists_correct:
++            print("✓ Works correctly when primary key is set before assignment")
++        else:
++            print("✗ Unexpected failure")
++            
++except Exception as e:
++    print(f"Exception during test case 2: {e}")
++
++# Clean up
++with connection.schema_editor() as schema_editor:
++    schema_editor.delete_model(Order)
++    schema_editor.delete_model(Product)
+\ No newline at end of file

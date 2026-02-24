@@ -1,0 +1,107 @@
+diff --git a/django/db/models/fields/__init__.py b/django/db/models/fields/__init__.py
+index 9ce46e3f73..83827b4bf3 100644
+--- a/django/db/models/fields/__init__.py
++++ b/django/db/models/fields/__init__.py
+@@ -207,6 +207,7 @@ class Field(RegisterLookupMixin):
+             *self._check_backend_specific_checks(**kwargs),
+             *self._check_validators(),
+             *self._check_deprecation_details(),
++            *self._check_max_length_choices(),
+         ]
+ 
+     def _check_field_name(self):
+@@ -291,6 +292,94 @@ class Field(RegisterLookupMixin):
+             )
+         ]
+ 
++    def _check_max_length_choices(self):
++        if self.max_length is None or not self.choices:
++            return []
++        
++        # Only check fields that actually use max_length
++        # Check if field has _check_max_length_attribute method (CharField and subclasses)
++        # or is TextField or BinaryField
++        field_class = self.__class__
++        
++        # Check if it's CharField or a subclass
++        is_charfield = False
++        for cls in field_class.__mro__:
++            if cls.__name__ == 'CharField' and cls.__module__ == 'django.db.models.fields':
++                is_charfield = True
++                break
++        
++        # Check if it's TextField or BinaryField
++        is_textfield = (field_class.__name__ == 'TextField' and 
++                       field_class.__module__ == 'django.db.models.fields')
++        is_binaryfield = (field_class.__name__ == 'BinaryField' and 
++                         field_class.__module__ == 'django.db.models.fields')
++        
++        if not (is_charfield or is_textfield or is_binaryfield):
++            # Field doesn't use max_length
++            return []
++        
++        # Helper function to get string length of a value
++        def get_value_length(value):
++            # For binary fields, use len() directly
++            if isinstance(value, (bytes, bytearray, memoryview)):
++                return len(value)
++            # For other fields, convert to string
++            return len(str(value))
++        
++        max_choice_length = 0
++        longest_choice_value = None
++        
++        # Iterate through choices to find the longest value
++        # Follow the same logic as _check_choices for parsing choice structure
++        for choice in self.choices:
++            # Check if this is a grouped choice: (group_name, [(value, display), ...])
++            try:
++                group_name, group_choices = choice
++            except (TypeError, ValueError):
++                # Not a grouped choice, treat as regular (value, display) pair
++                try:
++                    value, display = choice
++                    length = get_value_length(value)
++                    if length > max_choice_length:
++                        max_choice_length = length
++                        longest_choice_value = value
++                except (TypeError, ValueError):
++                    # Malformed choice, but this will be caught by _check_choices
++                    continue
++            else:
++                # It's a grouped choice, check if group_choices is iterable
++                try:
++                    for value, display in group_choices:
++                        length = get_value_length(value)
++                        if length > max_choice_length:
++                            max_choice_length = length
++                            longest_choice_value = value
++                except (TypeError, ValueError):
++                    # Not a list of (value, display) pairs
++                    # Might be a regular choice in the form [value, display]
++                    # which was incorrectly parsed as grouped
++                    try:
++                        value, display = group_name, group_choices
++                        length = get_value_length(value)
++                        if length > max_choice_length:
++                            max_choice_length = length
++                            longest_choice_value = value
++                    except (TypeError, ValueError):
++                        # Malformed choice, but this will be caught by _check_choices
++                        continue
++        
++        if max_choice_length > self.max_length:
++            return [
++                checks.Error(
++                    "'max_length' is %s but the longest choice value has length %s: %r" % (
++                        self.max_length, max_choice_length, longest_choice_value
++                    ),
++                    obj=self,
++                    id='fields.E180',
++                )
++            ]
++        return []
++
+     def _check_db_index(self):
+         if self.db_index not in (None, True, False):
+             return [

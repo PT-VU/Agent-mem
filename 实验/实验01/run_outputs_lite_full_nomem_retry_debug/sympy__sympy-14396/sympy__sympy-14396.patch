@@ -1,0 +1,48 @@
+diff --git a/reproduce_error.py b/reproduce_error.py
+new file mode 100644
+index 0000000000..beda2c1f1e
+--- /dev/null
++++ b/reproduce_error.py
+@@ -0,0 +1,41 @@
++#!/usr/bin/env python
++"""Script to reproduce the error from the PR description."""
++
++import sympy
++from sympy import Poly, symbols
++
++x, y, z = symbols('x y z')
++
++print("Test 1: Poly(1.2*x*y*z, x) - should work")
++try:
++    p1 = Poly(1.2*x*y*z, x)
++    print(f"Success: {p1}")
++except Exception as e:
++    print(f"Error: {type(e).__name__}: {e}")
++
++print("\nTest 2: Poly(1.2*x*y*z, x, domain='RR[y,z]') - should fail with current code")
++try:
++    p2 = Poly(1.2*x*y*z, x, domain='RR[y,z]')
++    print(f"Success: {p2}")
++except Exception as e:
++    print(f"Error: {type(e).__name__}: {e}")
++
++print("\nTest 3: Let's also test other real field variations")
++test_cases = [
++    'RR[y,z]',
++    'R[y,z]',
++    'RR_10[y,z]',
++    'R_10[y,z]',
++    'CC[y,z]',
++    'C[y,z]',
++    'CC_10[y,z]',
++    'C_10[y,z]',
++]
++
++for domain_str in test_cases:
++    print(f"\nTesting domain='{domain_str}':")
++    try:
++        p = Poly(1.2*x*y*z, x, domain=domain_str)
++        print(f"  Success: {p}")
++    except Exception as e:
++        print(f"  Error: {type(e).__name__}: {e}")
+\ No newline at end of file

@@ -1,0 +1,56 @@
+diff --git a/reproduce_issue.py b/reproduce_issue.py
+new file mode 100644
+index 000000000..a828d9a3b
+--- /dev/null
++++ b/reproduce_issue.py
+@@ -0,0 +1,49 @@
++import pandas as pd
++import numpy as np
++from sklearn.utils.multiclass import unique_labels, type_of_target
++
++print("Testing nullable pandas dtypes...")
++for dtype in ["Int64", "Float64", "boolean"]:
++    print(f"\nTesting dtype: {dtype}")
++    y_true = pd.Series([1, 0, 0, 1, 0, 1, 1, 0, 1], dtype=dtype)
++    y_predicted = pd.Series([0, 0, 1, 1, 0, 1, 1, 1, 1], dtype="int64")
++    
++    print(f"y_true dtype: {y_true.dtype}")
++    print(f"y_predicted dtype: {y_predicted.dtype}")
++    
++    # Check what happens when we convert to numpy
++    print(f"y_true.to_numpy() dtype: {y_true.to_numpy().dtype}")
++    print(f"y_predicted.to_numpy() dtype: {y_predicted.to_numpy().dtype}")
++    
++    # Check type_of_target for each
++    print(f"type_of_target(y_true): {type_of_target(y_true)}")
++    print(f"type_of_target(y_predicted): {type_of_target(y_predicted)}")
++    
++    try:
++        result = unique_labels(y_true, y_predicted)
++        print(f"unique_labels succeeded: {result}")
++    except ValueError as e:
++        print(f"unique_labels failed: {e}")
++
++print("\n\nTesting non-nullable pandas dtypes (should work)...")
++for dtype in ["int64", "float64", "bool"]:
++    print(f"\nTesting dtype: {dtype}")
++    y_true = pd.Series([1, 0, 0, 1, 0, 1, 1, 0, 1], dtype=dtype)
++    y_predicted = pd.Series([0, 0, 1, 1, 0, 1, 1, 1, 1], dtype="int64")
++    
++    print(f"y_true dtype: {y_true.dtype}")
++    print(f"y_predicted dtype: {y_predicted.dtype}")
++    
++    # Check what happens when we convert to numpy
++    print(f"y_true.to_numpy() dtype: {y_true.to_numpy().dtype}")
++    print(f"y_predicted.to_numpy() dtype: {y_predicted.to_numpy().dtype}")
++    
++    # Check type_of_target for each
++    print(f"type_of_target(y_true): {type_of_target(y_true)}")
++    print(f"type_of_target(y_predicted): {type_of_target(y_predicted)}")
++    
++    try:
++        result = unique_labels(y_true, y_predicted)
++        print(f"unique_labels succeeded: {result}")
++    except ValueError as e:
++        print(f"unique_labels failed: {e}")
+\ No newline at end of file

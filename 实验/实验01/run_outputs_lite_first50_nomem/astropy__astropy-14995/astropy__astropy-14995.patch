@@ -1,0 +1,64 @@
+diff --git a/astropy/nddata/mixins/ndarithmetic.py b/astropy/nddata/mixins/ndarithmetic.py
+index 4153dfccb..4697b8832 100644
+--- a/astropy/nddata/mixins/ndarithmetic.py
++++ b/astropy/nddata/mixins/ndarithmetic.py
+@@ -513,15 +513,53 @@ class NDArithmeticMixin:
+             ``handle_mask`` must create (and copy) the returned mask.
+         """
+         # If only one mask is present we need not bother about any type checks
+-        if (
+-            self.mask is None and operand is not None and operand.mask is None
+-        ) or handle_mask is None:
++        if handle_mask is None:
+             return None
+-        elif self.mask is None and operand is not None:
+-            # Make a copy so there is no reference in the result.
+-            return deepcopy(operand.mask)
+         elif operand is None:
++            # Collapse operation (e.g., sum, mean)
+             return deepcopy(self.mask)
++        
++        # Handle the case where one or both masks are None
++        if self.mask is None and operand.mask is None:
++            return None
++        elif self.mask is None or operand.mask is None:
++            # Try to call the handle_mask function with the masks
++            # Some functions (like np.bitwise_or) can't handle None
++            # If it fails, return the mask that exists
++            try:
++                result = handle_mask(self.mask, operand.mask, **kwds)
++                # Check if the result contains None values (like np.logical_or does)
++                # This can happen with numpy ufuncs when one operand is None
++                if result is not None and hasattr(result, 'dtype') and result.dtype == object:
++                    # Check if any element is None
++                    # Note: This check is for numpy arrays with object dtype
++                    # We use a vectorized check which is faster than iterating
++                    try:
++                        # Check if the array contains None
++                        # For object arrays, comparing with None gives a boolean array
++                        if np.any(result == None):
++                            # Result contains None values, which is not a valid mask
++                            # Return the mask that exists instead
++                            if self.mask is None:
++                                return deepcopy(operand.mask)
++                            else:
++                                return deepcopy(self.mask)
++                    except (ValueError, TypeError):
++                        # If the comparison fails, assume it's OK
++                        pass
++                return result
++            except TypeError as e:
++                # Check if it's the "unsupported operand type(s)" error
++                if "unsupported operand type" in str(e):
++                    # Return the mask that exists (or None if both are None,
++                    # but we already handled that case above)
++                    if self.mask is None:
++                        return deepcopy(operand.mask)
++                    else:
++                        return deepcopy(self.mask)
++                else:
++                    # Some other TypeError, re-raise it
++                    raise
+         else:
+             # Now lets calculate the resulting mask (operation enforces copy)
+             return handle_mask(self.mask, operand.mask, **kwds)

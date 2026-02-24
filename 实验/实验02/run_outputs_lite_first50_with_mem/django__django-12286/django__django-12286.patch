@@ -1,0 +1,63 @@
+diff --git a/django/core/checks/translation.py b/django/core/checks/translation.py
+index 138ed07ff8..e9374b9970 100644
+--- a/django/core/checks/translation.py
++++ b/django/core/checks/translation.py
+@@ -1,4 +1,5 @@
+ from django.conf import settings
++from django.conf.locale import LANG_INFO
+ from django.utils.translation.trans_real import language_code_re
+ 
+ from . import Error, Tags, register
+@@ -55,7 +56,50 @@ def check_setting_languages_bidi(app_configs, **kwargs):
+ @register(Tags.translation)
+ def check_language_settings_consistent(app_configs, **kwargs):
+     """Error if language settings are not consistent with each other."""
+-    available_tags = {i for i, _ in settings.LANGUAGES} | {'en-us'}
+-    if settings.LANGUAGE_CODE not in available_tags:
++    lang_code = settings.LANGUAGE_CODE
++    available_tags = {i for i, _ in settings.LANGUAGES}
++    
++    # Always allow 'en-us' even if not in LANGUAGES
++    if lang_code == 'en-us' and 'en-us' not in available_tags:
++        available_tags.add('en-us')
++    
++    # Check if the language code is supported
++    if not is_supported_language_code(lang_code, available_tags):
+         return [E004]
+     return []
++
++
++def is_supported_language_code(lang_code, available_tags):
++    """
++    Check if lang_code is supported given available_tags.
++    Mimics the logic of get_supported_language_variant but without
++    checking for actual translation files.
++    """
++    if not lang_code:
++        return False
++    
++    # If the exact code is available, it's supported
++    if lang_code in available_tags:
++        return True
++    
++    # Check for fallbacks from LANG_INFO
++    try:
++        fallbacks = LANG_INFO[lang_code].get('fallback', [])
++        for fallback in fallbacks:
++            if fallback in available_tags:
++                return True
++    except KeyError:
++        pass
++    
++    # Check generic language code
++    generic_lang_code = lang_code.split('-')[0]
++    if generic_lang_code in available_tags:
++        return True
++    
++    # Check for any country-specific variant of the generic language.
++    # This matches get_supported_language_variant with strict=False.
++    for supported_code in available_tags:
++        if supported_code.startswith(generic_lang_code + '-'):
++            return True
++    
++    return False

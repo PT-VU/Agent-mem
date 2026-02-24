@@ -1,0 +1,75 @@
+{
+  "query": "environment error and command_nonzero_exit recovery",
+  "embedding_view": "emb_task_sem",
+  "results": [
+    {
+      "task_id": "task_20260222_001737_main",
+      "action_id": "e34c6684-e167-42db-a96c-74172ab1fdcc",
+      "similarity": 0.3219,
+      "action_type": "tool_call",
+      "outcome": "fail",
+      "intent_text": "failcmd",
+      "failure_signature": "unknown",
+      "evidence_refs": [
+        "/home/pt/SWE-bench/PDDL_work_mem/实验/实验03/quick_integration_20260222_011655/evidence/e34c6684-e167-42db-a96c-74172ab1fdcc_stderr_20260222_001745.txt"
+      ]
+    }
+  ],
+  "recommendations": [
+    {
+      "type": "belief_tip",
+      "belief_id": "260f8d89-17b6-40f4-915b-f951d2bdd240",
+      "belief_type": "pitfall",
+      "recommendation": "Repair after error by narrowing context and re-validating",
+      "confidence": -0.05
+    },
+    {
+      "type": "belief_tip",
+      "belief_id": "328c315d-988a-424b-9e86-6a2250bbc1dd",
+      "belief_type": "pitfall",
+      "recommendation": "Repair after unknown by narrowing context and re-validating",
+      "confidence": -0.05
+    },
+    {
+      "type": "workflow_step",
+      "step_number": 1,
+      "intent": "Generate plan for task",
+      "action_type": "tool_call",
+      "recommendation": "Consider: Generate plan for task..."
+    }
+  ],
+  "belief_hints": [
+    {
+      "belief_id": "260f8d89-17b6-40f4-915b-f951d2bdd240",
+      "belief_type": "pitfall",
+      "confidence": -0.05,
+      "recommend": "Repair after error by narrowing context and re-validating",
+      "avoid": "raise",
+      "evidence_refs": [
+        "dd00655d-7a48-4353-86c5-94399ce849cf",
+        "4dd10063-ab09-429f-af23-4c368181caf9",
+        "e397e993-484b-45a5-8477-c5be1cb21703"
+      ]
+    },
+    {
+      "belief_id": "328c315d-988a-424b-9e86-6a2250bbc1dd",
+      "belief_type": "pitfall",
+      "confidence": -0.05,
+      "recommend": "Repair after unknown by narrowing context and re-validating",
+      "avoid": "failcmd",
+      "evidence_refs": [
+        "12afd57d-5b4d-4782-9f8c-a06fef3b4522",
+        "e34c6684-e167-42db-a96c-74172ab1fdcc",
+        "/home/pt/SWE-bench/PDDL_work_mem/实验/实验03/quick_integration_20260222_011655/evidence/e34c6684-e167-42db-a96c-74172ab1fdcc_stderr_20260222_001745.txt"
+      ]
+    }
+  ],
+  "total_found": 1,
+  "embedding_provider": "sentence-transformers",
+  "assumptions": [
+    "Similarity is computed on available embedding views and falls back to lexical overlap.",
+    "Belief hints are ranked by current confidence."
+  ],
+  "failure_mode_if_wrong": "If retrieved examples are from mismatched environments, suggestions may be weak; use evidence_refs for manual verification.",
+  "timestamp": "2026-02-22T00:18:00.984501+00:00"
+}

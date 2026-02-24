@@ -1,0 +1,32 @@
+diff --git a/reproduce_issue.py b/reproduce_issue.py
+new file mode 100644
+index 000000000..28e060c41
+--- /dev/null
++++ b/reproduce_issue.py
+@@ -0,0 +1,25 @@
++from pytest import fixture
++
++
++def t(foo):
++    return foo
++
++
++@fixture
++def foo():
++    return 1
++
++
++def test_right_statement(foo):
++    assert foo == (3 + 2) * (6 + 9)
++
++    @t
++    def inner():
++        return 2
++
++    assert 2 == inner
++
++
++@t
++def outer():
++    return 2
+\ No newline at end of file

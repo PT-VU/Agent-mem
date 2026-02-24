@@ -1,0 +1,26 @@
+diff --git a/reproduce_issue.py b/reproduce_issue.py
+new file mode 100644
+index 0000000000..9782f13e2d
+--- /dev/null
++++ b/reproduce_issue.py
+@@ -0,0 +1,15 @@
++import matplotlib.pyplot as plt
++from matplotlib.gridspec import GridSpec
++
++fig, (ax1, ax2) = plt.subplots(1, 2, subplot_kw={'projection': '3d'})
++ax1.scatter(1,1,1)
++ax2.scatter(1,1,1, c='r')
++ax1.set_visible(False)
++
++# Save the figure to see the result
++plt.savefig('/testbed/test_output.png')
++print("Figure saved to /testbed/test_output.png")
++
++# Also check the visibility state
++print(f"ax1.get_visible() = {ax1.get_visible()}")
++print(f"ax2.get_visible() = {ax2.get_visible()}")
+\ No newline at end of file
+diff --git a/test_output.png b/test_output.png
+new file mode 100644
+index 0000000000..f20101618b
+Binary files /dev/null and b/test_output.png differ

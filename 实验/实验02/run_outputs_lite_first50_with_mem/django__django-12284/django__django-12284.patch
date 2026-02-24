@@ -1,0 +1,87 @@
+diff --git a/django/db/models/fields/__init__.py b/django/db/models/fields/__init__.py
+index 1a55d3d417..51376bcdbd 100644
+--- a/django/db/models/fields/__init__.py
++++ b/django/db/models/fields/__init__.py
+@@ -764,10 +764,32 @@ class Field(RegisterLookupMixin):
+             if not getattr(cls, self.attname, None):
+                 setattr(cls, self.attname, self.descriptor_class(self))
+         if self.choices is not None:
+-            if not hasattr(cls, 'get_%s_display' % self.name):
++            method_name = 'get_%s_display' % self.name
++            set_display_method = True
++            if hasattr(cls, method_name):
++                # Check if the existing method is bound to a field from a different model
++                method = getattr(cls, method_name)
++                # Try to get the field from the method
++                field_from_method = None
++                if hasattr(method, '__closure__') and method.__closure__:
++                    for cell in method.__closure__:
++                        contents = cell.cell_contents
++                        if isinstance(contents, partialmethod):
++                            field_from_method = contents.keywords.get('field')
++                            break
++                if field_from_method:
++                    # Method was created by Django (has a field in closure)
++                    # Only keep it if it's bound to a field from this model
++                    if field_from_method.model is cls:
++                        set_display_method = False
++                else:
++                    # Method was manually defined (no field in closure)
++                    # Don't override it
++                    set_display_method = False
++            if set_display_method:
+                 setattr(
+                     cls,
+-                    'get_%s_display' % self.name,
++                    method_name,
+                     partialmethod(cls._get_FIELD_display, field=self),
+                 )
+ 
+@@ -1194,14 +1216,39 @@ class DateField(DateTimeCheckMixin, Field):
+     def contribute_to_class(self, cls, name, **kwargs):
+         super().contribute_to_class(cls, name, **kwargs)
+         if not self.null:
+-            setattr(
+-                cls, 'get_next_by_%s' % self.name,
+-                partialmethod(cls._get_next_or_previous_by_FIELD, field=self, is_next=True)
+-            )
+-            setattr(
+-                cls, 'get_previous_by_%s' % self.name,
+-                partialmethod(cls._get_next_or_previous_by_FIELD, field=self, is_next=False)
+-            )
++            next_method_name = 'get_next_by_%s' % self.name
++            prev_method_name = 'get_previous_by_%s' % self.name
++            
++            # Check if methods already exist and are bound to fields from this model
++            for method_name in (next_method_name, prev_method_name):
++                set_method = True
++                if hasattr(cls, method_name):
++                    method = getattr(cls, method_name)
++                    # Try to get the field from the method
++                    field_from_method = None
++                    if hasattr(method, '__closure__') and method.__closure__:
++                        for cell in method.__closure__:
++                            contents = cell.cell_contents
++                            if isinstance(contents, partialmethod):
++                                field_from_method = contents.keywords.get('field')
++                                break
++                    if field_from_method:
++                        # Method was created by Django (has a field in closure)
++                        # Only keep it if it's bound to a field from this model
++                        if field_from_method.model is cls:
++                            set_method = False
++                    else:
++                        # Method was manually defined (no field in closure)
++                        # Don't override it
++                        set_method = False
++                
++                if set_method:
++                    is_next = method_name.startswith('get_next_by_')
++                    setattr(
++                        cls,
++                        method_name,
++                        partialmethod(cls._get_next_or_previous_by_FIELD, field=self, is_next=is_next)
++                    )
+ 
+     def get_prep_value(self, value):
+         value = super().get_prep_value(value)

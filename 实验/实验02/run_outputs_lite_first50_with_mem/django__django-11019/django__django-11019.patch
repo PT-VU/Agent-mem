@@ -1,0 +1,56 @@
+diff --git a/django/forms/widgets.py b/django/forms/widgets.py
+index 02aa32b207..b1db31e516 100644
+--- a/django/forms/widgets.py
++++ b/django/forms/widgets.py
+@@ -125,12 +125,33 @@ class Media:
+         in a certain order. In JavaScript you may not be able to reference a
+         global or in CSS you might want to override a style.
+         """
+-        # Start with a copy of list_1.
+-        combined_list = list(list_1)
+-        last_insert_index = len(list_1)
+-        # Walk list_2 in reverse, inserting each element into combined_list if
++        # Determine which list should be the base.
++        # If one list is a superset of the other (contains all its elements
++        # and has more elements), use it as the base since it likely has
++        # more complete dependency information.
++        set_1 = set(list_1)
++        set_2 = set(list_2)
++        
++        # Check if we're using a superset as base
++        using_superset_as_base = False
++        if set_2.issuperset(set_1) and len(list_2) > len(list_1):
++            # list_2 is a superset with more elements, use it as base
++            base_list, other_list = list_2, list_1
++            using_superset_as_base = True
++        elif set_1.issuperset(set_2) and len(list_1) > len(list_2):
++            # list_1 is a superset with more elements, use it as base
++            base_list, other_list = list_1, list_2
++            using_superset_as_base = True
++        else:
++            # Neither is a clear superset, use list_1 as base (existing behavior)
++            base_list, other_list = list_1, list_2
++        
++        # Start with a copy of the base list.
++        combined_list = list(base_list)
++        last_insert_index = len(base_list)
++        # Walk other_list in reverse, inserting each element into combined_list if
+         # it doesn't already exist.
+-        for path in reversed(list_2):
++        for path in reversed(other_list):
+             try:
+                 # Does path already exist in the list?
+                 index = combined_list.index(path)
+@@ -138,7 +159,11 @@ class Media:
+                 # Add path to combined_list since it doesn't exist.
+                 combined_list.insert(last_insert_index, path)
+             else:
+-                if index > last_insert_index:
++                if index > last_insert_index and not using_superset_as_base:
++                    # Only warn if we're not using a superset as base.
++                    # When using a superset as base, we're explicitly giving
++                    # priority to the superset's order, so conflicts with
++                    # the other list are expected and don't need a warning.
+                     warnings.warn(
+                         'Detected duplicate Media files in an opposite order:\n'
+                         '%s\n%s' % (combined_list[last_insert_index], combined_list[index]),

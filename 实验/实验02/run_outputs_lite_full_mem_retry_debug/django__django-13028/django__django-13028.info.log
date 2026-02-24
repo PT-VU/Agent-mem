@@ -1,0 +1,698 @@
+2026-02-22 10:58:10,944 - INFO - swea-plugin - Loaded external agent hook: PDDL_work_mem.tools.sweagent_ext_tools.bridge_hook:ExternalToolBridgeHook
+2026-02-22 10:58:11,113 - INFO - rex-deploy - Building image docker.io/swebench/sweb.eval.x86_64.django_1776_django-13028:latest to install a standalone python to /root. This might take a while (but you only have to do it once). To skip this step, set `python_standalone_dir` to None.
+2026-02-22 10:59:31,496 - INFO - rex-deploy - Starting container docker.ioswebenchsweb.eval.x86_64.django_1776_django-13028latest-641f0e00-e53c-41c9-af3c-51825e637468 with image docker.io/swebench/sweb.eval.x86_64.django_1776_django-13028:latest serving on port 44069
+2026-02-22 10:59:31,504 - INFO - rex-deploy - Starting runtime at 44069
+2026-02-22 10:59:48,107 - INFO - rex-deploy - Runtime started in 16.60s
+2026-02-22 10:59:49,528 - INFO - swea-env - Environment Initialized
+2026-02-22 10:59:56,941 - INFO - swea-agent - Setting up agent for instance django__django-13028
+2026-02-22 10:59:56,947 - INFO - swea-agent - Trajectory will be saved to /home/pt/SWE-bench/PDDL_work_mem/实验/实验02/run_outputs_lite_full_mem_retry_debug/django__django-13028/django__django-13028.traj
+2026-02-22 11:00:02,404 - INFO - swea-tools - Resetting tools
+2026-02-22 11:00:02,927 - INFO - swea-agent - SYSTEM (main)
+You are a helpful assistant that can interact with a computer to solve tasks.
+2026-02-22 11:00:03,102 - INFO - swea-agent - 🤖 MODEL INPUT
+<uploaded_files>
+/testbed
+</uploaded_files>
+I've uploaded a python code repository in the directory /testbed. Consider the following PR description:
+
+<pr_description>
+Queryset raises NotSupportedError when RHS has filterable=False attribute.
+Description
+	 
+		(last modified by Nicolas Baccelli)
+	 
+I'm migrating my app to django 3.0.7 and I hit a strange behavior using a model class with a field labeled filterable
+class ProductMetaDataType(models.Model):
+	label = models.CharField(max_length=255, unique=True, blank=False, null=False)
+	filterable = models.BooleanField(default=False, verbose_name=_("filterable"))
+	class Meta:
+		app_label = "adminpricing"
+		verbose_name = _("product meta data type")
+		verbose_name_plural = _("product meta data types")
+	def __str__(self):
+		return self.label
+class ProductMetaData(models.Model):
+	id = models.BigAutoField(primary_key=True)
+	product = models.ForeignKey(
+		Produit, null=False, blank=False, on_delete=models.CASCADE
+	)
+	value = models.TextField(null=False, blank=False)
+	marketplace = models.ForeignKey(
+		Plateforme, null=False, blank=False, on_delete=models.CASCADE
+	)
+	date_created = models.DateTimeField(null=True, default=timezone.now)
+	metadata_type = models.ForeignKey(
+		ProductMetaDataType, null=False, blank=False, on_delete=models.CASCADE
+	)
+	class Meta:
+		app_label = "adminpricing"
+		verbose_name = _("product meta data")
+		verbose_name_plural = _("product meta datas")
+Error happened when filtering ProductMetaData with a metadata_type :
+ProductMetaData.objects.filter(value="Dark Vador", metadata_type=self.brand_metadata)
+Error traceback :
+Traceback (most recent call last):
+ File "/backoffice/backoffice/adminpricing/tests/test_pw.py", line 481, in test_checkpolicywarning_by_fields
+	for p in ProductMetaData.objects.filter(
+ File "/usr/local/lib/python3.8/site-packages/django/db/models/manager.py", line 82, in manager_method
+	return getattr(self.get_queryset(), name)(*args, **kwargs)
+ File "/usr/local/lib/python3.8/site-packages/django/db/models/query.py", line 904, in filter
+	return self._filter_or_exclude(False, *args, **kwargs)
+ File "/usr/local/lib/python3.8/site-packages/django/db/models/query.py", line 923, in _filter_or_exclude
+	clone.query.add_q(Q(*args, **kwargs))
+ File "/usr/local/lib/python3.8/site-packages/django/db/models/sql/query.py", line 1351, in add_q
+	clause, _ = self._add_q(q_object, self.used_aliases)
+ File "/usr/local/lib/python3.8/site-packages/django/db/models/sql/query.py", line 1378, in _add_q
+	child_clause, needed_inner = self.build_filter(
+ File "/usr/local/lib/python3.8/site-packages/django/db/models/sql/query.py", line 1264, in build_filter
+	self.check_filterable(value)
+ File "/usr/local/lib/python3.8/site-packages/django/db/models/sql/query.py", line 1131, in check_filterable
+	raise NotSupportedError(
+django.db.utils.NotSupportedError: ProductMetaDataType is disallowed in the filter clause.
+I changed label to filterable_test and it fixed this issue
+This should be documented or fix.
+
+</pr_description>
+
+Can you help me implement the necessary changes to the repository so that the requirements specified in the <pr_description> are met?
+I've already taken care of all changes to any of the test files described in the <pr_description>. This means you DON'T have to modify the testing logic or any of the tests in any way!
+Your task is to make the minimal changes to non-tests files in the /testbed directory to ensure the <pr_description> is satisfied.
+Follow these steps to resolve the issue:
+1. As a first step, it might be a good idea to find and read code relevant to the <pr_description>
+2. Create a script to reproduce the error and execute it with `python <filename.py>` using the bash tool, to confirm the error
+3. Edit the sourcecode of the repo to resolve the issue
+4. Rerun your reproduce script and confirm that the error is fixed!
+5. Think about edgecases and make sure your fix handles them as well
+Your thinking should be thorough and so it's fine if it's very long.
+2026-02-22 11:00:03,126 - INFO - swea-agent - ========================= STEP 1 =========================
+2026-02-22 11:00:08,673 - INFO - swea-agent - 💭 THOUGHT
+I'll help you implement the necessary changes to fix the issue described in the PR. Let's start by understanding the problem.
+
+## Step 1: Understanding the Issue
+
+From the PR description:
+1. There's a Django model with a field named `filterable` (a BooleanField)
+2. When filtering a related model (`ProductMetaData`) with a foreign key to this model, Django raises a `NotSupportedError` saying "ProductMetaDataType is disallowed in the filter clause"
+3. Changing the field name from `filterable` to `filterable_test` fixes the issue
+4. The error occurs in Django 3.0.7
+
+The error traceback points to `django/db/models/sql/query.py` in the `check_filterable` method. Let's examine the relevant code.
+
+🎬 ACTION
+str_replace_editor view /testbed
+2026-02-22 11:00:16,712 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-22 11:00:17,033 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+Here's the files and directories up to 2 levels deep in /testbed, excluding hidden items:
+/testbed
+/testbed/extras
+/testbed/extras/README.TXT
+/testbed/extras/django_bash_completion
+/testbed/extras/Makefile
+/testbed/django
+/testbed/django/apps
+/testbed/django/urls
+/testbed/django/template
+/testbed/django/middleware
+/testbed/django/shortcuts.py
+/testbed/django/utils
+/testbed/django/bin
+/testbed/django/test
+/testbed/django/http
+/testbed/django/__pycache__
+/testbed/django/views
+/testbed/django/db
+/testbed/django/dispatch
+/testbed/django/core
+/testbed/django/conf
+/testbed/django/templatetags
+/testbed/django/__init__.py
+/testbed/django/forms
+/testbed/django/contrib
+/testbed/django/__main__.py
+/testbed/LICENSE.python
+/testbed/tests
+/testbed/tests/sitemaps_tests
+/testbed/tests/get_earliest_or_latest
+/testbed/tests/sites_tests
+/testbed/tests/many_to_many
+/testbed/tests/model_forms
+/testbed/tests/foreign_object
+/testbed/tests/file_uploads
+/testbed/tests/admin_scripts
+/testbed/tests/admin_autodiscover
+/testbed/tests/apps
+/testbed/tests/model_package
+/testbed/tests/signing
+/testbed/tests/resolve_url
+/testbed/tests/templates
+/testbed/tests/serializers
+/testbed/tests/admin_changelist
+/testbed/tests/urlpatterns_reverse
+/testbed/tests/m2m_recursive
+/testbed/tests/admin_default_site
+/testbed/tests/unmanaged_models
+/testbed/tests/middleware_exceptions
+/testbed/tests/fixtures_model_package
+/testbed/tests/validators
+/testbed/tests/urls.py
+/testbed/tests/template_loader
+/testbed/tests/str
+/testbed/tests/test_exceptions
+/testbed/tests/introspection
+/testbed/tests/update_only_fields
+/testbed/tests/db_functions
+/testbed/tests/utils_tests
+/testbed/tests/file_storage
+/testbed/tests/model_formsets_regress
+/testbed/tests/context_processors
+/testbed/tests/user_commands
+/testbed/tests/null_fk
+/testbed/tests/builtin_server
+/testbed/tests/extra_regress
+/testbed/tests/signed_cookies_tests
+/testbed/tests/nested_foreign_keys
+/testbed/tests/queries
+/testbed/tests/middleware
+/testbed/tests/admin_docs
+/testbed/tests/model_inheritance
+/testbed/tests/base
+/testbed/tests/check_framework
+/testbed/tests/app_loading
+/testbed/tests/csrf_tests
+/testbed/tests/dbshell
+/testbed/tests/many_to_one_null
+/testbed/tests/constraints
+/testbed/tests/update
+/testbed/tests/validation
+/testbed/tests/auth_tests
+/testbed/tests/expressions_window
+/testbed/tests/select_related_regress
+/testbed/tests/m2m_signals
+/testbed/tests/model_formsets
+/testbed/tests/model_inheritance_regress
+/testbed/tests/admin_widgets
+/testbed/tests/m2m_through
+/testbed/tests/custom_managers
+/testbed/tests/view_tests
+/testbed/tests/known_related_objects
+/testbed/tests/expressions_case
+/testbed/tests/test_client_regress
+/testbed/tests/m2o_recursive
+/testbed/tests/annotations
+/testbed/tests/migrations2
+/testbed/tests/admin_filters
+/testbed/tests/staticfiles_tests
+/testbed/tests/raw_query
+/testbed/tests/or_lookups
+/testbed/tests/handlers
+/testbed/tests/model_regress
+/testbed/tests/async
+/testbed/tests/files
+/testbed/tests/admin_custom_urls
+/testbed/tests/absolute_url_overrides
+/testbed/tests/test_runner
+/testbed/tests/no_models
+/testbed/tests/runtests.py
+/testbed/tests/m2m_regress
+/testbed/tests/field_subclassing
+/testbed/tests/queryset_pickle
+/testbed/tests/requests
+/testbed/tests/indexes
+/testbed/tests/expressions
+/testbed/tests/version
+/testbed/tests/model_enums
+/testbed/tests/i18n
+/testbed/tests/cache
+/testbed/tests/test_sqlite.py
+/testbed/tests/custom_columns
+/testbed/tests/select_related_onetoone
+/testbed/tests/decorators
+/testbed/tests/save_delete_hooks
+/testbed/tests/gis_tests
+/testbed/tests/migrations
+/testbed/tests/many_to_one
+/testbed/tests/null_queries
+/testbed/tests/custom_pk
+/testbed/tests/max_lengths
+/testbed/tests/template_backends
+/testbed/tests/db_utils
+/testbed/tests/messages_tests
+/testbed/tests/m2m_through_regress
+/testbed/tests/migrate_signals
+/testbed/tests/bash_completion
+/testbed/tests/backends
+/testbed/tests/responses
+/testbed/tests/generic_relations_regress
+/testbed/tests/reserved_names
+/testbed/tests/template_tests
+/testbed/tests/mutually_referential
+/testbed/tests/proxy_models
+/testbed/tests/humanize_tests
+/testbed/tests/flatpages_tests
+/testbed/tests/sessions_tests
+/testbed/tests/migration_test_data_persistence
+/testbed/tests/model_indexes
+/testbed/tests/string_lookup
+/testbed/tests/settings_tests
+/testbed/tests/httpwrappers
+/testbed/tests/order_with_respect_to
+/testbed/tests/shell
+/testbed/tests/timezones
+/testbed/tests/one_to_one
+/testbed/tests/project_template
+/testbed/tests/admin_views
+/testbed/tests/postgres_tests
+/testbed/tests/wsgi
+/testbed/tests/m2m_multiple
+/testbed/tests/modeladmin
+/testbed/tests/requirements
+/testbed/tests/fixtures_regress
+/testbed/tests/datatypes
+/testbed/tests/swappable_models
+/testbed/tests/urlpatterns
+/testbed/tests/dispatch
+/testbed/tests/generic_views
+/testbed/tests/logging_tests
+/testbed/tests/multiple_database
+/testbed/tests/contenttypes_tests
+/testbed/tests/model_fields
+/testbed/tests/signals
+/testbed/tests/field_defaults
+/testbed/tests/admin_utils
+/testbed/tests/empty
+/testbed/tests/defer
+/testbed/tests/sites_framework
+/testbed/tests/lookup
+/testbed/tests/reverse_lookup
+/testbed/tests/README.rst
+/testbed/tests/servers
+/testbed/tests/forms_tests
+/testbed/tests/conditional_processing
+/testbed/tests/force_insert_update
+/testbed/tests/defer_regress
+/testbed/tests/asgi
+/testbed/tests/properties
+/testbed/tests/delete_regress
+/testbed/tests/get_or_create
+/testbed/tests/deprecation
+/testbed/tests/select_related
+/testbed/tests/model_options
+/testbed/tests/syndication_tests
+/testbed/tests/empty_models
+/testbed/tests/custom_migration_operations
+/testbed/tests/datetimes
+/testbed/tests/schema
+/testbed/tests/aggregation
+/testbed/tests/m2m_and_m2o
+/testbed/tests/inspectdb
+/testbed/tests/distinct_on_fields
+/testbed/tests/inline_formsets
+/testbed/tests/admin_inlines
+/testbed/tests/prefetch_related
+/testbed/tests/test_client
+/testbed/tests/admin_ordering
+/testbed/tests/generic_relations
+/testbed/tests/custom_lookups
+/testbed/tests/db_typecasts
+/testbed/tests/shortcuts
+/testbed/tests/delete
+/testbed/tests/ordering
+/testbed/tests/custom_methods
+/testbed/tests/transactions
+/testbed/tests/generic_inline_admin
+/testbed/tests/filtered_relation
+/testbed/tests/select_for_update
+/testbed/tests/test_utils
+/testbed/tests/managers_regress
+/testbed/tests/m2m_intermediary
+/testbed/tests/transaction_hooks
+/testbed/tests/admin_checks
+/testbed/tests/mail
+/testbed/tests/proxy_model_inheritance
+/testbed/tests/basic
+/testbed/tests/get_object_or_404
+/testbed/tests/import_error_package
+/testbed/tests/test_runner_apps
+/testbed/tests/dates
+/testbed/tests/invalid_models_tests
+/testbed/tests/aggregation_regress
+/testbed/tests/null_fk_ordering
+/testbed/tests/bulk_create
+/testbed/tests/field_deconstruction
+/testbed/tests/from_db_value
+/testbed/tests/model_meta
+/testbed/tests/admin_registration
+/testbed/tests/redirects_tests
+/testbed/tests/fixtures
+/testbed/tests/pagination
+/testbed/MANIFEST.in
+/testbed/AUTHORS
+/testbed/Django.egg-info
+/testbed/Django.egg-info/entry_points.txt
+/testbed/Django.egg-info/SOURCES.txt
+/testbed/Django.egg-info/PKG-INFO
+/testbed/Django.egg-info/not-zip-safe
+/testbed/Django.egg-info/requires.txt
+/testbed/Django.egg-info/dependency_links.txt
+/testbed/Django.egg-info/top_level.txt
+/testbed/CONTRIBUTING.rst
+/testbed/setup.py
+/testbed/js_tests
+/testbed/js_tests/gis
+/testbed/js_tests/tests.html
+/testbed/js_tests/admin
+/testbed/INSTALL
+/testbed/package.json
+/testbed/README.rst
+/testbed/scripts
+/testbed/scripts/rpm-install.sh
+/testbed/scripts/manage_translations.py
+/testbed/LICENSE
+/testbed/Gruntfile.js
+/testbed/docs
+/testbed/docs/topics
+/testbed/docs/faq
+/testbed/docs/spelling_wordlist
+/testbed/docs/_theme
+/testbed/docs/glossary.txt
+/testbed/docs/man
+/testbed/docs/howto
+/testbed/docs/_ext
+/testbed/docs/index.txt
+/testbed/docs/intro
+/testbed/docs/internals
+/testbed/docs/misc
+/testbed/docs/contents.txt
+/testbed/docs/conf.py
+/testbed/docs/make.bat
+/testbed/docs/Makefile
+/testbed/docs/README.rst
+/testbed/docs/ref
+/testbed/docs/releases
+/testbed/setup.cfg
+/testbed/tox.ini
+
+
+
+2026-02-22 11:00:17,046 - INFO - swea-agent - ========================= STEP 2 =========================
+2026-02-22 11:00:21,168 - INFO - swea-agent - 💭 THOUGHT
+Let's look at the `check_filterable` method in `/testbed/django/db/models/sql/query.py`:
+
+🎬 ACTION
+str_replace_editor view /testbed/django/db/models/sql/query.py  --view_range 1120 1140
+2026-02-22 11:00:29,174 - INFO - swea-ext-bridge - [tool_a stdout] {
+  "version": "v1",
+  "event_handled": "plan_generated",
+  "task_id": "task_20260222_100015_main",
+  "action_id": "e3762069-c3e1-4b10-bc5b-bad6825c3e96",
+  "planning_tips": [
+    {
+      "type": "belief_tip",
+      "belief_id": "b13545a0-7efc-4f47-9b19-c6134a273954",
+      "belief_type": "workflow",
+      "recommendation": "Generate plan for task -> Generate plan for task -> Generate plan for task",
+      "confidence": 0.05
+    },
+    {
+      "type": "belief_tip",
+      "belief_id": "f0e0f81f-7704-4ef2-aa11-3608818f2fb5",
+      "belief_type": "pitfall",
+      "recommendation": "Repair after failure by narrowing context and re-validating",
+      "confidence": -0.05
+    },
+    {
+      "type": "workflow_step",
+      "step_number": 1,
+      "intent": "Generate plan for task",
+      "action_type": "tool_call",
+      "recommendation": "Consider: Generate plan for task..."
+    }
+  ],
+  "evidence_refs": [
+    "e56dc3da-667d-420f-abdf-ce899c47ecb6",
+    "4723dc19-a0a9-4fda-9a5e-a445f4ebe34b",
+    "9ab3a56b-a428-4a5b-8693-d9c9906bb596",
+    {
+      "task_id": "task_20260222_095615_main",
+      "action_id": "e56dc3da-667d-420f-abdf-ce899c47ecb6",
+      "type": "success_chain"
+    },
+    {
+      "task_id": "task_20260222_095615_main",
+      "action_id": "4723dc19-a0a9-4fda-9a5e-a445f4ebe34b",
+      "type": "success_chain"
+    },
+    {
+      "task_id": "task_20260222_095615_main",
+      "action_id": "2f595efb-be28-407c-9b36-d750ed64fc58",
+      "type": "success_chain"
+    },
+    {
+      "task_id": "task_20260222_100015_main",
+      "action_id": "7ef00482-0eb3-4680-94c9-ef7ed15e62ca",
+      "type": "success_chain"
+    },
+    {
+      "task_id": "task_20260222_100015_main",
+      "action_id": "e3762069-c3e1-4b10-bc5b-bad6825c3e96",
+      "type": "success_chain"
+    }
+  ],
+  "confidence": 0.6,
+  "embedding_provider": "sentence-transformers",
+  "timestamp": "2026-02-22T10:00:28.303164+00:00"
+}
+2026-02-22 11:00:29,514 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+Here's the result of running `cat -n` on /testbed/django/db/models/sql/query.py:
+  1120	                self.check_query_object_type(value, opts, field)
+  1121	            elif hasattr(value, '__iter__'):
+  1122	                for v in value:
+  1123	                    self.check_query_object_type(v, opts, field)
+  1124	
+  1125	    def check_filterable(self, expression):
+  1126	        """Raise an error if expression cannot be used in a WHERE clause."""
+  1127	        if not getattr(expression, 'filterable', True):
+  1128	            raise NotSupportedError(
+  1129	                expression.__class__.__name__ + ' is disallowed in the filter '
+  1130	                'clause.'
+  1131	            )
+  1132	        if hasattr(expression, 'get_source_expressions'):
+  1133	            for expr in expression.get_source_expressions():
+  1134	                self.check_filterable(expr)
+  1135	
+  1136	    def build_lookup(self, lookups, lhs, rhs):
+  1137	        """
+  1138	        Try to extract transforms and lookup from given lhs.
+  1139	
+  1140	        The lhs value is something that works like SQLExpression.
+
+
+2026-02-22 11:00:29,520 - INFO - swea-agent - ========================= STEP 3 =========================
+2026-02-22 11:00:32,354 - INFO - swea-agent - 💭 THOUGHT
+Now let's see where `check_filterable` is called from:
+
+🎬 ACTION
+cd /testbed && grep -n "check_filterable" django/db/models/sql/query.py
+2026-02-22 11:00:40,247 - INFO - swea-ext-bridge - [tool_a stdout] {
+  "version": "v1",
+  "event_handled": "plan_generated",
+  "task_id": "task_20260222_100015_main",
+  "action_id": "c9b4f763-72d0-4b32-9ecc-d7c723adbe49",
+  "planning_tips": [
+    {
+      "type": "belief_tip",
+      "belief_id": "b13545a0-7efc-4f47-9b19-c6134a273954",
+      "belief_type": "workflow",
+      "recommendation": "Generate plan for task -> Generate plan for task -> Generate plan for task",
+      "confidence": 0.05
+    },
+    {
+      "type": "belief_tip",
+      "belief_id": "f0e0f81f-7704-4ef2-aa11-3608818f2fb5",
+      "belief_type": "pitfall",
+      "recommendation": "Repair after failure by narrowing context and re-validating",
+      "confidence": -0.05
+    },
+    {
+      "type": "workflow_step",
+      "step_number": 1,
+      "intent": "Generate plan for task",
+      "action_type": "tool_call",
+      "recommendation": "Consider: Generate plan for task..."
+    }
+  ],
+  "evidence_refs": [
+    "e56dc3da-667d-420f-abdf-ce899c47ecb6",
+    "4723dc19-a0a9-4fda-9a5e-a445f4ebe34b",
+    "9ab3a56b-a428-4a5b-8693-d9c9906bb596",
+    {
+      "task_id": "task_20260222_095615_main",
+      "action_id": "e56dc3da-667d-420f-abdf-ce899c47ecb6",
+      "type": "success_chain"
+    },
+    {
+      "task_id": "task_20260222_095615_main",
+      "action_id": "4723dc19-a0a9-4fda-9a5e-a445f4ebe34b",
+      "type": "success_chain"
+    },
+    {
+      "task_id": "task_20260222_095615_main",
+      "action_id": "2f595efb-be28-407c-9b36-d750ed64fc58",
+      "type": "success_chain"
+    },
+    {
+      "task_id": "task_20260222_100015_main",
+      "action_id": "7ef00482-0eb3-4680-94c9-ef7ed15e62ca",
+      "type": "success_chain"
+    },
+    {
+      "task_id": "task_20260222_100015_main",
+      "action_id": "e3762069-c3e1-4b10-bc5b-bad6825c3e96",
+      "type": "success_chain"
+    },
+    {
+      "task_id": "task_20260222_100015_main",
+      "action_id": "c9b4f763-72d0-4b32-9ecc-d7c723adbe49",
+      "type": "success_chain"
+    }
+  ],
+  "confidence": 0.6,
+  "embedding_provider": "sentence-transformers",
+  "timestamp": "2026-02-22T10:00:39.313471+00:00"
+}
+2026-02-22 11:00:40,558 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+1125:    def check_filterable(self, expression):
+1134:                self.check_filterable(expr)
+1203:                     reuse_with_filtered_relation=False, check_filterable=True):
+1242:                check_filterable=check_filterable,
+1258:        if check_filterable:
+1259:            self.check_filterable(reffed_expression)
+1268:        if check_filterable:
+1269:            self.check_filterable(value)
+1366:               check_filterable=True):
+1378:                split_subq=split_subq, check_filterable=check_filterable,
+
+2026-02-22 11:00:40,564 - INFO - swea-agent - ========================= STEP 4 =========================
+2026-02-22 11:00:44,062 - INFO - swea-agent - 💭 THOUGHT
+Let's look at the `build_filter` method where `check_filterable` is called:
+
+🎬 ACTION
+str_replace_editor view /testbed/django/db/models/sql/query.py  --view_range 1250 1280
+2026-02-22 11:00:52,068 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-22 11:00:52,384 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+Here's the result of running `cat -n` on /testbed/django/db/models/sql/query.py:
+  1250	            clause = self.where_class()
+  1251	            clause.add(condition, AND)
+  1252	            return clause, []
+  1253	        arg, value = filter_expr
+  1254	        if not arg:
+  1255	            raise FieldError("Cannot parse keyword query %r" % arg)
+  1256	        lookups, parts, reffed_expression = self.solve_lookup_type(arg)
+  1257	
+  1258	        if check_filterable:
+  1259	            self.check_filterable(reffed_expression)
+  1260	
+  1261	        if not allow_joins and len(parts) > 1:
+  1262	            raise FieldError("Joined field references are not permitted in this query")
+  1263	
+  1264	        pre_joins = self.alias_refcount.copy()
+  1265	        value = self.resolve_lookup_value(value, can_reuse, allow_joins)
+  1266	        used_joins = {k for k, v in self.alias_refcount.items() if v > pre_joins.get(k, 0)}
+  1267	
+  1268	        if check_filterable:
+  1269	            self.check_filterable(value)
+  1270	
+  1271	        clause = self.where_class()
+  1272	        if reffed_expression:
+  1273	            condition = self.build_lookup(lookups, reffed_expression, value)
+  1274	            clause.add(condition, AND)
+  1275	            return clause, []
+  1276	
+  1277	        opts = self.get_meta()
+  1278	        alias = self.get_initial_alias()
+  1279	        allow_many = not branch_negated or not split_subq
+  1280	
+
+
+2026-02-22 11:00:52,392 - INFO - swea-agent - ========================= STEP 5 =========================
+2026-02-22 11:00:58,962 - INFO - swea-agent - 💭 THOUGHT
+So the issue is that when Django checks if an expression is filterable (line 1127), it checks for `getattr(expression, 'filterable', True)`. If the expression has a `filterable` attribute that evaluates to `False`, it raises `NotSupportedError`.
+
+The problem is that when we have a model instance with a field named `filterable`, and we use that instance as a value in a filter (like `metadata_type=self.brand_metadata` where `brand_metadata` is a `ProductMetaDataType` instance), Django checks if the instance itself is filterable. Since the instance has a `filterable` attribute (the field value), and if that field is `False`, then `getattr(expression, 'filterable', True)` returns `False`, causing the error.
+
+Let's check what type of object `expression` is when it's a model instance. Let's look for tests related to this:
+
+🎬 ACTION
+cd /testbed && find . -name "*.py" -type f -exec grep -l "check_filterable\|NotSupportedError" {} \;
+2026-02-22 11:01:06,971 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-22 11:01:11,788 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+./django/db/utils.py
+./django/db/models/expressions.py
+./django/db/models/fields/json.py
+./django/db/models/query.py
+./django/db/models/functions/text.py
+./django/db/models/query_utils.py
+./django/db/models/sql/compiler.py
+./django/db/models/sql/query.py
+./django/db/backends/utils.py
+./django/db/backends/base/operations.py
+./django/db/backends/oracle/operations.py
+./django/db/backends/sqlite3/schema.py
+./django/db/backends/sqlite3/operations.py
+./django/db/backends/mysql/base.py
+./django/db/__init__.py
+./django/contrib/gis/db/models/lookups.py
+./django/contrib/gis/db/models/functions.py
+./django/contrib/gis/db/backends/base/operations.py
+./django/contrib/gis/db/backends/postgis/operations.py
+./django/contrib/postgres/indexes.py
+./django/contrib/postgres/operations.py
+./tests/db_functions/text/test_sha224.py
+./tests/queries/test_qs_combinators.py
+./tests/queries/test_explain.py
+./tests/expressions_window/tests.py
+./tests/expressions/tests.py
+./tests/gis_tests/distapp/tests.py
+./tests/gis_tests/relatedapp/tests.py
+./tests/gis_tests/geogapp/tests.py
+./tests/gis_tests/geoapp/tests.py
+./tests/gis_tests/geoapp/test_functions.py
+./tests/backends/test_utils.py
+./tests/backends/base/test_operations.py
+./tests/backends/sqlite/tests.py
+./tests/postgres_tests/test_operations.py
+./tests/postgres_tests/test_indexes.py
+./tests/model_fields/test_jsonfield.py
+./tests/select_for_update/tests.py
+./tests/bulk_create/tests.py
+
+2026-02-22 11:01:11,797 - INFO - swea-agent - ========================= STEP 6 =========================
+2026-02-22 11:01:14,562 - INFO - swea-agent - 💭 THOUGHT
+Let's look at the `expressions.py` file to understand what types of objects have a `filterable` attribute:
+
+🎬 ACTION
+cd /testbed && grep -n "filterable" django/db/models/expressions.py
+2026-02-22 11:01:22,569 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-22 11:01:22,836 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+159:    filterable = True
+1205:    filterable = False
+
+2026-02-22 11:01:22,841 - INFO - swea-agent - ========================= STEP 7 =========================
+2026-02-22 11:01:25,916 - WARNING - swea-lm - API calls 7 exceeds limit 6
+2026-02-22 11:01:25,919 - WARNING - swea-agent - Exit due to cost limit
+2026-02-22 11:01:25,922 - WARNING - swea-agent - Attempting autosubmission after error
+2026-02-22 11:01:25,929 - INFO - swea-agent - Executing submission command git add -A && git diff --cached > /root/model.patch in /testbed
+2026-02-22 11:01:26,002 - INFO - swea-agent - Found submission: 
+2026-02-22 11:01:26,006 - INFO - swea-agent - 🤖 MODEL INPUT
+Your command ran successfully and did not produce any output.
+2026-02-22 11:01:34,014 - WARNING - swea-ext-bridge - External tool_b timed out after 8.00s
+2026-02-22 11:01:34,019 - INFO - swea-agent - Trajectory saved to /home/pt/SWE-bench/PDDL_work_mem/实验/实验02/run_outputs_lite_full_mem_retry_debug/django__django-13028/django__django-13028.traj
+2026-02-22 11:01:34,023 - INFO - swea-env - Beginning environment shutdown...
+2026-02-22 11:01:34,594 - INFO - rex-deploy - Removing image docker.io/swebench/sweb.eval.x86_64.django_1776_django-13028:latest
+2026-02-22 11:01:34,650 - INFO - swea-save_apply_patch - No patch to save.

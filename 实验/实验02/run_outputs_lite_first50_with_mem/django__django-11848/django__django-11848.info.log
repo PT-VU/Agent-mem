@@ -1,0 +1,3597 @@
+2026-02-23 14:01:25,570 - INFO - swea-plugin - Loaded external agent hook: PDDL_work_mem.tools.sweagent_ext_tools.bridge_hook:ExternalToolBridgeHook
+2026-02-23 14:01:25,732 - INFO - rex-deploy - Building image docker.io/swebench/sweb.eval.x86_64.django_1776_django-11848:latest to install a standalone python to /root. This might take a while (but you only have to do it once). To skip this step, set `python_standalone_dir` to None.
+2026-02-23 14:02:38,151 - INFO - rex-deploy - Starting container docker.ioswebenchsweb.eval.x86_64.django_1776_django-11848latest-21dbb972-2087-4759-8f66-3e9c994ed92a with image docker.io/swebench/sweb.eval.x86_64.django_1776_django-11848:latest serving on port 56431
+2026-02-23 14:02:38,159 - INFO - rex-deploy - Starting runtime at 56431
+2026-02-23 14:02:59,404 - INFO - rex-deploy - Runtime started in 21.24s
+2026-02-23 14:03:25,575 - INFO - swea-env - Environment Initialized
+2026-02-23 14:03:32,180 - INFO - swea-agent - Setting up agent for instance django__django-11848
+2026-02-23 14:03:32,188 - INFO - swea-agent - Trajectory will be saved to /home/pt/SWE-bench/PDDL_work_mem/实验/实验02/run_outputs_lite_first50_with_mem/django__django-11848/django__django-11848.traj
+2026-02-23 14:03:36,365 - INFO - swea-tools - Resetting tools
+2026-02-23 14:03:36,857 - INFO - swea-agent - SYSTEM (main)
+You are a helpful assistant that can interact with a computer to solve tasks.
+2026-02-23 14:03:37,047 - INFO - swea-agent - 🤖 MODEL INPUT
+<uploaded_files>
+/testbed
+</uploaded_files>
+I've uploaded a python code repository in the directory /testbed. Consider the following PR description:
+
+<pr_description>
+django.utils.http.parse_http_date two digit year check is incorrect
+Description
+	 
+		(last modified by Ad Timmering)
+	 
+RFC 850 does not mention this, but in RFC 7231 (and there's something similar in RFC 2822), there's the following quote:
+Recipients of a timestamp value in rfc850-date format, which uses a
+two-digit year, MUST interpret a timestamp that appears to be more
+than 50 years in the future as representing the most recent year in
+the past that had the same last two digits.
+Current logic is hard coded to consider 0-69 to be in 2000-2069, and 70-99 to be 1970-1999, instead of comparing versus the current year.
+
+</pr_description>
+
+Can you help me implement the necessary changes to the repository so that the requirements specified in the <pr_description> are met?
+I've already taken care of all changes to any of the test files described in the <pr_description>. This means you DON'T have to modify the testing logic or any of the tests in any way!
+Your task is to make the minimal changes to non-tests files in the /testbed directory to ensure the <pr_description> is satisfied.
+Follow these steps to resolve the issue:
+1. As a first step, it might be a good idea to find and read code relevant to the <pr_description>
+2. Create a script to reproduce the error and execute it with `python <filename.py>` using the bash tool, to confirm the error
+3. Edit the sourcecode of the repo to resolve the issue
+4. Rerun your reproduce script and confirm that the error is fixed!
+5. Think about edgecases and make sure your fix handles them as well
+Your thinking should be thorough and so it's fine if it's very long.
+2026-02-23 14:03:37,054 - INFO - swea-agent - ========================= STEP 1 =========================
+2026-02-23 14:03:41,595 - INFO - swea-agent - 💭 THOUGHT
+I'll help you implement the necessary changes to fix the two-digit year check in `django.utils.http.parse_http_date`. Let's start by exploring the repository structure and finding the relevant code.
+
+🎬 ACTION
+find /testbed -type f -name "*.py" | grep -i "http" | head -20
+2026-02-23 14:03:49,610 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:04:24,234 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+/testbed/django/middleware/http.py
+/testbed/django/utils/http.py
+/testbed/django/http/response.py
+/testbed/django/http/multipartparser.py
+/testbed/django/http/cookie.py
+/testbed/django/http/__init__.py
+/testbed/django/http/request.py
+/testbed/django/views/decorators/http.py
+/testbed/django/core/servers/basehttp.py
+/testbed/tests/sitemaps_tests/test_https.py
+/testbed/tests/sitemaps_tests/urls/https.py
+/testbed/tests/sitemaps_tests/urls/http.py
+/testbed/tests/sitemaps_tests/test_http.py
+/testbed/tests/utils_tests/test_http.py
+/testbed/tests/httpwrappers/tests.py
+/testbed/tests/httpwrappers/__init__.py
+/testbed/tests/servers/test_basehttp.py
+
+2026-02-23 14:04:24,243 - INFO - swea-agent - ========================= STEP 2 =========================
+2026-02-23 14:04:28,238 - INFO - swea-agent - 💭 THOUGHT
+The `django.utils.http` module is likely where `parse_http_date` is located. Let's examine it:
+
+🎬 ACTION
+str_replace_editor view /testbed/django/utils/http.py
+2026-02-23 14:04:36,252 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:04:36,661 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+<NOTE>This file is too large to display entirely. Showing abbreviated version. Please use `str_replace_editor view` with the `view_range` parameter to show selected lines next.</NOTE>
+     1 import base64
+     2 import calendar
+     3 import datetime
+     4 import re
+     5 import unicodedata
+     6 import warnings
+     7 from binascii import Error as BinasciiError
+     8 from email.utils import formatdate
+     9 from urllib.parse import (
+    10     ParseResult, SplitResult, _coerce_args, _splitnetloc, _splitparams, quote,
+    11     quote_plus, scheme_chars, unquote, unquote_plus,
+    12     urlencode as original_urlencode, uses_params,
+    13 )
+    14 
+    15 from django.core.exceptions import TooManyFieldsSent
+    16 from django.utils.datastructures import MultiValueDict
+    17 from django.utils.deprecation import RemovedInDjango40Warning
+    18 from django.utils.functional import keep_lazy_text
+    19 
+    20 # based on RFC 7232, Appendix C
+    21 ETAG_MATCH = re.compile(r'''
+    22     \A(      # start of string and capture group
+    23     (?:W/)?  # optional weak indicator
+    24     "        # opening quote
+    25     [^"]*    # any sequence of non-quote characters
+    26     "        # end quote
+    27     )\Z      # end of string and capture group
+    28 ''', re.X)
+    29 
+    30 MONTHS = 'jan feb mar apr may jun jul aug sep oct nov dec'.split()
+    31 __D = r'(?P<day>\d{2})'
+    32 __D2 = r'(?P<day>[ \d]\d)'
+    33 __M = r'(?P<mon>\w{3})'
+    34 __Y = r'(?P<year>\d{4})'
+    35 __Y2 = r'(?P<year>\d{2})'
+    36 __T = r'(?P<hour>\d{2}):(?P<min>\d{2}):(?P<sec>\d{2})'
+    37 RFC1123_DATE = re.compile(r'^\w{3}, %s %s %s %s GMT$' % (__D, __M, __Y, __T))
+    38 RFC850_DATE = re.compile(r'^\w{6,9}, %s-%s-%s %s GMT$' % (__D, __M, __Y2, __T))
+    39 ASCTIME_DATE = re.compile(r'^\w{3} %s %s %s %s$' % (__M, __D2, __T, __Y))
+    40 
+    41 RFC3986_GENDELIMS = ":/?#[]@"
+    42 RFC3986_SUBDELIMS = "!$&'()*+,;="
+    43 
+    44 FIELDS_MATCH = re.compile('[&;]')
+    45 
+    46 
+    47 @keep_lazy_text
+    48 def urlquote(url, safe='/'):
+    49 ... eliding lines 49-58 ...
+    59 
+    60 
+    61 @keep_lazy_text
+    62 def urlquote_plus(url, safe=''):
+    63 ... eliding lines 63-72 ...
+    73 
+    74 
+    75 @keep_lazy_text
+    76 def urlunquote(quoted_url):
+    77 ... eliding lines 77-86 ...
+    87 
+    88 
+    89 @keep_lazy_text
+    90 def urlunquote_plus(quoted_url):
+    91 ... eliding lines 91-100 ...
+   101 
+   102 
+   103 def urlencode(query, doseq=False):
+   104 ... eliding lines 104-141 ...
+   142 
+   143 
+   144 def http_date(epoch_seconds=None):
+   145 ... eliding lines 145-155 ...
+   156 
+   157 
+   158 def parse_http_date(date):
+   159 ... eliding lines 159-191 ...
+   192 
+   193 
+   194 def parse_http_date_safe(date):
+   195 ... eliding lines 195-201 ...
+   202 
+   203 
+   204 # Base 36 functions: useful for generating compact URLs
+   205 
+   206 def base36_to_int(s):
+   207 ... eliding lines 207-216 ...
+   217 
+   218 
+   219 def int_to_base36(i):
+   220 ... eliding lines 220-230 ...
+   231 
+   232 
+   233 def urlsafe_base64_encode(s):
+   234     """
+   235     Encode a bytestring to a base64 string for use in URLs. Strip any trailing
+   236     equal signs.
+   237     """
+   238     return base64.urlsafe_b64encode(s).rstrip(b'\n=').decode('ascii')
+   239 
+   240 
+   241 def urlsafe_base64_decode(s):
+   242 ... eliding lines 242-250 ...
+   251 
+   252 
+   253 def parse_etags(etag_str):
+   254 ... eliding lines 254-264 ...
+   265 
+   266 
+   267 def quote_etag(etag_str):
+   268 ... eliding lines 268-275 ...
+   276 
+   277 
+   278 def is_same_domain(host, pattern):
+   279 ... eliding lines 279-294 ...
+   295 
+   296 
+   297 def url_has_allowed_host_and_scheme(url, allowed_hosts, require_https=False):
+   298 ... eliding lines 298-323 ...
+   324 
+   325 
+   326 def is_safe_url(url, allowed_hosts, require_https=False):
+   327 ... eliding lines 327-332 ...
+   333 
+   334 
+   335 # Copied from urllib.parse.urlparse() but uses fixed urlsplit() function.
+   336 def _urlparse(url, scheme='', allow_fragments=True):
+   337 ... eliding lines 337-350 ...
+   351 
+   352 
+   353 # Copied from urllib.parse.urlsplit() with
+   354 # https://github.com/python/cpython/pull/661 applied.
+   355 def _urlsplit(url, scheme='', allow_fragments=True):
+   356 ... eliding lines 356-381 ...
+   382 
+   383 
+   384 def _url_has_allowed_host_and_scheme(url, allowed_hosts, require_https=False):
+   385     # Chrome considers any URL with more than two slashes to be absolute, but
+   386     # urlparse is not so flexible. Treat any url with three slashes as unsafe.
+   387 ... eliding lines 387-410 ...
+   411 
+   412 
+   413 def limited_parse_qsl(qs, keep_blank_values=False, encoding='utf-8',
+   414                       errors='replace', fields_limit=None):
+   415 ... eliding lines 415-463 ...
+   464 
+   465 
+   466 def escape_leading_slashes(url):
+   467 ... eliding lines 467-474 ...
+<IMPORTANT><NOTE>The above file has been abbreviated. Please use `str_replace editor view` with `view_range` to look at relevant files in detail.</NOTE></IMPORTANT>
+
+2026-02-23 14:04:36,671 - INFO - swea-agent - ========================= STEP 3 =========================
+2026-02-23 14:04:40,263 - INFO - swea-agent - 💭 THOUGHT
+Let's look at the `parse_http_date` function specifically:
+
+🎬 ACTION
+str_replace_editor view /testbed/django/utils/http.py  --view_range 158 192
+2026-02-23 14:04:48,273 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:05:24,226 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+Here's the result of running `cat -n` on /testbed/django/utils/http.py:
+   158	def parse_http_date(date):
+   159	    """
+   160	    Parse a date format as specified by HTTP RFC7231 section 7.1.1.1.
+   161	
+   162	    The three formats allowed by the RFC are accepted, even if only the first
+   163	    one is still in widespread use.
+   164	
+   165	    Return an integer expressed in seconds since the epoch, in UTC.
+   166	    """
+   167	    # email.utils.parsedate() does the job for RFC1123 dates; unfortunately
+   168	    # RFC7231 makes it mandatory to support RFC850 dates too. So we roll
+   169	    # our own RFC-compliant parsing.
+   170	    for regex in RFC1123_DATE, RFC850_DATE, ASCTIME_DATE:
+   171	        m = regex.match(date)
+   172	        if m is not None:
+   173	            break
+   174	    else:
+   175	        raise ValueError("%r is not in a valid HTTP date format" % date)
+   176	    try:
+   177	        year = int(m.group('year'))
+   178	        if year < 100:
+   179	            if year < 70:
+   180	                year += 2000
+   181	            else:
+   182	                year += 1900
+   183	        month = MONTHS.index(m.group('mon').lower()) + 1
+   184	        day = int(m.group('day'))
+   185	        hour = int(m.group('hour'))
+   186	        min = int(m.group('min'))
+   187	        sec = int(m.group('sec'))
+   188	        result = datetime.datetime(year, month, day, hour, min, sec)
+   189	        return calendar.timegm(result.utctimetuple())
+   190	    except Exception as exc:
+   191	        raise ValueError("%r is not a valid date" % date) from exc
+   192	
+
+
+2026-02-23 14:05:24,234 - INFO - swea-agent - ========================= STEP 4 =========================
+2026-02-23 14:05:30,913 - INFO - swea-agent - 💭 THOUGHT
+Now I can see the issue! The current implementation has hardcoded logic for two-digit years:
+- If year < 70: year += 2000 (so 0-69 becomes 2000-2069)
+- Else: year += 1900 (so 70-99 becomes 1970-1999)
+
+According to the PR description, this should instead compare against the current year. The RFC says: "Recipients of a timestamp value in rfc850-date format, which uses a two-digit year, MUST interpret a timestamp that appears to be more than 50 years in the future as representing the most recent year in the past that had the same last two digits."
+
+Let's also check if there are any tests for this function to understand the expected behavior better:
+
+🎬 ACTION
+find /testbed -type f -name "*.py" -exec grep -l "parse_http_date" {} \;
+2026-02-23 14:05:38,926 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:05:45,558 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+/testbed/django/middleware/http.py
+/testbed/django/utils/cache.py
+/testbed/django/utils/http.py
+/testbed/django/views/static.py
+/testbed/tests/utils_tests/test_http.py
+
+2026-02-23 14:05:45,566 - INFO - swea-agent - ========================= STEP 5 =========================
+2026-02-23 14:06:23,950 - INFO - swea-agent - 💭 THOUGHT
+Let's look at the test file to understand the expected behavior:
+
+🎬 ACTION
+str_replace_editor view /testbed/tests/utils_tests/test_http.py
+2026-02-23 14:06:32,872 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:06:33,179 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+Here's the result of running `cat -n` on /testbed/tests/utils_tests/test_http.py:
+     1	import unittest
+     2	from datetime import datetime
+     3	
+     4	from django.test import SimpleTestCase, ignore_warnings
+     5	from django.utils.datastructures import MultiValueDict
+     6	from django.utils.deprecation import RemovedInDjango40Warning
+     7	from django.utils.http import (
+     8	    base36_to_int, escape_leading_slashes, http_date, int_to_base36,
+     9	    is_safe_url, is_same_domain, parse_etags, parse_http_date, quote_etag,
+    10	    url_has_allowed_host_and_scheme, urlencode, urlquote, urlquote_plus,
+    11	    urlsafe_base64_decode, urlsafe_base64_encode, urlunquote, urlunquote_plus,
+    12	)
+    13	
+    14	
+    15	class URLEncodeTests(SimpleTestCase):
+    16	    cannot_encode_none_msg = (
+    17	        "Cannot encode None for key 'a' in a query string. Did you mean to "
+    18	        "pass an empty string or omit the value?"
+    19	    )
+    20	
+    21	    def test_tuples(self):
+    22	        self.assertEqual(urlencode((('a', 1), ('b', 2), ('c', 3))), 'a=1&b=2&c=3')
+    23	
+    24	    def test_dict(self):
+    25	        result = urlencode({'a': 1, 'b': 2, 'c': 3})
+    26	        # Dictionaries are treated as unordered.
+    27	        self.assertIn(result, [
+    28	            'a=1&b=2&c=3',
+    29	            'a=1&c=3&b=2',
+    30	            'b=2&a=1&c=3',
+    31	            'b=2&c=3&a=1',
+    32	            'c=3&a=1&b=2',
+    33	            'c=3&b=2&a=1',
+    34	        ])
+    35	
+    36	    def test_dict_containing_sequence_not_doseq(self):
+    37	        self.assertEqual(urlencode({'a': [1, 2]}, doseq=False), 'a=%5B1%2C+2%5D')
+    38	
+    39	    def test_dict_containing_tuple_not_doseq(self):
+    40	        self.assertEqual(urlencode({'a': (1, 2)}, doseq=False), 'a=%281%2C+2%29')
+    41	
+    42	    def test_custom_iterable_not_doseq(self):
+    43	        class IterableWithStr:
+    44	            def __str__(self):
+    45	                return 'custom'
+    46	
+    47	            def __iter__(self):
+    48	                yield from range(0, 3)
+    49	
+    50	        self.assertEqual(urlencode({'a': IterableWithStr()}, doseq=False), 'a=custom')
+    51	
+    52	    def test_dict_containing_sequence_doseq(self):
+    53	        self.assertEqual(urlencode({'a': [1, 2]}, doseq=True), 'a=1&a=2')
+    54	
+    55	    def test_dict_containing_empty_sequence_doseq(self):
+    56	        self.assertEqual(urlencode({'a': []}, doseq=True), '')
+    57	
+    58	    def test_multivaluedict(self):
+    59	        result = urlencode(MultiValueDict({
+    60	            'name': ['Adrian', 'Simon'],
+    61	            'position': ['Developer'],
+    62	        }), doseq=True)
+    63	        # MultiValueDicts are similarly unordered.
+    64	        self.assertIn(result, [
+    65	            'name=Adrian&name=Simon&position=Developer',
+    66	            'position=Developer&name=Adrian&name=Simon',
+    67	        ])
+    68	
+    69	    def test_dict_with_bytes_values(self):
+    70	        self.assertEqual(urlencode({'a': b'abc'}, doseq=True), 'a=abc')
+    71	
+    72	    def test_dict_with_sequence_of_bytes(self):
+    73	        self.assertEqual(urlencode({'a': [b'spam', b'eggs', b'bacon']}, doseq=True), 'a=spam&a=eggs&a=bacon')
+    74	
+    75	    def test_dict_with_bytearray(self):
+    76	        self.assertEqual(urlencode({'a': bytearray(range(2))}, doseq=True), 'a=0&a=1')
+    77	
+    78	    def test_generator(self):
+    79	        self.assertEqual(urlencode({'a': range(2)}, doseq=True), 'a=0&a=1')
+    80	        self.assertEqual(urlencode({'a': range(2)}, doseq=False), 'a=range%280%2C+2%29')
+    81	
+    82	    def test_none(self):
+    83	        with self.assertRaisesMessage(TypeError, self.cannot_encode_none_msg):
+    84	            urlencode({'a': None})
+    85	
+    86	    def test_none_in_sequence(self):
+    87	        with self.assertRaisesMessage(TypeError, self.cannot_encode_none_msg):
+    88	            urlencode({'a': [None]}, doseq=True)
+    89	
+    90	    def test_none_in_generator(self):
+    91	        def gen():
+    92	            yield None
+    93	        with self.assertRaisesMessage(TypeError, self.cannot_encode_none_msg):
+    94	            urlencode({'a': gen()}, doseq=True)
+    95	
+    96	
+    97	class Base36IntTests(SimpleTestCase):
+    98	    def test_roundtrip(self):
+    99	        for n in [0, 1, 1000, 1000000]:
+   100	            self.assertEqual(n, base36_to_int(int_to_base36(n)))
+   101	
+   102	    def test_negative_input(self):
+   103	        with self.assertRaisesMessage(ValueError, 'Negative base36 conversion input.'):
+   104	            int_to_base36(-1)
+   105	
+   106	    def test_to_base36_errors(self):
+   107	        for n in ['1', 'foo', {1: 2}, (1, 2, 3), 3.141]:
+   108	            with self.assertRaises(TypeError):
+   109	                int_to_base36(n)
+   110	
+   111	    def test_invalid_literal(self):
+   112	        for n in ['#', ' ']:
+   113	            with self.assertRaisesMessage(ValueError, "invalid literal for int() with base 36: '%s'" % n):
+   114	                base36_to_int(n)
+   115	
+   116	    def test_input_too_large(self):
+   117	        with self.assertRaisesMessage(ValueError, 'Base36 input too large'):
+   118	            base36_to_int('1' * 14)
+   119	
+   120	    def test_to_int_errors(self):
+   121	        for n in [123, {1: 2}, (1, 2, 3), 3.141]:
+   122	            with self.assertRaises(TypeError):
+   123	                base36_to_int(n)
+   124	
+   125	    def test_values(self):
+   126	        for n, b36 in [(0, '0'), (1, '1'), (42, '16'), (818469960, 'django')]:
+   127	            self.assertEqual(int_to_base36(n), b36)
+   128	            self.assertEqual(base36_to_int(b36), n)
+   129	
+   130	
+   131	class IsSafeURLTests(SimpleTestCase):
+   132	    def test_bad_urls(self):
+   133	        bad_urls = (
+   134	            'http://example.com',
+   135	            'http:///example.com',
+   136	            'https://example.com',
+   137	            'ftp://example.com',
+   138	            r'\\example.com',
+   139	            r'\\\example.com',
+   140	            r'/\\/example.com',
+   141	            r'\\\example.com',
+   142	            r'\\example.com',
+   143	            r'\\//example.com',
+   144	            r'/\/example.com',
+   145	            r'\/example.com',
+   146	            r'/\example.com',
+   147	            'http:///example.com',
+   148	            r'http:/\//example.com',
+   149	            r'http:\/example.com',
+   150	            r'http:/\example.com',
+   151	            'javascript:alert("XSS")',
+   152	            '\njavascript:alert(x)',
+   153	            '\x08//example.com',
+   154	            r'http://otherserver\@example.com',
+   155	            r'http:\\testserver\@example.com',
+   156	            r'http://testserver\me:pass@example.com',
+   157	            r'http://testserver\@example.com',
+   158	            r'http:\\testserver\confirm\me@example.com',
+   159	            'http:999999999',
+   160	            'ftp:9999999999',
+   161	            '\n',
+   162	            'http://[2001:cdba:0000:0000:0000:0000:3257:9652/',
+   163	            'http://2001:cdba:0000:0000:0000:0000:3257:9652]/',
+   164	        )
+   165	        for bad_url in bad_urls:
+   166	            with self.subTest(url=bad_url):
+   167	                self.assertIs(
+   168	                    url_has_allowed_host_and_scheme(bad_url, allowed_hosts={'testserver', 'testserver2'}),
+   169	                    False,
+   170	                )
+   171	
+   172	    def test_good_urls(self):
+   173	        good_urls = (
+   174	            '/view/?param=http://example.com',
+   175	            '/view/?param=https://example.com',
+   176	            '/view?param=ftp://example.com',
+   177	            'view/?param=//example.com',
+   178	            'https://testserver/',
+   179	            'HTTPS://testserver/',
+   180	            '//testserver/',
+   181	            'http://testserver/confirm?email=me@example.com',
+   182	            '/url%20with%20spaces/',
+   183	            'path/http:2222222222',
+   184	        )
+   185	        for good_url in good_urls:
+   186	            with self.subTest(url=good_url):
+   187	                self.assertIs(
+   188	                    url_has_allowed_host_and_scheme(good_url, allowed_hosts={'otherserver', 'testserver'}),
+   189	                    True,
+   190	                )
+   191	
+   192	    def test_basic_auth(self):
+   193	        # Valid basic auth credentials are allowed.
+   194	        self.assertIs(
+   195	            url_has_allowed_host_and_scheme(r'http://user:pass@testserver/', allowed_hosts={'user:pass@testserver'}),
+   196	            True,
+   197	        )
+   198	
+   199	    def test_no_allowed_hosts(self):
+   200	        # A path without host is allowed.
+   201	        self.assertIs(url_has_allowed_host_and_scheme('/confirm/me@example.com', allowed_hosts=None), True)
+   202	        # Basic auth without host is not allowed.
+   203	        self.assertIs(url_has_allowed_host_and_scheme(r'http://testserver\@example.com', allowed_hosts=None), False)
+   204	
+   205	    def test_allowed_hosts_str(self):
+   206	        self.assertIs(url_has_allowed_host_and_scheme('http://good.com/good', allowed_hosts='good.com'), True)
+   207	        self.assertIs(url_has_allowed_host_and_scheme('http://good.co/evil', allowed_hosts='good.com'), False)
+   208	
+   209	    def test_secure_param_https_urls(self):
+   210	        secure_urls = (
+   211	            'https://example.com/p',
+   212	            'HTTPS://example.com/p',
+   213	            '/view/?param=http://example.com',
+   214	        )
+   215	        for url in secure_urls:
+   216	            with self.subTest(url=url):
+   217	                self.assertIs(
+   218	                    url_has_allowed_host_and_scheme(url, allowed_hosts={'example.com'}, require_https=True),
+   219	                    True,
+   220	                )
+   221	
+   222	    def test_secure_param_non_https_urls(self):
+   223	        insecure_urls = (
+   224	            'http://example.com/p',
+   225	            'ftp://example.com/p',
+   226	            '//example.com/p',
+   227	        )
+   228	        for url in insecure_urls:
+   229	            with self.subTest(url=url):
+   230	                self.assertIs(
+   231	                    url_has_allowed_host_and_scheme(url, allowed_hosts={'example.com'}, require_https=True),
+   232	                    False,
+   233	                )
+   234	
+   235	    def test_is_safe_url_deprecated(self):
+   236	        msg = (
+   237	            'django.utils.http.is_safe_url() is deprecated in favor of '
+   238	            'url_has_allowed_host_and_scheme().'
+   239	        )
+   240	        with self.assertWarnsMessage(RemovedInDjango40Warning, msg):
+   241	            is_safe_url('https://example.com', allowed_hosts={'example.com'})
+   242	
+   243	
+   244	class URLSafeBase64Tests(unittest.TestCase):
+   245	    def test_roundtrip(self):
+   246	        bytestring = b'foo'
+   247	        encoded = urlsafe_base64_encode(bytestring)
+   248	        decoded = urlsafe_base64_decode(encoded)
+   249	        self.assertEqual(bytestring, decoded)
+   250	
+   251	
+   252	@ignore_warnings(category=RemovedInDjango40Warning)
+   253	class URLQuoteTests(unittest.TestCase):
+   254	    def test_quote(self):
+   255	        self.assertEqual(urlquote('Paris & Orl\xe9ans'), 'Paris%20%26%20Orl%C3%A9ans')
+   256	        self.assertEqual(urlquote('Paris & Orl\xe9ans', safe="&"), 'Paris%20&%20Orl%C3%A9ans')
+   257	
+   258	    def test_unquote(self):
+   259	        self.assertEqual(urlunquote('Paris%20%26%20Orl%C3%A9ans'), 'Paris & Orl\xe9ans')
+   260	        self.assertEqual(urlunquote('Paris%20&%20Orl%C3%A9ans'), 'Paris & Orl\xe9ans')
+   261	
+   262	    def test_quote_plus(self):
+   263	        self.assertEqual(urlquote_plus('Paris & Orl\xe9ans'), 'Paris+%26+Orl%C3%A9ans')
+   264	        self.assertEqual(urlquote_plus('Paris & Orl\xe9ans', safe="&"), 'Paris+&+Orl%C3%A9ans')
+   265	
+   266	    def test_unquote_plus(self):
+   267	        self.assertEqual(urlunquote_plus('Paris+%26+Orl%C3%A9ans'), 'Paris & Orl\xe9ans')
+   268	        self.assertEqual(urlunquote_plus('Paris+&+Orl%C3%A9ans'), 'Paris & Orl\xe9ans')
+   269	
+   270	
+   271	class IsSameDomainTests(unittest.TestCase):
+   272	    def test_good(self):
+   273	        for pair in (
+   274	            ('example.com', 'example.com'),
+   275	            ('example.com', '.example.com'),
+   276	            ('foo.example.com', '.example.com'),
+   277	            ('example.com:8888', 'example.com:8888'),
+   278	            ('example.com:8888', '.example.com:8888'),
+   279	            ('foo.example.com:8888', '.example.com:8888'),
+   280	        ):
+   281	            self.assertIs(is_same_domain(*pair), True)
+   282	
+   283	    def test_bad(self):
+   284	        for pair in (
+   285	            ('example2.com', 'example.com'),
+   286	            ('foo.example.com', 'example.com'),
+   287	            ('example.com:9999', 'example.com:8888'),
+   288	            ('foo.example.com:8888', ''),
+   289	        ):
+   290	            self.assertIs(is_same_domain(*pair), False)
+   291	
+   292	
+   293	class ETagProcessingTests(unittest.TestCase):
+   294	    def test_parsing(self):
+   295	        self.assertEqual(
+   296	            parse_etags(r'"" ,  "etag", "e\\tag", W/"weak"'),
+   297	            ['""', '"etag"', r'"e\\tag"', 'W/"weak"']
+   298	        )
+   299	        self.assertEqual(parse_etags('*'), ['*'])
+   300	
+   301	        # Ignore RFC 2616 ETags that are invalid according to RFC 7232.
+   302	        self.assertEqual(parse_etags(r'"etag", "e\"t\"ag"'), ['"etag"'])
+   303	
+   304	    def test_quoting(self):
+   305	        self.assertEqual(quote_etag('etag'), '"etag"')  # unquoted
+   306	        self.assertEqual(quote_etag('"etag"'), '"etag"')  # quoted
+   307	        self.assertEqual(quote_etag('W/"etag"'), 'W/"etag"')  # quoted, weak
+   308	
+   309	
+   310	class HttpDateProcessingTests(unittest.TestCase):
+   311	    def test_http_date(self):
+   312	        t = 1167616461.0
+   313	        self.assertEqual(http_date(t), 'Mon, 01 Jan 2007 01:54:21 GMT')
+   314	
+   315	    def test_parsing_rfc1123(self):
+   316	        parsed = parse_http_date('Sun, 06 Nov 1994 08:49:37 GMT')
+   317	        self.assertEqual(datetime.utcfromtimestamp(parsed), datetime(1994, 11, 6, 8, 49, 37))
+   318	
+   319	    def test_parsing_rfc850(self):
+   320	        parsed = parse_http_date('Sunday, 06-Nov-94 08:49:37 GMT')
+   321	        self.assertEqual(datetime.utcfromtimestamp(parsed), datetime(1994, 11, 6, 8, 49, 37))
+   322	
+   323	    def test_parsing_asctime(self):
+   324	        parsed = parse_http_date('Sun Nov  6 08:49:37 1994')
+   325	        self.assertEqual(datetime.utcfromtimestamp(parsed), datetime(1994, 11, 6, 8, 49, 37))
+   326	
+   327	    def test_parsing_year_less_than_70(self):
+   328	        parsed = parse_http_date('Sun Nov  6 08:49:37 0037')
+   329	        self.assertEqual(datetime.utcfromtimestamp(parsed), datetime(2037, 11, 6, 8, 49, 37))
+   330	
+   331	
+   332	class EscapeLeadingSlashesTests(unittest.TestCase):
+   333	    def test(self):
+   334	        tests = (
+   335	            ('//example.com', '/%2Fexample.com'),
+   336	            ('//', '/%2F'),
+   337	        )
+   338	        for url, expected in tests:
+   339	            with self.subTest(url=url):
+   340	                self.assertEqual(escape_leading_slashes(url), expected)
+   341	
+
+
+2026-02-23 14:06:33,208 - INFO - swea-agent - ========================= STEP 6 =========================
+2026-02-23 14:06:37,185 - INFO - swea-agent - 💭 THOUGHT
+Now let's look at the test for two-digit years more closely. I see there's a test at line 327-329 that tests year less than 70. Let's check if there are any other tests for two-digit years:
+
+🎬 ACTION
+grep -n "parse_http_date" /testbed/tests/utils_tests/test_http.py
+2026-02-23 14:06:45,199 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:07:24,294 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+9:    is_safe_url, is_same_domain, parse_etags, parse_http_date, quote_etag,
+316:        parsed = parse_http_date('Sun, 06 Nov 1994 08:49:37 GMT')
+320:        parsed = parse_http_date('Sunday, 06-Nov-94 08:49:37 GMT')
+324:        parsed = parse_http_date('Sun Nov  6 08:49:37 1994')
+328:        parsed = parse_http_date('Sun Nov  6 08:49:37 0037')
+
+2026-02-23 14:07:24,305 - INFO - swea-agent - ========================= STEP 7 =========================
+2026-02-23 14:07:27,209 - INFO - swea-agent - 💭 THOUGHT
+Let's run the existing tests to see if they pass with the current implementation:
+
+🎬 ACTION
+cd /testbed && python -m pytest tests/utils_tests/test_http.py::HttpDateProcessingTests -xvs
+2026-02-23 14:07:36,110 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:07:36,388 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+/opt/miniconda3/envs/testbed/bin/python: No module named pytest
+
+2026-02-23 14:07:36,394 - INFO - swea-agent - ========================= STEP 8 =========================
+2026-02-23 14:07:39,674 - INFO - swea-agent - 💭 THOUGHT
+Let's use Django's test runner instead:
+
+🎬 ACTION
+cd /testbed && python -m django test utils_tests.test_http.HttpDateProcessingTests --verbosity=2
+2026-02-23 14:07:47,685 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:08:24,874 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+Traceback (most recent call last):
+  File "/opt/miniconda3/envs/testbed/lib/python3.6/runpy.py", line 193, in _run_module_as_main
+    "__main__", mod_spec)
+  File "/opt/miniconda3/envs/testbed/lib/python3.6/runpy.py", line 85, in _run_code
+    exec(code, run_globals)
+  File "/testbed/django/__main__.py", line 9, in <module>
+    management.execute_from_command_line()
+  File "/testbed/django/core/management/__init__.py", line 401, in execute_from_command_line
+    utility.execute()
+  File "/testbed/django/core/management/__init__.py", line 395, in execute
+    self.fetch_command(subcommand).run_from_argv(self.argv)
+  File "/testbed/django/core/management/commands/test.py", line 23, in run_from_argv
+    super().run_from_argv(argv)
+  File "/testbed/django/core/management/base.py", line 320, in run_from_argv
+    parser = self.create_parser(argv[0], argv[1])
+  File "/testbed/django/core/management/base.py", line 294, in create_parser
+    self.add_arguments(parser)
+  File "/testbed/django/core/management/commands/test.py", line 44, in add_arguments
+    test_runner_class = get_runner(settings, self.test_runner)
+  File "/testbed/django/test/utils.py", line 301, in get_runner
+    test_runner_class = test_runner_class or settings.TEST_RUNNER
+  File "/testbed/django/conf/__init__.py", line 77, in __getattr__
+    self._setup(name)
+  File "/testbed/django/conf/__init__.py", line 62, in _setup
+    % (desc, ENVIRONMENT_VARIABLE))
+django.core.exceptions.ImproperlyConfigured: Requested setting TEST_RUNNER, but settings are not configured. You must either define the environment variable DJANGO_SETTINGS_MODULE or call settings.configure() before accessing settings.
+
+2026-02-23 14:08:24,887 - INFO - swea-agent - ========================= STEP 9 =========================
+2026-02-23 14:08:29,851 - INFO - swea-agent - 💭 THOUGHT
+Let's run the tests differently:
+
+🎬 ACTION
+cd /testbed && python -c "import django; django.setup(); from django.test import SimpleTestCase; from django.utils.http import parse_http_date; import datetime; print('Test 1:', parse_http_date('Sun, 06 Nov 1994 08:49:37 GMT')); print('Test 2:', parse_http_date('Sunday, 06-Nov-94 08:49:37 GMT')); print('Test 3:', parse_http_date('Sun Nov  6 08:49:37 1994')); print('Test 4:', parse_http_date('Sun Nov  6 08:49:37 0037'))"
+2026-02-23 14:08:38,764 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:08:39,216 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/testbed/django/__init__.py", line 19, in setup
+    configure_logging(settings.LOGGING_CONFIG, settings.LOGGING)
+  File "/testbed/django/conf/__init__.py", line 77, in __getattr__
+    self._setup(name)
+  File "/testbed/django/conf/__init__.py", line 62, in _setup
+    % (desc, ENVIRONMENT_VARIABLE))
+django.core.exceptions.ImproperlyConfigured: Requested setting LOGGING_CONFIG, but settings are not configured. You must either define the environment variable DJANGO_SETTINGS_MODULE or call settings.configure() before accessing settings.
+
+2026-02-23 14:08:39,223 - INFO - swea-agent - ========================= STEP 10 =========================
+2026-02-23 14:09:24,122 - INFO - swea-agent - 💭 THOUGHT
+Let me create a simple test script to understand the current behavior:
+
+🎬 ACTION
+str_replace_editor create /testbed/test_parse_http_date.py --file_text '#!/usr/bin/env python
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# Minimal Django setup
+import django
+from django.conf import settings
+settings.configure()
+django.setup()
+
+from django.utils.http import parse_http_date
+import datetime
+
+def test_parse_http_date():
+    # Test cases from the test file
+    print("=== Existing test cases ===")
+    
+    # RFC1123 format
+    parsed = parse_http_date('"'"'Sun, 06 Nov 1994 08:49:37 GMT'"'"')
+    print(f"RFC1123: Sun, 06 Nov 1994 08:49:37 GMT -> {datetime.datetime.utcfromtimestamp(parsed)}")
+    
+    # RFC850 format (two-digit year)
+    parsed = parse_http_date('"'"'Sunday, 06-Nov-94 08:49:37 GMT'"'"')
+    print(f"RFC850: Sunday, 06-Nov-94 08:49:37 GMT -> {datetime.datetime.utcfromtimestamp(parsed)}")
+    
+    # ASCTIME format
+    parsed = parse_http_date('"'"'Sun Nov  6 08:49:37 1994'"'"')
+    print(f"ASCTIME: Sun Nov  6 08:49:37 1994 -> {datetime.datetime.utcfromtimestamp(parsed)}")
+    
+    # Year less than 70 (four-digit year)
+    parsed = parse_http_date('"'"'Sun Nov  6 08:49:37 0037'"'"')
+    print(f"Year < 70: Sun Nov  6 08:49:37 0037 -> {datetime.datetime.utcfromtimestamp(parsed)}")
+    
+    print("\n=== Testing two-digit year behavior ===")
+    
+    # Test current hardcoded behavior
+    test_cases = [
+        ('"'"'Sunday, 06-Nov-00 08:49:37 GMT'"'"', '"'"'2000-11-06 08:49:37'"'"'),  # year 00 -> 2000
+        ('"'"'Sunday, 06-Nov-69 08:49:37 GMT'"'"', '"'"'2069-11-06 08:49:37'"'"'),  # year 69 -> 2069
+        ('"'"'Sunday, 06-Nov-70 08:49:37 GMT'"'"', '"'"'1970-11-06 08:49:37'"'"'),  # year 70 -> 1970
+        ('"'"'Sunday, 06-Nov-99 08:49:37 GMT'"'"', '"'"'1999-11-06 08:49:37'"'"'),  # year 99 -> 1999
+    ]
+    
+    for date_str, expected in test_cases:
+        try:
+            parsed = parse_http_date(date_str)
+            actual = datetime.datetime.utcfromtimestamp(parsed).strftime('"'"'%Y-%m-%d %H:%M:%S'"'"')
+            print(f"{date_str} -> {actual} (expected: {expected})")
+        except Exception as e:
+            print(f"{date_str} -> ERROR: {e}")
+
+if __name__ == '"'"'__main__'"'"':
+    test_parse_http_date()'
+2026-02-23 14:09:32,140 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:09:32,447 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+File created successfully at: /testbed/test_parse_http_date.py
+
+2026-02-23 14:09:32,455 - INFO - swea-agent - ========================= STEP 11 =========================
+2026-02-23 14:09:35,897 - INFO - swea-agent - 💭 THOUGHT
+
+
+🎬 ACTION
+cd /testbed && python test_parse_http_date.py
+2026-02-23 14:09:43,909 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:09:44,419 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+=== Existing test cases ===
+RFC1123: Sun, 06 Nov 1994 08:49:37 GMT -> 1994-11-06 08:49:37
+RFC850: Sunday, 06-Nov-94 08:49:37 GMT -> 1994-11-06 08:49:37
+ASCTIME: Sun Nov  6 08:49:37 1994 -> 1994-11-06 08:49:37
+Year < 70: Sun Nov  6 08:49:37 0037 -> 2037-11-06 08:49:37
+
+=== Testing two-digit year behavior ===
+Sunday, 06-Nov-00 08:49:37 GMT -> 2000-11-06 08:49:37 (expected: 2000-11-06 08:49:37)
+Sunday, 06-Nov-69 08:49:37 GMT -> 2069-11-06 08:49:37 (expected: 2069-11-06 08:49:37)
+Sunday, 06-Nov-70 08:49:37 GMT -> 1970-11-06 08:49:37 (expected: 1970-11-06 08:49:37)
+Sunday, 06-Nov-99 08:49:37 GMT -> 1999-11-06 08:49:37 (expected: 1999-11-06 08:49:37)
+
+2026-02-23 14:09:44,426 - INFO - swea-agent - ========================= STEP 12 =========================
+2026-02-23 14:10:29,233 - INFO - swea-agent - 💭 THOUGHT
+Good! Now I understand the current behavior. The issue is that the current implementation uses a fixed cutoff at year 70 (0-69 = 2000-2069, 70-99 = 1970-1999), but according to RFC 7231, we should compare against the current year and interpret timestamps that appear to be more than 50 years in the future as representing the most recent year in the past.
+
+Let me check what the current year is to understand what the expected behavior should be:
+
+🎬 ACTION
+cd /testbed && python -c "import datetime; now = datetime.datetime.now(); print(f'Current year: {now.year}'); print(f'Current year last two digits: {now.year % 100}')"
+2026-02-23 14:10:38,144 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:10:38,449 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+Current year: 2026
+Current year last two digits: 26
+
+2026-02-23 14:10:38,461 - INFO - swea-agent - ========================= STEP 13 =========================
+2026-02-23 14:11:24,242 - INFO - swea-agent - 💭 THOUGHT
+So the current year is 2026. According to RFC 7231, for a two-digit year:
+- If the two-digit year is within 50 years in the future of the current year, it should be interpreted as being in the 2000s
+- If it's more than 50 years in the future, it should be interpreted as being in the 1900s
+
+For example, with current year 2026:
+- Year 26 (2026) is current year
+- Year 27 (2027) is 1 year in future
+- Year 76 (2076) is 50 years in future
+- Year 77 (2077) is 51 years in future, so should be interpreted as 1977
+
+Actually, let me re-read the RFC more carefully. The RFC says: "Recipients of a timestamp value in rfc850-date format, which uses a two-digit year, MUST interpret a timestamp that appears to be more than 50 years in the future as representing the most recent year in the past that had the same last two digits."
+
+So the algorithm should be:
+1. Take the current year
+2. Calculate the "window" of ±50 years from current year
+3. For a two-digit year YY:
+   - Try YY + 2000 (21st century)
+   - If that's within 50 years of current year (including future), use it
+   - Otherwise, use YY + 1900 (20th century)
+
+Actually, wait. Let me think about this more carefully. If we're in 2026:
+- Year 00 could be 2000 (26 years ago) or 2100 (74 years in future)
+  - 2000 is within 50 years in the past ✓
+  - 2100 is more than 50 years in the future ✗
+  - So 00 should be 2000
+
+- Year 76 could be 1976 (50 years ago) or 2076 (50 years in future)
+  - 1976 is exactly 50 years ago ✓
+  - 2076 is exactly 50 years in future ✓
+  - Both are within 50 years, but RFC says "more than 50 years in the future"
+  - So 76 could be either, but we should probably prefer the future one?
+
+Actually, the RFC says "MUST interpret a timestamp that appears to be more than 50 years in the future as representing the most recent year in the past". This suggests we should check if the 21st century interpretation is more than 50 years in the future, and if so, use the 20th century interpretation.
+
+So algorithm:
+1. Let current_year = current year
+2. Let candidate_year = YY + 2000
+3. If candidate_year - current_year > 50:
+   - Use YY + 1900
+4. Else:
+   - Use candidate_year
+
+But wait, what about dates in the past? The RFC only mentions future dates. Actually, looking at the wording again: "MUST interpret a timestamp that appears to be more than 50 years in the future as representing the most recent year in the past". This suggests we only need to adjust if it's more than 50 years in the future. Dates in the past (even far in the past) would still use the 21st century interpretation.
+
+Actually, that doesn't make sense. If we're in 2026 and we see "27", that would be 2027 (1 year in future) - that's fine. If we see "77", that would be 2077 (51 years in future) - that's more than 50 years in future, so we should use 1977 instead.
+
+But what about "25"? That would be 2025 (1 year in past) - that's fine.
+What about "00"? That would be 2000 (26 years in past) - that's fine.
+What about "99"? That would be 2099 (73 years in future) - more than 50, so use 1999.
+
+Actually, let me check if there are any existing tests that might break. Let me look for more test cases:
+
+🎬 ACTION
+cd /testbed && grep -r "parse_http_date" --include="*.py" | grep -v ".pyc" | head -20
+2026-02-23 14:11:32,261 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:11:32,586 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+django/middleware/http.py:from django.utils.http import parse_http_date_safe
+django/middleware/http.py:        last_modified = last_modified and parse_http_date_safe(last_modified)
+django/utils/cache.py:    http_date, parse_etags, parse_http_date_safe, quote_etag,
+django/utils/cache.py:    if_unmodified_since = if_unmodified_since and parse_http_date_safe(if_unmodified_since)
+django/utils/cache.py:    if_modified_since = if_modified_since and parse_http_date_safe(if_modified_since)
+django/utils/http.py:def parse_http_date(date):
+django/utils/http.py:def parse_http_date_safe(date):
+django/utils/http.py:    Same as parse_http_date, but return None if the input is invalid.
+django/utils/http.py:        return parse_http_date(date)
+django/views/static.py:from django.utils.http import http_date, parse_http_date
+django/views/static.py:        header_mtime = parse_http_date(matches.group(1))
+test_parse_http_date.py:from django.utils.http import parse_http_date
+test_parse_http_date.py:def test_parse_http_date():
+test_parse_http_date.py:    parsed = parse_http_date('Sun, 06 Nov 1994 08:49:37 GMT')
+test_parse_http_date.py:    parsed = parse_http_date('Sunday, 06-Nov-94 08:49:37 GMT')
+test_parse_http_date.py:    parsed = parse_http_date('Sun Nov  6 08:49:37 1994')
+test_parse_http_date.py:    parsed = parse_http_date('Sun Nov  6 08:49:37 0037')
+test_parse_http_date.py:            parsed = parse_http_date(date_str)
+test_parse_http_date.py:    test_parse_http_date()
+tests/utils_tests/test_http.py:    is_safe_url, is_same_domain, parse_etags, parse_http_date, quote_etag,
+
+2026-02-23 14:11:32,597 - INFO - swea-agent - ========================= STEP 14 =========================
+2026-02-23 14:11:35,434 - INFO - swea-agent - 💭 THOUGHT
+Let me check if there are any other tests in the Django test suite:
+
+🎬 ACTION
+cd /testbed && find . -name "*.py" -type f -exec grep -l "parse_http_date" {} \; | grep -i test
+2026-02-23 14:11:44,342 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:12:24,266 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+./test_parse_http_date.py
+./tests/utils_tests/test_http.py
+
+2026-02-23 14:12:24,280 - INFO - swea-agent - ========================= STEP 15 =========================
+2026-02-23 14:12:41,420 - INFO - swea-agent - 💭 THOUGHT
+Let me check the actual RFC to understand better. But first, let me create a more comprehensive test to understand the expected behavior:
+
+🎬 ACTION
+str_replace_editor create /testbed/test_rfc_behavior.py --file_text '#!/usr/bin/env python
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# Minimal Django setup
+import django
+from django.conf import settings
+settings.configure()
+django.setup()
+
+from django.utils.http import parse_http_date
+import datetime
+
+def test_rfc_behavior():
+    # Current date for reference
+    current_year = datetime.datetime.now().year
+    print(f"Current year: {current_year}")
+    print(f"Current year last two digits: {current_year % 100}")
+    
+    print("\n=== Testing RFC 7231 behavior ===")
+    print("According to RFC 7231:")
+    print("'"'"'Recipients of a timestamp value in rfc850-date format, which uses a")
+    print("two-digit year, MUST interpret a timestamp that appears to be more than")
+    print("50 years in the future as representing the most recent year in the past")
+    print("that had the same last two digits.'"'"'")
+    print()
+    
+    # Test cases for current year 2026
+    test_cases = [
+        # (two-digit year, expected year based on RFC)
+        (0, 2000),   # 2000 is 26 years ago, 2100 is 74 years in future -> use 2000
+        (25, 2025),  # 2025 is 1 year ago, 2125 is 99 years in future -> use 2025
+        (26, 2026),  # 2026 is current year, 2126 is 100 years in future -> use 2026
+        (27, 2027),  # 2027 is 1 year in future, 2127 is 101 years in future -> use 2027
+        (76, 2076),  # 1976 is 50 years ago, 2076 is 50 years in future -> use 2076 (not more than 50)
+        (77, 1977),  # 1977 is 49 years ago, 2077 is 51 years in future -> use 1977 (more than 50)
+        (99, 1999),  # 1999 is 27 years ago, 2099 is 73 years in future -> use 1999 (more than 50)
+    ]
+    
+    for yy, expected_year in test_cases:
+        # Current implementation
+        if yy < 70:
+            current_impl_year = yy + 2000
+        else:
+            current_impl_year = yy + 1900
+            
+        # RFC-compliant implementation
+        candidate_year = yy + 2000  # Try 21st century first
+        if candidate_year - current_year > 50:
+            rfc_year = yy + 1900  # More than 50 years in future, use 20th century
+        else:
+            rfc_year = candidate_year
+            
+        print(f"YY={yy:02d}: Current impl={current_impl_year}, RFC impl={rfc_year}, Expected={expected_year} {'"'"'✓'"'"' if rfc_year == expected_year else '"'"'✗'"'"'}")
+
+if __name__ == '"'"'__main__'"'"':
+    test_rfc_behavior()'
+2026-02-23 14:12:49,437 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:13:11,972 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+File created successfully at: /testbed/test_rfc_behavior.py
+
+2026-02-23 14:13:11,985 - INFO - swea-agent - ========================= STEP 16 =========================
+2026-02-23 14:13:14,392 - INFO - swea-agent - 💭 THOUGHT
+
+
+🎬 ACTION
+cd /testbed && python test_rfc_behavior.py
+2026-02-23 14:13:22,402 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:13:22,985 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+Current year: 2026
+Current year last two digits: 26
+
+=== Testing RFC 7231 behavior ===
+According to RFC 7231:
+'Recipients of a timestamp value in rfc850-date format, which uses a
+two-digit year, MUST interpret a timestamp that appears to be more than
+50 years in the future as representing the most recent year in the past
+that had the same last two digits.'
+
+YY=00: Current impl=2000, RFC impl=2000, Expected=2000 ✓
+YY=25: Current impl=2025, RFC impl=2025, Expected=2025 ✓
+YY=26: Current impl=2026, RFC impl=2026, Expected=2026 ✓
+YY=27: Current impl=2027, RFC impl=2027, Expected=2027 ✓
+YY=76: Current impl=1976, RFC impl=2076, Expected=2076 ✓
+YY=77: Current impl=1977, RFC impl=1977, Expected=1977 ✓
+YY=99: Current impl=1999, RFC impl=1999, Expected=1999 ✓
+
+2026-02-23 14:13:23,008 - INFO - swea-agent - ========================= STEP 17 =========================
+2026-02-23 14:13:31,284 - INFO - swea-agent - 💭 THOUGHT
+Good! So the main difference is for years 70-76. With current year 2026:
+- Current implementation: 70-99 are all interpreted as 1970-1999
+- RFC implementation: 70-76 would be 2070-2076 (since they're not more than 50 years in future), and 77-99 would be 1977-1999
+
+Actually, wait. Let me think about year 70 specifically:
+- 2070 is 44 years in future (2026 + 44 = 2070)
+- That's not more than 50 years, so it should be 2070, not 1970
+
+But the current test at line 328-329 tests `parse_http_date('Sun Nov  6 08:49:37 0037')` which is a four-digit year (0037), not a two-digit year. That test expects it to be interpreted as 2037 (year < 70, so +2000). That's correct for four-digit years.
+
+Actually, I need to be careful. The logic in the code handles both two-digit and four-digit years. For four-digit years, it doesn't do any adjustment. The adjustment only happens for years < 100 (two-digit years in RFC850 format).
+
+Let me check the regex patterns again:
+
+🎬 ACTION
+str_replace_editor view /testbed/django/utils/http.py  --view_range 30 40
+2026-02-23 14:13:39,299 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:13:39,610 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+Here's the result of running `cat -n` on /testbed/django/utils/http.py:
+    30	MONTHS = 'jan feb mar apr may jun jul aug sep oct nov dec'.split()
+    31	__D = r'(?P<day>\d{2})'
+    32	__D2 = r'(?P<day>[ \d]\d)'
+    33	__M = r'(?P<mon>\w{3})'
+    34	__Y = r'(?P<year>\d{4})'
+    35	__Y2 = r'(?P<year>\d{2})'
+    36	__T = r'(?P<hour>\d{2}):(?P<min>\d{2}):(?P<sec>\d{2})'
+    37	RFC1123_DATE = re.compile(r'^\w{3}, %s %s %s %s GMT$' % (__D, __M, __Y, __T))
+    38	RFC850_DATE = re.compile(r'^\w{6,9}, %s-%s-%s %s GMT$' % (__D, __M, __Y2, __T))
+    39	ASCTIME_DATE = re.compile(r'^\w{3} %s %s %s %s$' % (__M, __D2, __T, __Y))
+    40	
+
+
+2026-02-23 14:13:39,625 - INFO - swea-agent - ========================= STEP 18 =========================
+2026-02-23 14:14:22,090 - INFO - swea-agent - 💭 THOUGHT
+So:
+- RFC1123_DATE: uses 4-digit year (`__Y`)
+- RFC850_DATE: uses 2-digit year (`__Y2`)
+- ASCTIME_DATE: uses 4-digit year (`__Y`)
+
+So the two-digit year adjustment only applies to RFC850 format. Good.
+
+Now, let me think about edge cases. What if we're running this code in year 2050? Then:
+- Current year: 2050
+- Year 00: 2000 is 50 years ago, 2100 is 50 years in future -> use 2000 (not more than 50 years in future)
+- Year 01: 2001 is 49 years ago, 2101 is 51 years in future -> use 2001 (2101 is more than 50 years in future, so use 2001)
+
+Actually, the algorithm should be symmetric around the current year. If a date is more than 50 years in the future, use the past century. But what about dates more than 50 years in the past? The RFC doesn't say anything about those. So if we see "49" in 2050:
+- 2049 is 1 year ago -> use 2049
+- 2149 is 99 years in future -> more than 50, so use 1949
+
+Wait, that doesn't seem right. 2049 is only 1 year in the past, so we should use 2049, not 1949. But according to our algorithm:
+- candidate_year = 49 + 2000 = 2049
+- 2049 - 2050 = -1 (1 year in past)
+- Not more than 50 years in future, so use 2049 ✓
+
+Good.
+
+What about "00" in 2050:
+- candidate_year = 0 + 2000 = 2000
+- 2000 - 2050 = -50 (50 years in past)
+- Not more than 50 years in future, so use 2000 ✓
+
+Actually, I think my algorithm is correct. Let me implement it and test it:
+
+🎬 ACTION
+str_replace_editor create /testbed/test_implementation.py --file_text '#!/usr/bin/env python
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import datetime
+import calendar
+
+def parse_http_date_rfc_compliant(date_str, current_year=None):
+    """RFC-compliant implementation for testing."""
+    # Mock the regex patterns
+    import re
+    
+    MONTHS = '"'"'jan feb mar apr may jun jul aug sep oct nov dec'"'"'.split()
+    __D = r'"'"'(?P<day>\d{2})'"'"'
+    __D2 = r'"'"'(?P<day>[ \d]\d)'"'"'
+    __M = r'"'"'(?P<mon>\w{3})'"'"'
+    __Y = r'"'"'(?P<year>\d{4})'"'"'
+    __Y2 = r'"'"'(?P<year>\d{2})'"'"'
+    __T = r'"'"'(?P<hour>\d{2}):(?P<min>\d{2}):(?P<sec>\d{2})'"'"'
+    RFC1123_DATE = re.compile(r'"'"'^\w{3}, %s %s %s %s GMT$'"'"' % (__D, __M, __Y, __T))
+    RFC850_DATE = re.compile(r'"'"'^\w{6,9}, %s-%s-%s %s GMT$'"'"' % (__D, __M, __Y2, __T))
+    ASCTIME_DATE = re.compile(r'"'"'^\w{3} %s %s %s %s$'"'"' % (__M, __D2, __T, __Y))
+    
+    for regex in RFC1123_DATE, RFC850_DATE, ASCTIME_DATE:
+        m = regex.match(date_str)
+        if m is not None:
+            break
+    else:
+        raise ValueError("%r is not in a valid HTTP date format" % date_str)
+    
+    try:
+        year = int(m.group('"'"'year'"'"'))
+        if year < 100:
+            # Two-digit year handling
+            if current_year is None:
+                current_year = datetime.datetime.now().year
+            
+            # Try 21st century first
+            candidate_year = year + 2000
+            
+            # If candidate year is more than 50 years in the future,
+            # use the 20th century instead
+            if candidate_year - current_year > 50:
+                year += 1900
+            else:
+                year = candidate_year
+        
+        month = MONTHS.index(m.group('"'"'mon'"'"').lower()) + 1
+        day = int(m.group('"'"'day'"'"'))
+        hour = int(m.group('"'"'hour'"'"'))
+        minute = int(m.group('"'"'min'"'"'))
+        sec = int(m.group('"'"'sec'"'"'))
+        result = datetime.datetime(year, month, day, hour, minute, sec)
+        return calendar.timegm(result.utctimetuple())
+    except Exception as exc:
+        raise ValueError("%r is not a valid date" % date_str) from exc
+
+def test_with_different_current_years():
+    """Test the RFC-compliant implementation with different '"'"'current'"'"' years."""
+    test_cases = [
+        # (current_year, two_digit_year, expected_year)
+        (2026, 0, 2000),
+        (2026, 25, 2025),
+        (2026, 26, 2026),
+        (2026, 27, 2027),
+        (2026, 76, 2076),  # 2076 - 2026 = 50, not > 50
+        (2026, 77, 1977),  # 2077 - 2026 = 51, > 50
+        (2026, 99, 1999),
+        
+        # Test with current year 2050
+        (2050, 0, 2000),   # 2000 - 2050 = -50, not > 50
+        (2050, 1, 2001),   # 2001 - 2050 = -49, not > 50
+        (2050, 49, 2049),  # 2049 - 2050 = -1, not > 50
+        (2050, 50, 2050),  # 2050 - 2050 = 0, not > 50
+        (2050, 51, 2051),  # 2051 - 2050 = 1, not > 50
+        (2050, 99, 1999),  # 2099 - 2050 = 49, not > 50
+        (2050, 100, 2000), # Actually 100 shouldn'"'"'t happen, but 2100 - 2050 = 50, not > 50
+        
+        # Test with current year 2000
+        (2000, 0, 2000),   # 2000 - 2000 = 0
+        (2000, 49, 2049),  # 2049 - 2000 = 49
+        (2000, 50, 2050),  # 2050 - 2000 = 50
+        (2000, 51, 1951),  # 2051 - 2000 = 51, > 50
+        (2000, 99, 1999),  # 2099 - 2000 = 99, > 50
+        
+        # Test with current year 1999
+        (1999, 0, 2000),   # 2000 - 1999 = 1
+        (1999, 49, 2049),  # 2049 - 1999 = 50
+        (1999, 50, 1950),  # 2050 - 1999 = 51, > 50
+        (1999, 99, 1999),  # 2099 - 1999 = 100, > 50
+    ]
+    
+    print("Testing RFC-compliant implementation:")
+    for current_year, yy, expected_year in test_cases:
+        # Create a date string with the two-digit year
+        date_str = f'"'"'Sunday, 06-Nov-{yy:02d} 08:49:37 GMT'"'"'
+        
+        try:
+            timestamp = parse_http_date_rfc_compliant(date_str, current_year)
+            parsed_year = datetime.datetime.utcfromtimestamp(timestamp).year
+            status = '"'"'✓'"'"' if parsed_year == expected_year else '"'"'✗'"'"'
+            print(f"Current {current_year}, YY={yy:02d}: got {parsed_year}, expected {expected_year} {status}")
+            if parsed_year != expected_year:
+                print(f"  Candidate: {yy + 2000}, diff: {yy + 2000 - current_year}")
+        except Exception as e:
+            print(f"Current {current_year}, YY={yy:02d}: ERROR: {e}")
+
+if __name__ == '"'"'__main__'"'"':
+    test_with_different_current_years()'
+2026-02-23 14:14:30,125 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:14:30,450 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+File created successfully at: /testbed/test_implementation.py
+
+2026-02-23 14:14:30,481 - INFO - swea-agent - ========================= STEP 19 =========================
+2026-02-23 14:14:33,265 - INFO - swea-agent - 💭 THOUGHT
+
+
+🎬 ACTION
+cd /testbed && python test_implementation.py
+2026-02-23 14:14:41,275 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:14:41,610 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+Testing RFC-compliant implementation:
+Current 2026, YY=00: got 2000, expected 2000 ✓
+Current 2026, YY=25: got 2025, expected 2025 ✓
+Current 2026, YY=26: got 2026, expected 2026 ✓
+Current 2026, YY=27: got 2027, expected 2027 ✓
+Current 2026, YY=76: got 2076, expected 2076 ✓
+Current 2026, YY=77: got 1977, expected 1977 ✓
+Current 2026, YY=99: got 1999, expected 1999 ✓
+Current 2050, YY=00: got 2000, expected 2000 ✓
+Current 2050, YY=01: got 2001, expected 2001 ✓
+Current 2050, YY=49: got 2049, expected 2049 ✓
+Current 2050, YY=50: got 2050, expected 2050 ✓
+Current 2050, YY=51: got 2051, expected 2051 ✓
+Current 2050, YY=99: got 2099, expected 1999 ✗
+  Candidate: 2099, diff: 49
+Current 2050, YY=100: ERROR: 'Sunday, 06-Nov-100 08:49:37 GMT' is not in a valid HTTP date format
+Current 2000, YY=00: got 2000, expected 2000 ✓
+Current 2000, YY=49: got 2049, expected 2049 ✓
+Current 2000, YY=50: got 2050, expected 2050 ✓
+Current 2000, YY=51: got 1951, expected 1951 ✓
+Current 2000, YY=99: got 1999, expected 1999 ✓
+Current 1999, YY=00: got 2000, expected 2000 ✓
+Current 1999, YY=49: got 2049, expected 2049 ✓
+Current 1999, YY=50: got 1950, expected 1950 ✓
+Current 1999, YY=99: got 1999, expected 1999 ✓
+
+2026-02-23 14:14:41,635 - INFO - swea-agent - ========================= STEP 20 =========================
+2026-02-23 14:14:55,874 - INFO - swea-agent - 💭 THOUGHT
+Interesting! There's an issue with my test case for year 2050, YY=99. Let me think:
+- Current year: 2050
+- YY=99 -> candidate_year = 2099
+- 2099 - 2050 = 49
+- 49 is not > 50, so we should use 2099, not 1999
+
+But my expected value was wrong! In 2050, year 99 should be interpreted as 2099, not 1999, because 2099 is only 49 years in the future (not more than 50).
+
+Actually, wait. Let me re-read the RFC quote again: "MUST interpret a timestamp that appears to be more than 50 years in the future as representing the most recent year in the past that had the same last two digits."
+
+So the key phrase is "more than 50 years in the future". Not "50 or more", but "more than 50". So:
+- 50 years in future: use future century
+- 51 years in future: use past century
+
+So for current year 2050:
+- YY=99 -> 2099 is 49 years in future -> use 2099 ✓
+- YY=00 -> 2100 is 50 years in future -> use 2100 (not more than 50) ✓
+- YY=01 -> 2101 is 51 years in future -> use 2001 (more than 50) ✓
+
+Good! So my implementation is correct, but my test expectation was wrong. Let me fix the test:
+
+Actually, looking back at my test cases, I had `(2050, 99, 1999)` which is wrong. It should be `(2050, 99, 2099)`.
+
+Now let me check what happens with the actual Django tests. Let me run the existing tests to see if they pass:
+
+🎬 ACTION
+cd /testbed && python -c "
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# Run the test directly
+import unittest
+from tests.utils_tests.test_http import HttpDateProcessingTests
+
+# Create test suite
+suite = unittest.TestLoader().loadTestsFromTestCase(HttpDateProcessingTests)
+
+# Run tests
+runner = unittest.TextTestRunner(verbosity=2)
+result = runner.run(suite)
+print(f'Tests run: {result.testsRun}')
+print(f'Failures: {len(result.failures)}')
+print(f'Errors: {len(result.errors)}')
+if result.failures:
+    for test, traceback in result.failures:
+        print(f'Failure in {test}: {traceback}')
+if result.errors:
+    for test, traceback in result.errors:
+        print(f'Error in {test}: {traceback}')
+"
+2026-02-23 14:15:03,895 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:15:04,232 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+Traceback (most recent call last):
+  File "<string>", line 4, in <module>
+NameError: name '__file__' is not defined
+
+2026-02-23 14:15:04,292 - INFO - swea-agent - ========================= STEP 21 =========================
+2026-02-23 14:15:07,511 - INFO - swea-agent - 💭 THOUGHT
+Let me run the tests differently:
+
+🎬 ACTION
+cd /testbed && python -m unittest tests.utils_tests.test_http.HttpDateProcessingTests -v
+2026-02-23 14:15:16,417 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:15:17,485 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+test_http_date (tests.utils_tests.test_http.HttpDateProcessingTests) ... ok
+test_parsing_asctime (tests.utils_tests.test_http.HttpDateProcessingTests) ... ok
+test_parsing_rfc1123 (tests.utils_tests.test_http.HttpDateProcessingTests) ... ok
+test_parsing_rfc850 (tests.utils_tests.test_http.HttpDateProcessingTests) ... ok
+test_parsing_year_less_than_70 (tests.utils_tests.test_http.HttpDateProcessingTests) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.001s
+
+OK
+
+2026-02-23 14:15:17,536 - INFO - swea-agent - ========================= STEP 22 =========================
+2026-02-23 14:15:26,002 - INFO - swea-agent - 💭 THOUGHT
+Good! All tests pass with the current implementation. Now I need to implement the fix. But wait, I need to be careful. The test `test_parsing_year_less_than_70` tests a four-digit year "0037", not a two-digit year. So that test should still pass.
+
+Actually, looking at the test again:
+```python
+def test_parsing_year_less_than_70(self):
+    parsed = parse_http_date('Sun Nov  6 08:49:37 0037')
+    self.assertEqual(datetime.utcfromtimestamp(parsed), datetime(2037, 11, 6, 8, 49, 37))
+```
+
+This is testing ASCTIME format which uses 4-digit years. The current code handles four-digit years differently - it only adjusts if year < 100. So year 0037 is < 100, so it gets adjusted to 2037. That's correct behavior even with the RFC fix, because for four-digit years < 100, we should still add 2000 if year < 70.
+
+Actually, wait. Let me check the code again:
+
+🎬 ACTION
+str_replace_editor view /testbed/django/utils/http.py  --view_range 176 183
+2026-02-23 14:15:34,016 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:15:34,426 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+Here's the result of running `cat -n` on /testbed/django/utils/http.py:
+   176	    try:
+   177	        year = int(m.group('year'))
+   178	        if year < 100:
+   179	            if year < 70:
+   180	                year += 2000
+   181	            else:
+   182	                year += 1900
+   183	        month = MONTHS.index(m.group('mon').lower()) + 1
+
+
+2026-02-23 14:15:34,474 - INFO - swea-agent - ========================= STEP 23 =========================
+2026-02-23 14:16:24,504 - INFO - swea-agent - 💭 THOUGHT
+So the code adjusts ANY year < 100, not just two-digit years from RFC850. That means it also adjusts four-digit years like "0037". That seems wrong! A four-digit year "0037" should probably be interpreted as year 37 AD, not 2037. But that's what the current code does, and there's a test for it.
+
+Actually, looking at the regex patterns again:
+- RFC1123_DATE: uses 4-digit year pattern `\d{4}`
+- RFC850_DATE: uses 2-digit year pattern `\d{2}`
+- ASCTIME_DATE: uses 4-digit year pattern `\d{4}`
+
+So "0037" would match ASCTIME_DATE (4 digits). The code would see year=37 (< 100 and < 70), so it would add 2000 to get 2037.
+
+Hmm, but the PR description specifically mentions RFC850 dates (two-digit years). Maybe we should only apply the RFC-compliant logic to RFC850 dates, not to all years < 100? But the current code applies the adjustment to ALL years < 100, regardless of format.
+
+Let me check if there are any other tests that might break:
+
+🎬 ACTION
+cd /testbed && python -c "
+# Test the current behavior with various inputs
+import sys
+import os
+sys.path.insert(0, '/testbed')
+
+# Minimal Django setup
+import django
+from django.conf import settings
+settings.configure()
+django.setup()
+
+from django.utils.http import parse_http_date
+import datetime
+
+test_cases = [
+    # Format, date string, expected year
+    ('RFC1123 4-digit', 'Sun, 06 Nov 0037 08:49:37 GMT', 37),  # Should this be 37 or 2037?
+    ('RFC1123 4-digit', 'Sun, 06 Nov 1937 08:49:37 GMT', 1937),
+    ('RFC1123 4-digit', 'Sun, 06 Nov 2037 08:49:37 GMT', 2037),
+    ('ASCTIME 4-digit', 'Sun Nov  6 08:49:37 0037', 2037),  # Current test expects 2037
+    ('ASCTIME 4-digit', 'Sun Nov  6 08:49:37 1937', 1937),
+    ('ASCTIME 4-digit', 'Sun Nov  6 08:49:37 2037', 2037),
+    ('RFC850 2-digit', 'Sunday, 06-Nov-37 08:49:37 GMT', 2037),  # Current: 37 < 70 -> 2037
+    ('RFC850 2-digit', 'Sunday, 06-Nov-94 08:49:37 GMT', 1994),  # Current: 94 >= 70 -> 1994
+]
+
+for desc, date_str, expected_year in test_cases:
+    try:
+        parsed = parse_http_date(date_str)
+        actual_year = datetime.datetime.utcfromtimestamp(parsed).year
+        print(f'{desc:20} {date_str:40} -> {actual_year} (expected {expected_year}) {'✓' if actual_year == expected_year else '✗'}')
+    except Exception as e:
+        print(f'{desc:20} {date_str:40} -> ERROR: {e}')
+"
+2026-02-23 14:16:32,534 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:16:32,869 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+  File "<string>", line 32
+    print(f'{desc:20} {date_str:40} -> {actual_year} (expected {expected_year}) {'✓' if actual_year == expected_year else '✗'}')
+                                                                                  ^
+SyntaxError: invalid character in identifier
+
+2026-02-23 14:16:32,931 - INFO - swea-agent - ========================= STEP 24 =========================
+2026-02-23 14:16:44,068 - INFO - swea-agent - 💭 THOUGHT
+Let me fix the syntax error:
+
+🎬 ACTION
+cd /testbed && python -c "
+# Test the current behavior with various inputs
+import sys
+import os
+sys.path.insert(0, '/testbed')
+
+# Minimal Django setup
+import django
+from django.conf import settings
+settings.configure()
+django.setup()
+
+from django.utils.http import parse_http_date
+import datetime
+
+test_cases = [
+    # Format, date string, expected year
+    ('RFC1123 4-digit', 'Sun, 06 Nov 0037 08:49:37 GMT', 37),  # Should this be 37 or 2037?
+    ('RFC1123 4-digit', 'Sun, 06 Nov 1937 08:49:37 GMT', 1937),
+    ('RFC1123 4-digit', 'Sun, 06 Nov 2037 08:49:37 GMT', 2037),
+    ('ASCTIME 4-digit', 'Sun Nov  6 08:49:37 0037', 2037),  # Current test expects 2037
+    ('ASCTIME 4-digit', 'Sun Nov  6 08:49:37 1937', 1937),
+    ('ASCTIME 4-digit', 'Sun Nov  6 08:49:37 2037', 2037),
+    ('RFC850 2-digit', 'Sunday, 06-Nov-37 08:49:37 GMT', 2037),  # Current: 37 < 70 -> 2037
+    ('RFC850 2-digit', 'Sunday, 06-Nov-94 08:49:37 GMT', 1994),  # Current: 94 >= 70 -> 1994
+]
+
+for desc, date_str, expected_year in test_cases:
+    try:
+        parsed = parse_http_date(date_str)
+        actual_year = datetime.datetime.utcfromtimestamp(parsed).year
+        status = '✓' if actual_year == expected_year else '✗'
+        print(f'{desc:20} {date_str:40} -> {actual_year} (expected {expected_year}) {status}')
+    except Exception as e:
+        print(f'{desc:20} {date_str:40} -> ERROR: {e}')
+"
+2026-02-23 14:16:52,998 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:17:25,317 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+RFC1123 4-digit      Sun, 06 Nov 0037 08:49:37 GMT            -> 2037 (expected 37) ✗
+RFC1123 4-digit      Sun, 06 Nov 1937 08:49:37 GMT            -> 1937 (expected 1937) ✓
+RFC1123 4-digit      Sun, 06 Nov 2037 08:49:37 GMT            -> 2037 (expected 2037) ✓
+ASCTIME 4-digit      Sun Nov  6 08:49:37 0037                 -> 2037 (expected 2037) ✓
+ASCTIME 4-digit      Sun Nov  6 08:49:37 1937                 -> 1937 (expected 1937) ✓
+ASCTIME 4-digit      Sun Nov  6 08:49:37 2037                 -> 2037 (expected 2037) ✓
+RFC850 2-digit       Sunday, 06-Nov-37 08:49:37 GMT           -> 2037 (expected 2037) ✓
+RFC850 2-digit       Sunday, 06-Nov-94 08:49:37 GMT           -> 1994 (expected 1994) ✓
+
+2026-02-23 14:17:25,375 - INFO - swea-agent - ========================= STEP 25 =========================
+2026-02-23 14:17:40,783 - INFO - swea-agent - 💭 THOUGHT
+Interesting! So the current code treats "0037" in RFC1123 format as 2037, not 37. That seems wrong for a four-digit year. But there's no test for that case. The only test is for ASCTIME format with "0037".
+
+Actually, I think the issue is that the code was written to handle two-digit years but it applies to ANY year < 100, including four-digit years like "0037". That's probably a bug, but it's not what the PR is about. The PR is specifically about RFC850 two-digit years.
+
+Let me check the PR description again: "django.utils.http.parse_http_date two digit year check is incorrect". It specifically mentions "two digit year". And it mentions RFC850. So I think we should only apply the RFC-compliant logic to two-digit years from RFC850 format.
+
+But how do we know which format matched? We could check which regex matched. Or we could check if the year string has exactly 2 digits. Let me look at the code again:
+
+Actually, the year comes from `m.group('year')`. For RFC850, it would be 2 digits. For RFC1123 and ASCTIME, it would be 4 digits. So we could check `len(m.group('year'))` to determine if it's a two-digit year.
+
+But wait, the current code already has logic for years < 100. If we only want to apply the RFC logic to two-digit years (not four-digit years like "0037"), we should check if the year string has exactly 2 digits, not just if year < 100.
+
+Actually, let me think about this more. The PR says the current logic is hardcoded to consider 0-69 to be in 2000-2069, and 70-99 to be 1970-1999. That's exactly what the current code does for ANY year < 100. The PR says it should compare versus the current year instead.
+
+So I think we should update the logic for ALL years < 100, not just two-digit years. Because:
+1. The current code already handles all years < 100
+2. The PR doesn't say to only fix it for two-digit years
+3. The test for "0037" expects it to be interpreted as 2037, which suggests the code should continue to handle four-digit years < 100
+
+But actually, thinking about it more: a four-digit year "0037" is year 37 AD. It shouldn't be interpreted as 2037. That seems like a bug in the current code. But changing that would break the existing test.
+
+Let me check if there are any other uses of `parse_http_date` in Django that might depend on this behavior:
+
+🎬 ACTION
+cd /testbed && grep -r "parse_http_date" --include="*.py" django/ | grep -v ".pyc" | grep -v "test"
+2026-02-23 14:17:49,684 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:18:25,815 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+django/middleware/http.py:from django.utils.http import parse_http_date_safe
+django/middleware/http.py:        last_modified = last_modified and parse_http_date_safe(last_modified)
+django/utils/cache.py:    http_date, parse_etags, parse_http_date_safe, quote_etag,
+django/utils/cache.py:    if_unmodified_since = if_unmodified_since and parse_http_date_safe(if_unmodified_since)
+django/utils/cache.py:    if_modified_since = if_modified_since and parse_http_date_safe(if_modified_since)
+django/utils/http.py:def parse_http_date(date):
+django/utils/http.py:def parse_http_date_safe(date):
+django/utils/http.py:    Same as parse_http_date, but return None if the input is invalid.
+django/utils/http.py:        return parse_http_date(date)
+django/views/static.py:from django.utils.http import http_date, parse_http_date
+django/views/static.py:        header_mtime = parse_http_date(matches.group(1))
+
+2026-02-23 14:18:25,932 - INFO - swea-agent - ========================= STEP 26 =========================
+2026-02-23 14:18:29,720 - INFO - swea-agent - 💭 THOUGHT
+Let me check what `parse_http_date_safe` does:
+
+🎬 ACTION
+str_replace_editor view /testbed/django/utils/http.py  --view_range 194 202
+2026-02-23 14:18:37,738 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:18:38,293 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+Here's the result of running `cat -n` on /testbed/django/utils/http.py:
+   194	def parse_http_date_safe(date):
+   195	    """
+   196	    Same as parse_http_date, but return None if the input is invalid.
+   197	    """
+   198	    try:
+   199	        return parse_http_date(date)
+   200	    except Exception:
+   201	        pass
+   202	
+
+
+2026-02-23 14:18:38,420 - INFO - swea-agent - ========================= STEP 27 =========================
+2026-02-23 14:19:24,669 - INFO - swea-agent - 💭 THOUGHT
+So `parse_http_date_safe` just calls `parse_http_date` and returns None on exception.
+
+Looking at the usage in Django:
+- `django/middleware/http.py`: parses Last-Modified header
+- `django/utils/cache.py`: parses If-Modified-Since and If-Unmodified-Since headers
+- `django/views/static.py`: parses If-Modified-Since header for static files
+
+These are all HTTP date headers, which should be in RFC1123, RFC850, or ASCTIME format. RFC850 is the only one with two-digit years.
+
+I think the safest approach is to only apply the RFC-compliant logic to two-digit years (i.e., when the year string has exactly 2 digits). That way:
+1. We fix the RFC850 two-digit year issue as requested in the PR
+2. We don't change the behavior for four-digit years like "0037"
+3. The existing test for "0037" still passes
+
+Actually, wait. Let me re-read the PR description one more time. It says: "Current logic is hard coded to consider 0-69 to be in 2000-2069, and 70-99 to be 1970-1999, instead of comparing versus the current year."
+
+The current logic applies to ALL years < 100. The PR doesn't say "only for two-digit years". It just says the logic is incorrect. So I think we should update the logic for ALL years < 100.
+
+But then the test for "0037" would break. Unless... let me think. With current year 2026:
+- Year 37 -> candidate_year = 2037
+- 2037 - 2026 = 11 (not > 50)
+- So year 37 would still be interpreted as 2037 ✓
+
+So the test would still pass!
+
+Actually, let me test this:
+
+🎬 ACTION
+str_replace_editor create /testbed/test_all_years_less_than_100.py --file_text '#!/usr/bin/env python
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import datetime
+
+def test_year_handling(current_year=2026):
+    """Test how years < 100 should be handled with RFC-compliant logic."""
+    print(f"Testing with current year: {current_year}")
+    print()
+    
+    for year in range(0, 100):
+        # Current implementation
+        if year < 70:
+            current_impl = year + 2000
+        else:
+            current_impl = year + 1900
+            
+        # RFC-compliant implementation
+        candidate_year = year + 2000
+        if candidate_year - current_year > 50:
+            rfc_impl = year + 1900
+        else:
+            rfc_impl = candidate_year
+            
+        if current_impl != rfc_impl:
+            print(f"Year {year:02d}: Current={current_impl}, RFC={rfc_impl}, diff={candidate_year - current_year}")
+
+if __name__ == '"'"'__main__'"'"':
+    test_year_handling(2026)
+    print("\n" + "="*50 + "\n")
+    test_year_handling(2000)
+    print("\n" + "="*50 + "\n")
+    test_year_handling(2050)'
+2026-02-23 14:19:32,692 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:19:33,759 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+File created successfully at: /testbed/test_all_years_less_than_100.py
+
+2026-02-23 14:19:33,885 - INFO - swea-agent - ========================= STEP 28 =========================
+2026-02-23 14:19:36,501 - INFO - swea-agent - 💭 THOUGHT
+
+
+🎬 ACTION
+cd /testbed && python test_all_years_less_than_100.py
+2026-02-23 14:19:44,513 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:20:24,707 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+Testing with current year: 2026
+
+Year 70: Current=1970, RFC=2070, diff=44
+Year 71: Current=1971, RFC=2071, diff=45
+Year 72: Current=1972, RFC=2072, diff=46
+Year 73: Current=1973, RFC=2073, diff=47
+Year 74: Current=1974, RFC=2074, diff=48
+Year 75: Current=1975, RFC=2075, diff=49
+Year 76: Current=1976, RFC=2076, diff=50
+
+==================================================
+
+Testing with current year: 2000
+
+Year 51: Current=2051, RFC=1951, diff=51
+Year 52: Current=2052, RFC=1952, diff=52
+Year 53: Current=2053, RFC=1953, diff=53
+Year 54: Current=2054, RFC=1954, diff=54
+Year 55: Current=2055, RFC=1955, diff=55
+Year 56: Current=2056, RFC=1956, diff=56
+Year 57: Current=2057, RFC=1957, diff=57
+Year 58: Current=2058, RFC=1958, diff=58
+Year 59: Current=2059, RFC=1959, diff=59
+Year 60: Current=2060, RFC=1960, diff=60
+Year 61: Current=2061, RFC=1961, diff=61
+Year 62: Current=2062, RFC=1962, diff=62
+Year 63: Current=2063, RFC=1963, diff=63
+Year 64: Current=2064, RFC=1964, diff=64
+Year 65: Current=2065, RFC=1965, diff=65
+Year 66: Current=2066, RFC=1966, diff=66
+Year 67: Current=2067, RFC=1967, diff=67
+Year 68: Current=2068, RFC=1968, diff=68
+Year 69: Current=2069, RFC=1969, diff=69
+
+==================================================
+
+Testing with current year: 2050
+
+Year 70: Current=1970, RFC=2070, diff=20
+Year 71: Current=1971, RFC=2071, diff=21
+Year 72: Current=1972, RFC=2072, diff=22
+Year 73: Current=1973, RFC=2073, diff=23
+Year 74: Current=1974, RFC=2074, diff=24
+Year 75: Current=1975, RFC=2075, diff=25
+Year 76: Current=1976, RFC=2076, diff=26
+Year 77: Current=1977, RFC=2077, diff=27
+Year 78: Current=1978, RFC=2078, diff=28
+Year 79: Current=1979, RFC=2079, diff=29
+Year 80: Current=1980, RFC=2080, diff=30
+Year 81: Current=1981, RFC=2081, diff=31
+Year 82: Current=1982, RFC=2082, diff=32
+Year 83: Current=1983, RFC=2083, diff=33
+Year 84: Current=1984, RFC=2084, diff=34
+Year 85: Current=1985, RFC=2085, diff=35
+Year 86: Current=1986, RFC=2086, diff=36
+Year 87: Current=1987, RFC=2087, diff=37
+Year 88: Current=1988, RFC=2088, diff=38
+Year 89: Current=1989, RFC=2089, diff=39
+Year 90: Current=1990, RFC=2090, diff=40
+Year 91: Current=1991, RFC=2091, diff=41
+Year 92: Current=1992, RFC=2092, diff=42
+Year 93: Current=1993, RFC=2093, diff=43
+Year 94: Current=1994, RFC=2094, diff=44
+Year 95: Current=1995, RFC=2095, diff=45
+Year 96: Current=1996, RFC=2096, diff=46
+Year 97: Current=1997, RFC=2097, diff=47
+Year 98: Current=1998, RFC=2098, diff=48
+Year 99: Current=1999, RFC=2099, diff=49
+
+2026-02-23 14:20:24,813 - INFO - swea-agent - ========================= STEP 29 =========================
+2026-02-23 14:21:23,884 - INFO - swea-agent - 💭 THOUGHT
+So with current year 2026, the difference is for years 70-76. With current year 2000, the difference is for years 51-69. With current year 2050, the difference is for years 70-99.
+
+Now, the question is: should we apply this logic to ALL years < 100, or only to two-digit years? I think we should apply it to ALL years < 100, because:
+1. That's what the current code does
+2. The PR doesn't say to only fix two-digit years
+3. It makes sense: if someone sends year "70", whether it's "70" (two-digit) or "0070" (four-digit), it should be interpreted the same way
+
+But wait, there's an issue. A four-digit year "0070" is year 70 AD. That's very different from a two-digit year "70" in an RFC850 date. In HTTP dates, four-digit years should probably be taken literally. But the current code already treats "0037" as 2037, not 37.
+
+Actually, I think the current behavior for four-digit years < 100 is wrong, but fixing it would be a breaking change. The PR is specifically about RFC850 two-digit years. So maybe we should only apply the RFC logic to two-digit years.
+
+Let me check if we can determine which regex matched. Actually, we could check the length of the year string:
+
+🎬 ACTION
+str_replace_editor create /testbed/test_implementation_final.py --file_text '#!/usr/bin/env python
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import datetime
+import calendar
+import re
+
+def parse_http_date_fixed(date_str, current_year=None):
+    """Fixed implementation for testing."""
+    MONTHS = '"'"'jan feb mar apr may jun jul aug sep oct nov dec'"'"'.split()
+    __D = r'"'"'(?P<day>\d{2})'"'"'
+    __D2 = r'"'"'(?P<day>[ \d]\d)'"'"'
+    __M = r'"'"'(?P<mon>\w{3})'"'"'
+    __Y = r'"'"'(?P<year>\d{4})'"'"'
+    __Y2 = r'"'"'(?P<year>\d{2})'"'"'
+    __T = r'"'"'(?P<hour>\d{2}):(?P<min>\d{2}):(?P<sec>\d{2})'"'"'
+    RFC1123_DATE = re.compile(r'"'"'^\w{3}, %s %s %s %s GMT$'"'"' % (__D, __M, __Y, __T))
+    RFC850_DATE = re.compile(r'"'"'^\w{6,9}, %s-%s-%s %s GMT$'"'"' % (__D, __M, __Y2, __T))
+    ASCTIME_DATE = re.compile(r'"'"'^\w{3} %s %s %s %s$'"'"' % (__M, __D2, __T, __Y))
+    
+    for regex in RFC1123_DATE, RFC850_DATE, ASCTIME_DATE:
+        m = regex.match(date_str)
+        if m is not None:
+            break
+    else:
+        raise ValueError("%r is not in a valid HTTP date format" % date_str)
+    
+    try:
+        year_str = m.group('"'"'year'"'"')
+        year = int(year_str)
+        
+        # Only apply RFC logic to two-digit years (from RFC850 format)
+        if len(year_str) == 2:  # Two-digit year
+            if current_year is None:
+                current_year = datetime.datetime.now().year
+            
+            # Try 21st century first
+            candidate_year = year + 2000
+            
+            # If candidate year is more than 50 years in the future,
+            # use the 20th century instead
+            if candidate_year - current_year > 50:
+                year += 1900
+            else:
+                year = candidate_year
+        elif year < 100:  # Four-digit year like "0037"
+            # Keep existing behavior for backward compatibility
+            if year < 70:
+                year += 2000
+            else:
+                year += 1900
+        # else: year >= 100, keep as-is
+        
+        month = MONTHS.index(m.group('"'"'mon'"'"').lower()) + 1
+        day = int(m.group('"'"'day'"'"'))
+        hour = int(m.group('"'"'hour'"'"'))
+        minute = int(m.group('"'"'min'"'"'))
+        sec = int(m.group('"'"'sec'"'"'))
+        result = datetime.datetime(year, month, day, hour, minute, sec)
+        return calendar.timegm(result.utctimetuple())
+    except Exception as exc:
+        raise ValueError("%r is not a valid date" % date_str) from exc
+
+def test_fixed_implementation():
+    """Test the fixed implementation."""
+    print("Testing fixed implementation (current year: 2026)")
+    print()
+    
+    test_cases = [
+        # RFC850 two-digit years
+        ('"'"'Sunday, 06-Nov-37 08:49:37 GMT'"'"', 2037),  # 37 < 70 -> 2037 (same as before)
+        ('"'"'Sunday, 06-Nov-70 08:49:37 GMT'"'"', 2070),  # 70 -> 2070 (was 1970)
+        ('"'"'Sunday, 06-Nov-76 08:49:37 GMT'"'"', 2076),  # 76 -> 2076 (was 1976)
+        ('"'"'Sunday, 06-Nov-77 08:49:37 GMT'"'"', 1977),  # 77 -> 1977 (same as before)
+        ('"'"'Sunday, 06-Nov-94 08:49:37 GMT'"'"', 1994),  # 94 -> 1994 (same as before)
+        ('"'"'Sunday, 06-Nov-99 08:49:37 GMT'"'"', 1999),  # 99 -> 1999 (same as before)
+        
+        # ASCTIME four-digit years
+        ('"'"'Sun Nov  6 08:49:37 0037'"'"', 2037),  # 0037 -> 2037 (same as before)
+        ('"'"'Sun Nov  6 08:49:37 1937'"'"', 1937),  # 1937 -> 1937 (same as before)
+        ('"'"'Sun Nov  6 08:49:37 2037'"'"', 2037),  # 2037 -> 2037 (same as before)
+        
+        # RFC1123 four-digit years
+        ('"'"'Sun, 06 Nov 0037 08:49:37 GMT'"'"', 2037),  # 0037 -> 2037 (same as before)
+        ('"'"'Sun, 06 Nov 1937 08:49:37 GMT'"'"', 1937),  # 1937 -> 1937 (same as before)
+        ('"'"'Sun, 06 Nov 2037 08:49:37 GMT'"'"', 2037),  # 2037 -> 2037 (same as before)
+    ]
+    
+    for date_str, expected_year in test_cases:
+        try:
+            timestamp = parse_http_date_fixed(date_str, current_year=2026)
+            parsed_year = datetime.datetime.utcfromtimestamp(timestamp).year
+            status = '"'"'✓'"'"' if parsed_year == expected_year else '"'"'✗'"'"'
+            print(f'"'"'{date_str:40} -> {parsed_year} (expected {expected_year}) {status}'"'"')
+        except Exception as e:
+            print(f'"'"'{date_str:40} -> ERROR: {e}'"'"')
+
+if __name__ == '"'"'__main__'"'"':
+    test_fixed_implementation()'
+2026-02-23 14:21:32,819 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:21:33,171 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+File created successfully at: /testbed/test_implementation_final.py
+
+2026-02-23 14:21:33,237 - INFO - swea-agent - ========================= STEP 30 =========================
+2026-02-23 14:21:36,478 - INFO - swea-agent - 💭 THOUGHT
+
+
+🎬 ACTION
+cd /testbed && python test_implementation_final.py
+2026-02-23 14:21:44,491 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:22:24,187 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+Testing fixed implementation (current year: 2026)
+
+Sunday, 06-Nov-37 08:49:37 GMT           -> 2037 (expected 2037) ✓
+Sunday, 06-Nov-70 08:49:37 GMT           -> 2070 (expected 2070) ✓
+Sunday, 06-Nov-76 08:49:37 GMT           -> 2076 (expected 2076) ✓
+Sunday, 06-Nov-77 08:49:37 GMT           -> 1977 (expected 1977) ✓
+Sunday, 06-Nov-94 08:49:37 GMT           -> 1994 (expected 1994) ✓
+Sunday, 06-Nov-99 08:49:37 GMT           -> 1999 (expected 1999) ✓
+Sun Nov  6 08:49:37 0037                 -> 2037 (expected 2037) ✓
+Sun Nov  6 08:49:37 1937                 -> 1937 (expected 1937) ✓
+Sun Nov  6 08:49:37 2037                 -> 2037 (expected 2037) ✓
+Sun, 06 Nov 0037 08:49:37 GMT            -> 2037 (expected 2037) ✓
+Sun, 06 Nov 1937 08:49:37 GMT            -> 1937 (expected 1937) ✓
+Sun, 06 Nov 2037 08:49:37 GMT            -> 2037 (expected 2037) ✓
+
+2026-02-23 14:22:24,270 - INFO - swea-agent - ========================= STEP 31 =========================
+2026-02-23 14:23:23,952 - INFO - swea-agent - 💭 THOUGHT
+Good! This implementation:
+1. Applies RFC-compliant logic to two-digit years (from RFC850 format)
+2. Keeps the existing behavior for four-digit years < 100 (for backward compatibility)
+3. Fixes the issue described in the PR
+
+But wait, I just realized something. The PR says "Current logic is hard coded to consider 0-69 to be in 2000-2069, and 70-99 to be 1970-1999". That's exactly what the current code does for ALL years < 100. The PR says it should compare versus the current year instead. So maybe we should update the logic for ALL years < 100, not just two-digit years.
+
+But if we do that, then "0037" would still be interpreted as 2037 (because 2037 - 2026 = 11, not > 50). So the test would still pass.
+
+Actually, let me think about this more carefully. The issue is that the current logic uses a fixed cutoff at year 70. The RFC says we should use a sliding window based on current year. So we should update the logic for ALL cases where we're interpreting ambiguous years.
+
+I think the cleanest solution is to update the logic for ALL years < 100. That way:
+1. We fix the RFC850 two-digit year issue
+2. We also fix the same issue for four-digit years like "0037" (though they're rare)
+3. The behavior is consistent
+
+Let me implement this and test it:
+
+🎬 ACTION
+str_replace_editor create /testbed/test_unified_implementation.py --file_text '#!/usr/bin/env python
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import datetime
+import calendar
+import re
+
+def parse_http_date_unified(date_str, current_year=None):
+    """Unified implementation for all years < 100."""
+    MONTHS = '"'"'jan feb mar apr may jun jul aug sep oct nov dec'"'"'.split()
+    __D = r'"'"'(?P<day>\d{2})'"'"'
+    __D2 = r'"'"'(?P<day>[ \d]\d)'"'"'
+    __M = r'"'"'(?P<mon>\w{3})'"'"'
+    __Y = r'"'"'(?P<year>\d{4})'"'"'
+    __Y2 = r'"'"'(?P<year>\d{2})'"'"'
+    __T = r'"'"'(?P<hour>\d{2}):(?P<min>\d{2}):(?P<sec>\d{2})'"'"'
+    RFC1123_DATE = re.compile(r'"'"'^\w{3}, %s %s %s %s GMT$'"'"' % (__D, __M, __Y, __T))
+    RFC850_DATE = re.compile(r'"'"'^\w{6,9}, %s-%s-%s %s GMT$'"'"' % (__D, __M, __Y2, __T))
+    ASCTIME_DATE = re.compile(r'"'"'^\w{3} %s %s %s %s$'"'"' % (__M, __D2, __T, __Y))
+    
+    for regex in RFC1123_DATE, RFC850_DATE, ASCTIME_DATE:
+        m = regex.match(date_str)
+        if m is not None:
+            break
+    else:
+        raise ValueError("%r is not in a valid HTTP date format" % date_str)
+    
+    try:
+        year = int(m.group('"'"'year'"'"'))
+        if year < 100:
+            # Apply RFC-compliant logic to all years < 100
+            if current_year is None:
+                current_year = datetime.datetime.now().year
+            
+            # Try 21st century first
+            candidate_year = year + 2000
+            
+            # If candidate year is more than 50 years in the future,
+            # use the 20th century instead
+            if candidate_year - current_year > 50:
+                year += 1900
+            else:
+                year = candidate_year
+        
+        month = MONTHS.index(m.group('"'"'mon'"'"').lower()) + 1
+        day = int(m.group('"'"'day'"'"'))
+        hour = int(m.group('"'"'hour'"'"'))
+        minute = int(m.group('"'"'min'"'"'))
+        sec = int(m.group('"'"'sec'"'"'))
+        result = datetime.datetime(year, month, day, hour, minute, sec)
+        return calendar.timegm(result.utctimetuple())
+    except Exception as exc:
+        raise ValueError("%r is not a valid date" % date_str) from exc
+
+def test_unified_implementation():
+    """Test the unified implementation."""
+    print("Testing unified implementation (current year: 2026)")
+    print()
+    
+    test_cases = [
+        # RFC850 two-digit years
+        ('"'"'Sunday, 06-Nov-37 08:49:37 GMT'"'"', 2037),  # 37 -> 2037 (same as before)
+        ('"'"'Sunday, 06-Nov-70 08:49:37 GMT'"'"', 2070),  # 70 -> 2070 (was 1970)
+        ('"'"'Sunday, 06-Nov-76 08:49:37 GMT'"'"', 2076),  # 76 -> 2076 (was 1976)
+        ('"'"'Sunday, 06-Nov-77 08:49:37 GMT'"'"', 1977),  # 77 -> 1977 (same as before)
+        ('"'"'Sunday, 06-Nov-94 08:49:37 GMT'"'"', 1994),  # 94 -> 1994 (same as before)
+        ('"'"'Sunday, 06-Nov-99 08:49:37 GMT'"'"', 1999),  # 99 -> 1999 (same as before)
+        
+        # ASCTIME four-digit years < 100
+        ('"'"'Sun Nov  6 08:49:37 0037'"'"', 2037),  # 0037 -> 2037 (same as before)
+        ('"'"'Sun Nov  6 08:49:37 0070'"'"', 2070),  # 0070 -> 2070 (was 1970 with old logic)
+        ('"'"'Sun Nov  6 08:49:37 0076'"'"', 2076),  # 0076 -> 2076 (was 1976 with old logic)
+        ('"'"'Sun Nov  6 08:49:37 0077'"'"', 1977),  # 0077 -> 1977 (same as before)
+        ('"'"'Sun Nov  6 08:49:37 0099'"'"', 1999),  # 0099 -> 1999 (same as before)
+        
+        # Other four-digit years
+        ('"'"'Sun Nov  6 08:49:37 1937'"'"', 1937),  # 1937 -> 1937 (same as before)
+        ('"'"'Sun Nov  6 08:49:37 2037'"'"', 2037),  # 2037 -> 2037 (same as before)
+        
+        # RFC1123 four-digit years < 100
+        ('"'"'Sun, 06 Nov 0037 08:49:37 GMT'"'"', 2037),  # 0037 -> 2037 (same as before)
+        ('"'"'Sun, 06 Nov 0070 08:49:37 GMT'"'"', 2070),  # 0070 -> 2070 (was 1970 with old logic)
+        
+        # Test with different current year (2000)
+        ('"'"'Sunday, 06-Nov-51 08:49:37 GMT'"'"', 1951, 2000),  # 51 -> 1951 (was 2051)
+        ('"'"'Sunday, 06-Nov-49 08:49:37 GMT'"'"', 2049, 2000),  # 49 -> 2049 (same as before)
+    ]
+    
+    for test_case in test_cases:
+        if len(test_case) == 3:
+            date_str, expected_year, test_current_year = test_case
+        else:
+            date_str, expected_year = test_case
+            test_current_year = 2026
+            
+        try:
+            timestamp = parse_http_date_unified(date_str, current_year=test_current_year)
+            parsed_year = datetime.datetime.utcfromtimestamp(timestamp).year
+            status = '"'"'✓'"'"' if parsed_year == expected_year else '"'"'✗'"'"'
+            current_year_note = f" (current year: {test_current_year})" if test_current_year != 2026 else ""
+            print(f'"'"'{date_str:40} -> {parsed_year} (expected {expected_year}) {status}{current_year_note}'"'"')
+        except Exception as e:
+            print(f'"'"'{date_str:40} -> ERROR: {e}'"'"')
+
+if __name__ == '"'"'__main__'"'"':
+    test_unified_implementation()'
+2026-02-23 14:23:32,889 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:23:33,268 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+File created successfully at: /testbed/test_unified_implementation.py
+
+2026-02-23 14:23:33,340 - INFO - swea-agent - ========================= STEP 32 =========================
+2026-02-23 14:23:37,959 - INFO - swea-agent - 💭 THOUGHT
+
+
+🎬 ACTION
+cd /testbed && python test_unified_implementation.py
+2026-02-23 14:23:45,974 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:24:24,298 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+Testing unified implementation (current year: 2026)
+
+Sunday, 06-Nov-37 08:49:37 GMT           -> 2037 (expected 2037) ✓
+Sunday, 06-Nov-70 08:49:37 GMT           -> 2070 (expected 2070) ✓
+Sunday, 06-Nov-76 08:49:37 GMT           -> 2076 (expected 2076) ✓
+Sunday, 06-Nov-77 08:49:37 GMT           -> 1977 (expected 1977) ✓
+Sunday, 06-Nov-94 08:49:37 GMT           -> 1994 (expected 1994) ✓
+Sunday, 06-Nov-99 08:49:37 GMT           -> 1999 (expected 1999) ✓
+Sun Nov  6 08:49:37 0037                 -> 2037 (expected 2037) ✓
+Sun Nov  6 08:49:37 0070                 -> 2070 (expected 2070) ✓
+Sun Nov  6 08:49:37 0076                 -> 2076 (expected 2076) ✓
+Sun Nov  6 08:49:37 0077                 -> 1977 (expected 1977) ✓
+Sun Nov  6 08:49:37 0099                 -> 1999 (expected 1999) ✓
+Sun Nov  6 08:49:37 1937                 -> 1937 (expected 1937) ✓
+Sun Nov  6 08:49:37 2037                 -> 2037 (expected 2037) ✓
+Sun, 06 Nov 0037 08:49:37 GMT            -> 2037 (expected 2037) ✓
+Sun, 06 Nov 0070 08:49:37 GMT            -> 2070 (expected 2070) ✓
+Sunday, 06-Nov-51 08:49:37 GMT           -> 1951 (expected 1951) ✓ (current year: 2000)
+Sunday, 06-Nov-49 08:49:37 GMT           -> 2049 (expected 2049) ✓ (current year: 2000)
+
+2026-02-23 14:24:24,376 - INFO - swea-agent - ========================= STEP 33 =========================
+2026-02-23 14:24:34,688 - INFO - swea-agent - 💭 THOUGHT
+Good! Now let me run the existing Django tests with this implementation to make sure they still pass:
+
+🎬 ACTION
+cd /testbed && python -c "
+import sys
+import os
+sys.path.insert(0, '/testbed')
+
+# Minimal Django setup
+import django
+from django.conf import settings
+settings.configure()
+django.setup()
+
+from django.utils.http import parse_http_date
+import datetime
+
+# Test the existing test cases
+test_cases = [
+    ('Sun, 06 Nov 1994 08:49:37 GMT', datetime(1994, 11, 6, 8, 49, 37)),
+    ('Sunday, 06-Nov-94 08:49:37 GMT', datetime(1994, 11, 6, 8, 49, 37)),
+    ('Sun Nov  6 08:49:37 1994', datetime(1994, 11, 6, 8, 49, 37)),
+    ('Sun Nov  6 08:49:37 0037', datetime(2037, 11, 6, 8, 49, 37)),
+]
+
+for date_str, expected in test_cases:
+    parsed = parse_http_date(date_str)
+    actual = datetime.datetime.utcfromtimestamp(parsed)
+    if actual == expected:
+        print(f'✓ {date_str}')
+    else:
+        print(f'✗ {date_str}: expected {expected}, got {actual}')
+"
+2026-02-23 14:24:42,703 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:24:43,531 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+Traceback (most recent call last):
+  File "<string>", line 17, in <module>
+TypeError: 'module' object is not callable
+
+2026-02-23 14:24:43,693 - INFO - swea-agent - ========================= STEP 34 =========================
+2026-02-23 14:25:24,081 - INFO - swea-agent - 💭 THOUGHT
+Let me fix the import:
+
+🎬 ACTION
+cd /testbed && python -c "
+import sys
+import os
+sys.path.insert(0, '/testbed')
+
+# Minimal Django setup
+import django
+from django.conf import settings
+settings.configure()
+django.setup()
+
+from django.utils.http import parse_http_date
+from datetime import datetime
+
+# Test the existing test cases
+test_cases = [
+    ('Sun, 06 Nov 1994 08:49:37 GMT', datetime(1994, 11, 6, 8, 49, 37)),
+    ('Sunday, 06-Nov-94 08:49:37 GMT', datetime(1994, 11, 6, 8, 49, 37)),
+    ('Sun Nov  6 08:49:37 1994', datetime(1994, 11, 6, 8, 49, 37)),
+    ('Sun Nov  6 08:49:37 0037', datetime(2037, 11, 6, 8, 49, 37)),
+]
+
+for date_str, expected in test_cases:
+    parsed = parse_http_date(date_str)
+    actual = datetime.utcfromtimestamp(parsed)
+    if actual == expected:
+        print(f'✓ {date_str}')
+    else:
+        print(f'✗ {date_str}: expected {expected}, got {actual}')
+"
+2026-02-23 14:25:33,003 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:25:33,656 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+✓ Sun, 06 Nov 1994 08:49:37 GMT
+✓ Sunday, 06-Nov-94 08:49:37 GMT
+✓ Sun Nov  6 08:49:37 1994
+✓ Sun Nov  6 08:49:37 0037
+
+2026-02-23 14:25:33,752 - INFO - swea-agent - ========================= STEP 35 =========================
+2026-02-23 14:26:24,122 - INFO - swea-agent - 💭 THOUGHT
+Good! All existing tests pass with the current implementation. Now I need to actually modify the Django code. Let me implement the fix:
+
+🎬 ACTION
+str_replace_editor str_replace /testbed/django/utils/http.py   --old_str 'def parse_http_date(date):
+    """
+    Parse a date format as specified by HTTP RFC7231 section 7.1.1.1.
+
+    The three formats allowed by the RFC are accepted, even if only the first
+    one is still in widespread use.
+
+    Return an integer expressed in seconds since the epoch, in UTC.
+    """
+    # email.utils.parsedate() does the job for RFC1123 dates; unfortunately
+    # RFC7231 makes it mandatory to support RFC850 dates too. So we roll
+    # our own RFC-compliant parsing.
+    for regex in RFC1123_DATE, RFC850_DATE, ASCTIME_DATE:
+        m = regex.match(date)
+        if m is not None:
+            break
+    else:
+        raise ValueError("%r is not in a valid HTTP date format" % date)
+    try:
+        year = int(m.group('"'"'year'"'"'))
+        if year < 100:
+            if year < 70:
+                year += 2000
+            else:
+                year += 1900
+        month = MONTHS.index(m.group('"'"'mon'"'"').lower()) + 1
+        day = int(m.group('"'"'day'"'"'))
+        hour = int(m.group('"'"'hour'"'"'))
+        min = int(m.group('"'"'min'"'"'))
+        sec = int(m.group('"'"'sec'"'"'))
+        result = datetime.datetime(year, month, day, hour, min, sec)
+        return calendar.timegm(result.utctimetuple())
+    except Exception as exc:
+        raise ValueError("%r is not a valid date" % date) from exc' --new_str 'def parse_http_date(date):
+    """
+    Parse a date format as specified by HTTP RFC7231 section 7.1.1.1.
+
+    The three formats allowed by the RFC are accepted, even if only the first
+    one is still in widespread use.
+
+    Return an integer expressed in seconds since the epoch, in UTC.
+    """
+    # email.utils.parsedate() does the job for RFC1123 dates; unfortunately
+    # RFC7231 makes it mandatory to support RFC850 dates too. So we roll
+    # our own RFC-compliant parsing.
+    for regex in RFC1123_DATE, RFC850_DATE, ASCTIME_DATE:
+        m = regex.match(date)
+        if m is not None:
+            break
+    else:
+        raise ValueError("%r is not in a valid HTTP date format" % date)
+    try:
+        year = int(m.group('"'"'year'"'"'))
+        if year < 100:
+            # RFC 7231, Section 7.1.1.1:
+            # "Recipients of a timestamp value in rfc850-date format, which uses a
+            # two-digit year, MUST interpret a timestamp that appears to be more
+            # than 50 years in the future as representing the most recent year in
+            # the past that had the same last two digits."
+            current_year = datetime.datetime.now().year
+            # Try 21st century first
+            candidate_year = year + 2000
+            # If candidate year is more than 50 years in the future,
+            # use the 20th century instead
+            if candidate_year - current_year > 50:
+                year += 1900
+            else:
+                year = candidate_year
+        month = MONTHS.index(m.group('"'"'mon'"'"').lower()) + 1
+        day = int(m.group('"'"'day'"'"'))
+        hour = int(m.group('"'"'hour'"'"'))
+        min = int(m.group('"'"'min'"'"'))
+        sec = int(m.group('"'"'sec'"'"'))
+        result = datetime.datetime(year, month, day, hour, min, sec)
+        return calendar.timegm(result.utctimetuple())
+    except Exception as exc:
+        raise ValueError("%r is not a valid date" % date) from exc'
+2026-02-23 14:26:32,143 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:26:32,495 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+The file /testbed/django/utils/http.py has been edited. Here's the result of running `cat -n` on a snippet of /testbed/django/utils/http.py:
+   153	    Output a string in the format 'Wdy, DD Mon YYYY HH:MM:SS GMT'.
+   154	    """
+   155	    return formatdate(epoch_seconds, usegmt=True)
+   156	
+   157	
+   158	def parse_http_date(date):
+   159	    """
+   160	    Parse a date format as specified by HTTP RFC7231 section 7.1.1.1.
+   161	
+   162	    The three formats allowed by the RFC are accepted, even if only the first
+   163	    one is still in widespread use.
+   164	
+   165	    Return an integer expressed in seconds since the epoch, in UTC.
+   166	    """
+   167	    # email.utils.parsedate() does the job for RFC1123 dates; unfortunately
+   168	    # RFC7231 makes it mandatory to support RFC850 dates too. So we roll
+   169	    # our own RFC-compliant parsing.
+   170	    for regex in RFC1123_DATE, RFC850_DATE, ASCTIME_DATE:
+   171	        m = regex.match(date)
+   172	        if m is not None:
+   173	            break
+   174	    else:
+   175	        raise ValueError("%r is not in a valid HTTP date format" % date)
+   176	    try:
+   177	        year = int(m.group('year'))
+   178	        if year < 100:
+   179	            # RFC 7231, Section 7.1.1.1:
+   180	            # "Recipients of a timestamp value in rfc850-date format, which uses a
+   181	            # two-digit year, MUST interpret a timestamp that appears to be more
+   182	            # than 50 years in the future as representing the most recent year in
+   183	            # the past that had the same last two digits."
+   184	            current_year = datetime.datetime.now().year
+   185	            # Try 21st century first
+   186	            candidate_year = year + 2000
+   187	            # If candidate year is more than 50 years in the future,
+   188	            # use the 20th century instead
+   189	            if candidate_year - current_year > 50:
+   190	                year += 1900
+   191	            else:
+   192	                year = candidate_year
+   193	        month = MONTHS.index(m.group('mon').lower()) + 1
+   194	        day = int(m.group('day'))
+   195	        hour = int(m.group('hour'))
+   196	        min = int(m.group('min'))
+   197	        sec = int(m.group('sec'))
+   198	        result = datetime.datetime(year, month, day, hour, min, sec)
+   199	        return calendar.timegm(result.utctimetuple())
+   200	    except Exception as exc:
+   201	        raise ValueError("%r is not a valid date" % date) from exc
+   202	
+   203	
+   204	def parse_http_date_safe(date):
+Review the changes and make sure they are as expected. Edit the file again if necessary.
+
+2026-02-23 14:26:32,564 - INFO - swea-agent - ========================= STEP 36 =========================
+2026-02-23 14:27:24,170 - INFO - swea-agent - 💭 THOUGHT
+Good! Now let me test the implementation with a comprehensive test:
+
+🎬 ACTION
+str_replace_editor create /testbed/test_final_implementation.py --file_text '#!/usr/bin/env python
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# Minimal Django setup
+import django
+from django.conf import settings
+settings.configure()
+django.setup()
+
+from django.utils.http import parse_http_date
+import datetime
+
+def test_final_implementation():
+    print("Testing final implementation")
+    print("="*60)
+    
+    # Get current year for reference
+    current_year = datetime.datetime.now().year
+    print(f"Current year: {current_year}")
+    print()
+    
+    # Test cases from existing tests
+    print("1. Existing test cases (should all pass):")
+    existing_tests = [
+        ('"'"'Sun, 06 Nov 1994 08:49:37 GMT'"'"', datetime(1994, 11, 6, 8, 49, 37)),
+        ('"'"'Sunday, 06-Nov-94 08:49:37 GMT'"'"', datetime(1994, 11, 6, 8, 49, 37)),
+        ('"'"'Sun Nov  6 08:49:37 1994'"'"', datetime(1994, 11, 6, 8, 49, 37)),
+        ('"'"'Sun Nov  6 08:49:37 0037'"'"', datetime(2037, 11, 6, 8, 49, 37)),
+    ]
+    
+    for date_str, expected in existing_tests:
+        parsed = parse_http_date(date_str)
+        actual = datetime.datetime.utcfromtimestamp(parsed)
+        status = '"'"'✓'"'"' if actual == expected else '"'"'✗'"'"'
+        print(f"  {status} {date_str}")
+    
+    print()
+    print("2. Testing RFC 7231 compliance for two-digit years:")
+    
+    # Test RFC850 dates with two-digit years
+    rfc850_tests = []
+    
+    # Calculate expected values based on current year
+    for yy in [0, 25, 26, 27, 76, 77, 99]:
+        date_str = f'"'"'Sunday, 06-Nov-{yy:02d} 08:49:37 GMT'"'"'
+        
+        # Expected based on RFC 7231
+        candidate_year = yy + 2000
+        if candidate_year - current_year > 50:
+            expected_year = yy + 1900
+        else:
+            expected_year = candidate_year
+            
+        rfc850_tests.append((date_str, expected_year))
+    
+    for date_str, expected_year in rfc850_tests:
+        parsed = parse_http_date(date_str)
+        actual_year = datetime.datetime.utcfromtimestamp(parsed).year
+        status = '"'"'✓'"'"' if actual_year == expected_year else '"'"'✗'"'"'
+        print(f"  {status} {date_str} -> {actual_year}")
+    
+    print()
+    print("3. Testing four-digit years < 100:")
+    
+    # Test ASCTIME dates with four-digit years < 100
+    asctime_tests = [
+        ('"'"'Sun Nov  6 08:49:37 0037'"'"', 2037),  # Should be 2037
+        ('"'"'Sun Nov  6 08:49:37 0070'"'"', 2070 if (2070 - current_year) <= 50 else 1970),
+        ('"'"'Sun Nov  6 08:49:37 0099'"'"', 2099 if (2099 - current_year) <= 50 else 1999),
+    ]
+    
+    for date_str, expected_year in asctime_tests:
+        parsed = parse_http_date(date_str)
+        actual_year = datetime.datetime.utcfromtimestamp(parsed).year
+        status = '"'"'✓'"'"' if actual_year == expected_year else '"'"'✗'"'"'
+        print(f"  {status} {date_str} -> {actual_year} (expected {expected_year})")
+    
+    print()
+    print("4. Edge cases:")
+    
+    # Test with explicit year values
+    edge_cases = [
+        ('"'"'Sun, 06 Nov 0001 08:49:37 GMT'"'"', 2001 if (2001 - current_year) <= 50 else 1901),
+        ('"'"'Sun, 06 Nov 0069 08:49:37 GMT'"'"', 2069 if (2069 - current_year) <= 50 else 1969),
+        ('"'"'Sun, 06 Nov 0070 08:49:37 GMT'"'"', 2070 if (2070 - current_year) <= 50 else 1970),
+        ('"'"'Sun, 06 Nov 0099 08:49:37 GMT'"'"', 2099 if (2099 - current_year) <= 50 else 1999),
+    ]
+    
+    for date_str, expected_year in edge_cases:
+        parsed = parse_http_date(date_str)
+        actual_year = datetime.datetime.utcfromtimestamp(parsed).year
+        status = '"'"'✓'"'"' if actual_year == expected_year else '"'"'✗'"'"'
+        print(f"  {status} {date_str} -> {actual_year} (expected {expected_year})")
+
+if __name__ == '"'"'__main__'"'"':
+    test_final_implementation()'
+2026-02-23 14:27:32,197 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:27:32,580 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+File created successfully at: /testbed/test_final_implementation.py
+
+2026-02-23 14:27:32,734 - INFO - swea-agent - ========================= STEP 37 =========================
+2026-02-23 14:27:36,302 - INFO - swea-agent - 💭 THOUGHT
+
+
+🎬 ACTION
+cd /testbed && python test_final_implementation.py
+2026-02-23 14:27:44,317 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:28:24,784 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+Testing final implementation
+============================================================
+Current year: 2026
+
+1. Existing test cases (should all pass):
+Traceback (most recent call last):
+  File "test_final_implementation.py", line 98, in <module>
+    test_final_implementation()
+  File "test_final_implementation.py", line 27, in test_final_implementation
+    ('Sun, 06 Nov 1994 08:49:37 GMT', datetime(1994, 11, 6, 8, 49, 37)),
+TypeError: 'module' object is not callable
+
+2026-02-23 14:28:24,860 - INFO - swea-agent - ========================= STEP 38 =========================
+2026-02-23 14:28:38,868 - INFO - swea-agent - 💭 THOUGHT
+Let me fix the import:
+
+🎬 ACTION
+str_replace_editor str_replace /testbed/test_final_implementation.py   --old_str 'from django.utils.http import parse_http_date
+import datetime
+
+def test_final_implementation():
+    print("Testing final implementation")
+    print("="*60)
+    
+    # Get current year for reference
+    current_year = datetime.datetime.now().year
+    print(f"Current year: {current_year}")
+    print()
+    
+    # Test cases from existing tests
+    print("1. Existing test cases (should all pass):")
+    existing_tests = [
+        ('"'"'Sun, 06 Nov 1994 08:49:37 GMT'"'"', datetime(1994, 11, 6, 8, 49, 37)),
+        ('"'"'Sunday, 06-Nov-94 08:49:37 GMT'"'"', datetime(1994, 11, 6, 8, 49, 37)),
+        ('"'"'Sun Nov  6 08:49:37 1994'"'"', datetime(1994, 11, 6, 8, 49, 37)),
+        ('"'"'Sun Nov  6 08:49:37 0037'"'"', datetime(2037, 11, 6, 8, 49, 37)),
+    ]' --new_str 'from django.utils.http import parse_http_date
+from datetime import datetime
+
+def test_final_implementation():
+    print("Testing final implementation")
+    print("="*60)
+    
+    # Get current year for reference
+    current_year = datetime.now().year
+    print(f"Current year: {current_year}")
+    print()
+    
+    # Test cases from existing tests
+    print("1. Existing test cases (should all pass):")
+    existing_tests = [
+        ('"'"'Sun, 06 Nov 1994 08:49:37 GMT'"'"', datetime(1994, 11, 6, 8, 49, 37)),
+        ('"'"'Sunday, 06-Nov-94 08:49:37 GMT'"'"', datetime(1994, 11, 6, 8, 49, 37)),
+        ('"'"'Sun Nov  6 08:49:37 1994'"'"', datetime(1994, 11, 6, 8, 49, 37)),
+        ('"'"'Sun Nov  6 08:49:37 0037'"'"', datetime(2037, 11, 6, 8, 49, 37)),
+    ]'
+2026-02-23 14:28:46,897 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:28:47,276 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+The file /testbed/test_final_implementation.py has been edited. Here's the result of running `cat -n` on a snippet of /testbed/test_final_implementation.py:
+     7	import django
+     8	from django.conf import settings
+     9	settings.configure()
+    10	django.setup()
+    11	
+    12	from django.utils.http import parse_http_date
+    13	from datetime import datetime
+    14	
+    15	def test_final_implementation():
+    16	    print("Testing final implementation")
+    17	    print("="*60)
+    18	    
+    19	    # Get current year for reference
+    20	    current_year = datetime.now().year
+    21	    print(f"Current year: {current_year}")
+    22	    print()
+    23	    
+    24	    # Test cases from existing tests
+    25	    print("1. Existing test cases (should all pass):")
+    26	    existing_tests = [
+    27	        ('Sun, 06 Nov 1994 08:49:37 GMT', datetime(1994, 11, 6, 8, 49, 37)),
+    28	        ('Sunday, 06-Nov-94 08:49:37 GMT', datetime(1994, 11, 6, 8, 49, 37)),
+    29	        ('Sun Nov  6 08:49:37 1994', datetime(1994, 11, 6, 8, 49, 37)),
+    30	        ('Sun Nov  6 08:49:37 0037', datetime(2037, 11, 6, 8, 49, 37)),
+    31	    ]
+    32	    
+    33	    for date_str, expected in existing_tests:
+    34	        parsed = parse_http_date(date_str)
+Review the changes and make sure they are as expected. Edit the file again if necessary.
+
+2026-02-23 14:28:47,412 - INFO - swea-agent - ========================= STEP 39 =========================
+2026-02-23 14:29:30,375 - INFO - swea-agent - 💭 THOUGHT
+
+
+🎬 ACTION
+str_replace_editor str_replace /testbed/test_final_implementation.py   --old_str '    for date_str, expected in existing_tests:
+        parsed = parse_http_date(date_str)
+        actual = datetime.datetime.utcfromtimestamp(parsed)
+        status = '"'"'✓'"'"' if actual == expected else '"'"'✗'"'"'
+        print(f"  {status} {date_str}")' --new_str '    for date_str, expected in existing_tests:
+        parsed = parse_http_date(date_str)
+        actual = datetime.utcfromtimestamp(parsed)
+        status = '"'"'✓'"'"' if actual == expected else '"'"'✗'"'"'
+        print(f"  {status} {date_str}")'
+2026-02-23 14:29:38,388 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:29:38,771 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+The file /testbed/test_final_implementation.py has been edited. Here's the result of running `cat -n` on a snippet of /testbed/test_final_implementation.py:
+    28	        ('Sunday, 06-Nov-94 08:49:37 GMT', datetime(1994, 11, 6, 8, 49, 37)),
+    29	        ('Sun Nov  6 08:49:37 1994', datetime(1994, 11, 6, 8, 49, 37)),
+    30	        ('Sun Nov  6 08:49:37 0037', datetime(2037, 11, 6, 8, 49, 37)),
+    31	    ]
+    32	    
+    33	    for date_str, expected in existing_tests:
+    34	        parsed = parse_http_date(date_str)
+    35	        actual = datetime.utcfromtimestamp(parsed)
+    36	        status = '✓' if actual == expected else '✗'
+    37	        print(f"  {status} {date_str}")
+    38	    
+    39	    print()
+    40	    print("2. Testing RFC 7231 compliance for two-digit years:")
+Review the changes and make sure they are as expected. Edit the file again if necessary.
+
+2026-02-23 14:29:38,875 - INFO - swea-agent - ========================= STEP 40 =========================
+2026-02-23 14:29:46,686 - INFO - swea-agent - 💭 THOUGHT
+
+
+🎬 ACTION
+str_replace_editor str_replace /testbed/test_final_implementation.py   --old_str '    for date_str, expected_year in rfc850_tests:
+        parsed = parse_http_date(date_str)
+        actual_year = datetime.datetime.utcfromtimestamp(parsed).year
+        status = '"'"'✓'"'"' if actual_year == expected_year else '"'"'✗'"'"'
+        print(f"  {status} {date_str} -> {actual_year}")' --new_str '    for date_str, expected_year in rfc850_tests:
+        parsed = parse_http_date(date_str)
+        actual_year = datetime.utcfromtimestamp(parsed).year
+        status = '"'"'✓'"'"' if actual_year == expected_year else '"'"'✗'"'"'
+        print(f"  {status} {date_str} -> {actual_year}")'
+2026-02-23 14:29:54,703 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:30:24,653 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+The file /testbed/test_final_implementation.py has been edited. Here's the result of running `cat -n` on a snippet of /testbed/test_final_implementation.py:
+    53	        else:
+    54	            expected_year = candidate_year
+    55	            
+    56	        rfc850_tests.append((date_str, expected_year))
+    57	    
+    58	    for date_str, expected_year in rfc850_tests:
+    59	        parsed = parse_http_date(date_str)
+    60	        actual_year = datetime.utcfromtimestamp(parsed).year
+    61	        status = '✓' if actual_year == expected_year else '✗'
+    62	        print(f"  {status} {date_str} -> {actual_year}")
+    63	    
+    64	    print()
+    65	    print("3. Testing four-digit years < 100:")
+Review the changes and make sure they are as expected. Edit the file again if necessary.
+
+2026-02-23 14:30:24,757 - INFO - swea-agent - ========================= STEP 41 =========================
+2026-02-23 14:30:31,764 - INFO - swea-agent - 💭 THOUGHT
+
+
+🎬 ACTION
+str_replace_editor str_replace /testbed/test_final_implementation.py   --old_str '    for date_str, expected_year in asctime_tests:
+        parsed = parse_http_date(date_str)
+        actual_year = datetime.datetime.utcfromtimestamp(parsed).year
+        status = '"'"'✓'"'"' if actual_year == expected_year else '"'"'✗'"'"'
+        print(f"  {status} {date_str} -> {actual_year} (expected {expected_year})")' --new_str '    for date_str, expected_year in asctime_tests:
+        parsed = parse_http_date(date_str)
+        actual_year = datetime.utcfromtimestamp(parsed).year
+        status = '"'"'✓'"'"' if actual_year == expected_year else '"'"'✗'"'"'
+        print(f"  {status} {date_str} -> {actual_year} (expected {expected_year})")'
+2026-02-23 14:30:39,781 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:30:40,139 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+The file /testbed/test_final_implementation.py has been edited. Here's the result of running `cat -n` on a snippet of /testbed/test_final_implementation.py:
+    69	        ('Sun Nov  6 08:49:37 0037', 2037),  # Should be 2037
+    70	        ('Sun Nov  6 08:49:37 0070', 2070 if (2070 - current_year) <= 50 else 1970),
+    71	        ('Sun Nov  6 08:49:37 0099', 2099 if (2099 - current_year) <= 50 else 1999),
+    72	    ]
+    73	    
+    74	    for date_str, expected_year in asctime_tests:
+    75	        parsed = parse_http_date(date_str)
+    76	        actual_year = datetime.utcfromtimestamp(parsed).year
+    77	        status = '✓' if actual_year == expected_year else '✗'
+    78	        print(f"  {status} {date_str} -> {actual_year} (expected {expected_year})")
+    79	    
+    80	    print()
+    81	    print("4. Edge cases:")
+Review the changes and make sure they are as expected. Edit the file again if necessary.
+
+2026-02-23 14:30:40,268 - INFO - swea-agent - ========================= STEP 42 =========================
+2026-02-23 14:31:24,386 - INFO - swea-agent - 💭 THOUGHT
+
+
+🎬 ACTION
+str_replace_editor str_replace /testbed/test_final_implementation.py   --old_str '    for date_str, expected_year in edge_cases:
+        parsed = parse_http_date(date_str)
+        actual_year = datetime.datetime.utcfromtimestamp(parsed).year
+        status = '"'"'✓'"'"' if actual_year == expected_year else '"'"'✗'"'"'
+        print(f"  {status} {date_str} -> {actual_year} (expected {expected_year})")' --new_str '    for date_str, expected_year in edge_cases:
+        parsed = parse_http_date(date_str)
+        actual_year = datetime.utcfromtimestamp(parsed).year
+        status = '"'"'✓'"'"' if actual_year == expected_year else '"'"'✗'"'"'
+        print(f"  {status} {date_str} -> {actual_year} (expected {expected_year})")'
+2026-02-23 14:31:32,403 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:31:32,775 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+The file /testbed/test_final_implementation.py has been edited. Here's the result of running `cat -n` on a snippet of /testbed/test_final_implementation.py:
+    86	        ('Sun, 06 Nov 0069 08:49:37 GMT', 2069 if (2069 - current_year) <= 50 else 1969),
+    87	        ('Sun, 06 Nov 0070 08:49:37 GMT', 2070 if (2070 - current_year) <= 50 else 1970),
+    88	        ('Sun, 06 Nov 0099 08:49:37 GMT', 2099 if (2099 - current_year) <= 50 else 1999),
+    89	    ]
+    90	    
+    91	    for date_str, expected_year in edge_cases:
+    92	        parsed = parse_http_date(date_str)
+    93	        actual_year = datetime.utcfromtimestamp(parsed).year
+    94	        status = '✓' if actual_year == expected_year else '✗'
+    95	        print(f"  {status} {date_str} -> {actual_year} (expected {expected_year})")
+    96	
+    97	if __name__ == '__main__':
+    98	    test_final_implementation()
+Review the changes and make sure they are as expected. Edit the file again if necessary.
+
+2026-02-23 14:31:32,921 - INFO - swea-agent - ========================= STEP 43 =========================
+2026-02-23 14:31:35,620 - INFO - swea-agent - 💭 THOUGHT
+
+
+🎬 ACTION
+cd /testbed && python test_final_implementation.py
+2026-02-23 14:31:44,526 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:31:45,140 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+Testing final implementation
+============================================================
+Current year: 2026
+
+1. Existing test cases (should all pass):
+  ✓ Sun, 06 Nov 1994 08:49:37 GMT
+  ✓ Sunday, 06-Nov-94 08:49:37 GMT
+  ✓ Sun Nov  6 08:49:37 1994
+  ✓ Sun Nov  6 08:49:37 0037
+
+2. Testing RFC 7231 compliance for two-digit years:
+  ✓ Sunday, 06-Nov-00 08:49:37 GMT -> 2000
+  ✓ Sunday, 06-Nov-25 08:49:37 GMT -> 2025
+  ✓ Sunday, 06-Nov-26 08:49:37 GMT -> 2026
+  ✓ Sunday, 06-Nov-27 08:49:37 GMT -> 2027
+  ✓ Sunday, 06-Nov-76 08:49:37 GMT -> 2076
+  ✓ Sunday, 06-Nov-77 08:49:37 GMT -> 1977
+  ✓ Sunday, 06-Nov-99 08:49:37 GMT -> 1999
+
+3. Testing four-digit years < 100:
+  ✓ Sun Nov  6 08:49:37 0037 -> 2037 (expected 2037)
+  ✓ Sun Nov  6 08:49:37 0070 -> 2070 (expected 2070)
+  ✓ Sun Nov  6 08:49:37 0099 -> 1999 (expected 1999)
+
+4. Edge cases:
+  ✓ Sun, 06 Nov 0001 08:49:37 GMT -> 2001 (expected 2001)
+  ✓ Sun, 06 Nov 0069 08:49:37 GMT -> 2069 (expected 2069)
+  ✓ Sun, 06 Nov 0070 08:49:37 GMT -> 2070 (expected 2070)
+  ✓ Sun, 06 Nov 0099 08:49:37 GMT -> 1999 (expected 1999)
+
+2026-02-23 14:31:45,261 - INFO - swea-agent - ========================= STEP 44 =========================
+2026-02-23 14:32:24,453 - INFO - swea-agent - 💭 THOUGHT
+Excellent! All tests pass. Now let me run the actual Django tests to make sure I haven't broken anything:
+
+🎬 ACTION
+cd /testbed && python -m unittest tests.utils_tests.test_http.HttpDateProcessingTests -v
+2026-02-23 14:32:32,467 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:32:33,040 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+test_http_date (tests.utils_tests.test_http.HttpDateProcessingTests) ... ok
+test_parsing_asctime (tests.utils_tests.test_http.HttpDateProcessingTests) ... ok
+test_parsing_rfc1123 (tests.utils_tests.test_http.HttpDateProcessingTests) ... ok
+test_parsing_rfc850 (tests.utils_tests.test_http.HttpDateProcessingTests) ... ok
+test_parsing_year_less_than_70 (tests.utils_tests.test_http.HttpDateProcessingTests) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.001s
+
+OK
+
+2026-02-23 14:32:33,147 - INFO - swea-agent - ========================= STEP 45 =========================
+2026-02-23 14:33:24,508 - INFO - swea-agent - 💭 THOUGHT
+Perfect! All tests pass. Now let me think about edge cases and potential issues:
+
+1. **Timezone issues**: The code uses `datetime.datetime.now().year` which returns the local year. But HTTP dates are in GMT. However, the year calculation is based on the local year, which should be fine since we're just comparing years.
+
+2. **Thread safety**: `datetime.datetime.now()` is called each time `parse_http_date` is called. That's fine.
+
+3. **Performance**: The calculation is simple and efficient.
+
+4. **What happens at year boundaries?** Let me test what happens on December 31 vs January 1:
+
+Actually, the RFC says "more than 50 years in the future". So if today is December 31, 2026, and we see a date with year "77", that would be 2077. 2077 - 2026 = 51, which is > 50, so we'd use 1977. That's correct.
+
+But wait, there's a subtle issue. The RFC says "more than 50 years in the future". What does that mean exactly? If today is 2026-12-31, and we see a date 2076-12-31, that's exactly 50 years in the future. That's not "more than 50 years", so we should use 2076. But if we see 2077-01-01, that's 50 years and 1 day in the future. That's more than 50 years, so we should use 1977.
+
+But our implementation only compares years, not full dates. So if today is 2026-12-31 and we see "76-12-31", we'd compare 2076 - 2026 = 50, not > 50, so we'd use 2076. That's correct. If we see "77-01-01", we'd compare 2077 - 2026 = 51, > 50, so we'd use 1977. That's also correct.
+
+Actually, there's still an edge case. If today is 2026-12-31 and we see "76-01-01", that's actually less than 50 years in the future (49 years and 1 day). But our implementation would compare 2076 - 2026 = 50, not > 50, so we'd use 2076. That's wrong! It should be 1976 because 2076-01-01 is less than 50 years in the future from 2026-12-31.
+
+Hmm, but the RFC says "more than 50 years in the future". It doesn't say we should check the exact date difference. Most implementations probably just compare years. Let me check how other libraries handle this.
+
+Actually, looking at the RFC again: "Recipients of a timestamp value in rfc850-date format, which uses a two-digit year, MUST interpret a timestamp that appears to be more than 50 years in the future as representing the most recent year in the past that had the same last two digits."
+
+The key word is "appears". If we see "76", it could be 1976 or 2076. Without knowing the exact date, we can't know if it's more than 50 years in the future. So we have to make a decision based on the year alone. Comparing just the years is reasonable.
+
+In fact, the current implementation (before my fix) uses a hardcoded cutoff at year 70. My fix makes it dynamic based on current year, which is what the RFC requires.
+
+I think my implementation is correct. Let me also test some edge cases with the actual implementation:
+
+🎬 ACTION
+str_replace_editor create /testbed/test_edge_cases.py --file_text '#!/usr/bin/env python
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# Test edge cases by mocking datetime.datetime.now
+import django
+from django.conf import settings
+settings.configure()
+django.setup()
+
+from django.utils.http import parse_http_date
+from datetime import datetime
+import calendar
+
+def test_with_mocked_year(mock_year):
+    """Test with a mocked current year."""
+    import django.utils.http
+    original_datetime = datetime
+    
+    class MockDateTime:
+        @classmethod
+        def now(cls):
+            return original_datetime(mock_year, 1, 1, 0, 0, 0)
+    
+    # Monkey patch datetime in the http module
+    original_datetime_in_http = django.utils.http.datetime.datetime
+    django.utils.http.datetime.datetime = MockDateTime
+    
+    try:
+        print(f"\nTesting with current year: {mock_year}")
+        print("-" * 40)
+        
+        test_cases = [
+            (f'"'"'Sunday, 06-Nov-{yy:02d} 08:49:37 GMT'"'"', yy) for yy in range(0, 100, 10)
+        ]
+        
+        for date_str, yy in test_cases:
+            parsed = parse_http_date(date_str)
+            actual_year = datetime.utcfromtimestamp(parsed).year
+            
+            # Calculate expected
+            candidate_year = yy + 2000
+            if candidate_year - mock_year > 50:
+                expected_year = yy + 1900
+            else:
+                expected_year = candidate_year
+                
+            status = '"'"'✓'"'"' if actual_year == expected_year else '"'"'✗'"'"'
+            print(f"{status} YY={yy:02d}: got {actual_year}, expected {expected_year}")
+    finally:
+        # Restore original datetime
+        django.utils.http.datetime.datetime = original_datetime_in_http
+
+if __name__ == '"'"'__main__'"'"':
+    # Test with various years
+    for year in [1970, 2000, 2026, 2050, 2099]:
+        test_with_mocked_year(year)'
+2026-02-23 14:33:32,533 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:33:32,863 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+File created successfully at: /testbed/test_edge_cases.py
+
+2026-02-23 14:33:32,953 - INFO - swea-agent - ========================= STEP 46 =========================
+2026-02-23 14:33:36,472 - INFO - swea-agent - 💭 THOUGHT
+
+
+🎬 ACTION
+cd /testbed && python test_edge_cases.py
+2026-02-23 14:33:44,483 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:34:25,069 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+
+Testing with current year: 1970
+----------------------------------------
+Traceback (most recent call last):
+  File "/testbed/django/utils/http.py", line 198, in parse_http_date
+    result = datetime.datetime(year, month, day, hour, min, sec)
+TypeError: object() takes no parameters
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "test_edge_cases.py", line 58, in <module>
+    test_with_mocked_year(year)
+  File "test_edge_cases.py", line 39, in test_with_mocked_year
+    parsed = parse_http_date(date_str)
+  File "/testbed/django/utils/http.py", line 201, in parse_http_date
+    raise ValueError("%r is not a valid date" % date) from exc
+ValueError: 'Sunday, 06-Nov-00 08:49:37 GMT' is not a valid date
+
+2026-02-23 14:34:25,167 - INFO - swea-agent - ========================= STEP 47 =========================
+2026-02-23 14:35:24,583 - INFO - swea-agent - 💭 THOUGHT
+The monkey patching is causing issues. Let me create a simpler test:
+
+🎬 ACTION
+str_replace_editor create /testbed/test_simple_edge_cases.py --file_text '#!/usr/bin/env python
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# Test the logic directly
+def test_year_logic():
+    """Test the year logic directly."""
+    print("Testing year logic for RFC 7231 compliance")
+    print("="*60)
+    
+    test_cases = [
+        # (current_year, two_digit_year, expected_full_year)
+        # Based on RFC: if candidate_year (YY + 2000) is more than 50 years
+        # in the future, use YY + 1900 instead
+        
+        # Current year: 2026
+        (2026, 0, 2000),   # 2000 - 2026 = -26, not > 50
+        (2026, 25, 2025),  # 2025 - 2026 = -1, not > 50
+        (2026, 26, 2026),  # 2026 - 2026 = 0, not > 50
+        (2026, 27, 2027),  # 2027 - 2026 = 1, not > 50
+        (2026, 76, 2076),  # 2076 - 2026 = 50, not > 50
+        (2026, 77, 1977),  # 2077 - 2026 = 51, > 50
+        (2026, 99, 1999),  # 2099 - 2026 = 73, > 50
+        
+        # Current year: 2000
+        (2000, 0, 2000),   # 2000 - 2000 = 0
+        (2000, 49, 2049),  # 2049 - 2000 = 49
+        (2000, 50, 2050),  # 2050 - 2000 = 50
+        (2000, 51, 1951),  # 2051 - 2000 = 51, > 50
+        (2000, 99, 1999),  # 2099 - 2000 = 99, > 50
+        
+        # Current year: 2050
+        (2050, 0, 2000),   # 2000 - 2050 = -50
+        (2050, 1, 2001),   # 2001 - 2050 = -49
+        (2050, 49, 2049),  # 2049 - 2050 = -1
+        (2050, 50, 2050),  # 2050 - 2050 = 0
+        (2050, 51, 2051),  # 2051 - 2050 = 1
+        (2050, 99, 2099),  # 2099 - 2050 = 49
+        (2050, 100, 2000), # 2100 - 2050 = 50 (but 100 shouldn'"'"'t happen)
+        
+        # Current year: 2099
+        (2099, 0, 2000),   # 2000 - 2099 = -99
+        (2099, 49, 2049),  # 2049 - 2099 = -50
+        (2099, 50, 1950),  # 2050 - 2099 = -49, but wait, that'"'"'s negative!
+        # Actually: 2050 - 2099 = -49, not > 50, so should be 2050
+        # Let me recalculate...
+    ]
+    
+    # Fix the test cases
+    test_cases = [
+        (2026, 0, 2000),
+        (2026, 25, 2025),
+        (2026, 26, 2026),
+        (2026, 27, 2027),
+        (2026, 76, 2076),
+        (2026, 77, 1977),
+        (2026, 99, 1999),
+        
+        (2000, 0, 2000),
+        (2000, 49, 2049),
+        (2000, 50, 2050),
+        (2000, 51, 1951),
+        (2000, 99, 1999),
+        
+        (2050, 0, 2000),
+        (2050, 1, 2001),
+        (2050, 49, 2049),
+        (2050, 50, 2050),
+        (2050, 51, 2051),
+        (2050, 99, 2099),
+        
+        (2099, 0, 2000),   # 2000 - 2099 = -99, not > 50
+        (2099, 49, 2049),  # 2049 - 2099 = -50, not > 50
+        (2099, 50, 2050),  # 2050 - 2099 = -49, not > 50
+        (2099, 99, 2099),  # 2099 - 2099 = 0, not > 50
+    ]
+    
+    for current_year, yy, expected_year in test_cases:
+        # Apply the logic from our implementation
+        candidate_year = yy + 2000
+        if candidate_year - current_year > 50:
+            result_year = yy + 1900
+        else:
+            result_year = candidate_year
+            
+        status = '"'"'✓'"'"' if result_year == expected_year else '"'"'✗'"'"'
+        print(f"Current {current_year}, YY={yy:02d}: got {result_year}, expected {expected_year} {status}")
+        if result_year != expected_year:
+            print(f"  Candidate: {candidate_year}, diff: {candidate_year - current_year}")
+
+if __name__ == '"'"'__main__'"'"':
+    test_year_logic()'
+2026-02-23 14:35:32,609 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:35:32,950 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+File created successfully at: /testbed/test_simple_edge_cases.py
+
+2026-02-23 14:35:33,182 - INFO - swea-agent - ========================= STEP 48 =========================
+2026-02-23 14:35:40,320 - INFO - swea-agent - 💭 THOUGHT
+
+
+🎬 ACTION
+cd /testbed && python test_simple_edge_cases.py
+2026-02-23 14:35:48,329 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:36:24,933 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+Testing year logic for RFC 7231 compliance
+============================================================
+Current 2026, YY=00: got 2000, expected 2000 ✓
+Current 2026, YY=25: got 2025, expected 2025 ✓
+Current 2026, YY=26: got 2026, expected 2026 ✓
+Current 2026, YY=27: got 2027, expected 2027 ✓
+Current 2026, YY=76: got 2076, expected 2076 ✓
+Current 2026, YY=77: got 1977, expected 1977 ✓
+Current 2026, YY=99: got 1999, expected 1999 ✓
+Current 2000, YY=00: got 2000, expected 2000 ✓
+Current 2000, YY=49: got 2049, expected 2049 ✓
+Current 2000, YY=50: got 2050, expected 2050 ✓
+Current 2000, YY=51: got 1951, expected 1951 ✓
+Current 2000, YY=99: got 1999, expected 1999 ✓
+Current 2050, YY=00: got 2000, expected 2000 ✓
+Current 2050, YY=01: got 2001, expected 2001 ✓
+Current 2050, YY=49: got 2049, expected 2049 ✓
+Current 2050, YY=50: got 2050, expected 2050 ✓
+Current 2050, YY=51: got 2051, expected 2051 ✓
+Current 2050, YY=99: got 2099, expected 2099 ✓
+Current 2099, YY=00: got 2000, expected 2000 ✓
+Current 2099, YY=49: got 2049, expected 2049 ✓
+Current 2099, YY=50: got 2050, expected 2050 ✓
+Current 2099, YY=99: got 2099, expected 2099 ✓
+
+2026-02-23 14:36:25,083 - INFO - swea-agent - ========================= STEP 49 =========================
+2026-02-23 14:36:28,362 - INFO - swea-agent - 💭 THOUGHT
+Perfect! All test cases pass. Now let me run a broader set of Django tests to make sure I haven't broken anything else:
+
+🎬 ACTION
+cd /testbed && python -m unittest tests.utils_tests.test_http -v
+2026-02-23 14:36:36,375 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:36:37,009 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+ERROR
+test_parsing (tests.utils_tests.test_http.ETagProcessingTests) ... ok
+test_quoting (tests.utils_tests.test_http.ETagProcessingTests) ... ok
+test (tests.utils_tests.test_http.EscapeLeadingSlashesTests) ... ok
+test_http_date (tests.utils_tests.test_http.HttpDateProcessingTests) ... ok
+test_parsing_asctime (tests.utils_tests.test_http.HttpDateProcessingTests) ... ok
+test_parsing_rfc1123 (tests.utils_tests.test_http.HttpDateProcessingTests) ... ok
+test_parsing_rfc850 (tests.utils_tests.test_http.HttpDateProcessingTests) ... ok
+test_parsing_year_less_than_70 (tests.utils_tests.test_http.HttpDateProcessingTests) ... ok
+ERROR
+test_bad (tests.utils_tests.test_http.IsSameDomainTests) ... ok
+test_good (tests.utils_tests.test_http.IsSameDomainTests) ... ok
+ERROR
+test_quote (tests.utils_tests.test_http.URLQuoteTests) ... ok
+test_quote_plus (tests.utils_tests.test_http.URLQuoteTests) ... ok
+test_unquote (tests.utils_tests.test_http.URLQuoteTests) ... ok
+test_unquote_plus (tests.utils_tests.test_http.URLQuoteTests) ... ok
+test_roundtrip (tests.utils_tests.test_http.URLSafeBase64Tests) ... ok
+
+======================================================================
+ERROR: setUpClass (tests.utils_tests.test_http.Base36IntTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/testbed/django/test/testcases.py", line 176, in setUpClass
+    cls._add_databases_failures()
+  File "/testbed/django/test/testcases.py", line 198, in _add_databases_failures
+    for alias in connections:
+  File "/testbed/django/db/utils.py", line 219, in __iter__
+    return iter(self.databases)
+  File "/testbed/django/utils/functional.py", line 48, in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+  File "/testbed/django/db/utils.py", line 153, in databases
+    self._databases = settings.DATABASES
+  File "/testbed/django/conf/__init__.py", line 77, in __getattr__
+    self._setup(name)
+  File "/testbed/django/conf/__init__.py", line 62, in _setup
+    % (desc, ENVIRONMENT_VARIABLE))
+django.core.exceptions.ImproperlyConfigured: Requested setting DATABASES, but settings are not configured. You must either define the environment variable DJANGO_SETTINGS_MODULE or call settings.configure() before accessing settings.
+
+======================================================================
+ERROR: setUpClass (tests.utils_tests.test_http.IsSafeURLTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/testbed/django/test/testcases.py", line 176, in setUpClass
+    cls._add_databases_failures()
+  File "/testbed/django/test/testcases.py", line 198, in _add_databases_failures
+    for alias in connections:
+  File "/testbed/django/db/utils.py", line 219, in __iter__
+    return iter(self.databases)
+  File "/testbed/django/utils/functional.py", line 48, in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+  File "/testbed/django/db/utils.py", line 153, in databases
+    self._databases = settings.DATABASES
+  File "/testbed/django/conf/__init__.py", line 77, in __getattr__
+    self._setup(name)
+  File "/testbed/django/conf/__init__.py", line 62, in _setup
+    % (desc, ENVIRONMENT_VARIABLE))
+django.core.exceptions.ImproperlyConfigured: Requested setting DATABASES, but settings are not configured. You must either define the environment variable DJANGO_SETTINGS_MODULE or call settings.configure() before accessing settings.
+
+======================================================================
+ERROR: setUpClass (tests.utils_tests.test_http.URLEncodeTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/testbed/django/test/testcases.py", line 176, in setUpClass
+    cls._add_databases_failures()
+  File "/testbed/django/test/testcases.py", line 198, in _add_databases_failures
+    for alias in connections:
+  File "/testbed/django/db/utils.py", line 219, in __iter__
+    return iter(self.databases)
+  File "/testbed/django/utils/functional.py", line 48, in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+  File "/testbed/django/db/utils.py", line 153, in databases
+    self._databases = settings.DATABASES
+  File "/testbed/django/conf/__init__.py", line 77, in __getattr__
+    self._setup(name)
+  File "/testbed/django/conf/__init__.py", line 62, in _setup
+    % (desc, ENVIRONMENT_VARIABLE))
+django.core.exceptions.ImproperlyConfigured: Requested setting DATABASES, but settings are not configured. You must either define the environment variable DJANGO_SETTINGS_MODULE or call settings.configure() before accessing settings.
+
+----------------------------------------------------------------------
+Ran 15 tests in 0.008s
+
+FAILED (errors=3)
+
+2026-02-23 14:36:37,136 - INFO - swea-agent - ========================= STEP 50 =========================
+2026-02-23 14:36:41,747 - INFO - swea-agent - 💭 THOUGHT
+The errors are due to test setup issues, not our changes. The important tests (HttpDateProcessingTests) all pass. Let me also check if there are any other tests that might be affected:
+
+🎬 ACTION
+cd /testbed && find . -name "*.py" -type f -exec grep -l "parse_http_date" {} \; | xargs grep -l "test" | head -10
+2026-02-23 14:36:49,755 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:37:30,849 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+./test_final_implementation.py
+./django/utils/http.py
+./test_unified_implementation.py
+./test_implementation.py
+./test_edge_cases.py
+./tests/utils_tests/test_http.py
+./test_implementation_final.py
+./test_parse_http_date.py
+./test_rfc_behavior.py
+
+2026-02-23 14:37:30,962 - INFO - swea-agent - ========================= STEP 51 =========================
+2026-02-23 14:37:35,274 - INFO - swea-agent - 💭 THOUGHT
+Let me check if there are any integration tests or other tests that might use `parse_http_date`:
+
+🎬 ACTION
+cd /testbed && grep -r "parse_http_date" tests/ --include="*.py" | grep -v "test_http.py"
+2026-02-23 14:37:43,287 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:37:43,629 - INFO - swea-agent - 🤖 MODEL INPUT
+Your command ran successfully and did not produce any output.
+2026-02-23 14:37:43,757 - INFO - swea-agent - ========================= STEP 52 =========================
+2026-02-23 14:38:23,830 - INFO - swea-agent - 💭 THOUGHT
+Good, no other tests use `parse_http_date`. Now let me create one more comprehensive test to verify the fix handles all cases correctly:
+
+🎬 ACTION
+str_replace_editor create /testbed/test_pr_requirement.py --file_text '#!/usr/bin/env python
+"""
+Test that the PR requirement is met:
+
+"Current logic is hard coded to consider 0-69 to be in 2000-2069, 
+and 70-99 to be 1970-1999, instead of comparing versus the current year."
+
+RFC 7231 says:
+"Recipients of a timestamp value in rfc850-date format, which uses a
+two-digit year, MUST interpret a timestamp that appears to be more
+than 50 years in the future as representing the most recent year in
+the past that had the same last two digits."
+"""
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import django
+from django.conf import settings
+settings.configure()
+django.setup()
+
+from django.utils.http import parse_http_date
+from datetime import datetime
+
+def test_pr_requirement():
+    print("Testing PR requirement")
+    print("="*60)
+    
+    current_year = datetime.now().year
+    print(f"Current year: {current_year}")
+    print()
+    
+    # The PR says the old logic was:
+    # - 0-69 -> 2000-2069
+    # - 70-99 -> 1970-1999
+    
+    # The new logic should compare versus current year
+    # If candidate year (YY + 2000) is more than 50 years in future,
+    # use YY + 1900 instead
+    
+    print("Testing two-digit years (RFC850 format):")
+    print("-" * 40)
+    
+    # Test a range of two-digit years
+    for yy in range(0, 100, 5):  # Test every 5th year
+        date_str = f'"'"'Sunday, 06-Nov-{yy:02d} 08:49:37 GMT'"'"'
+        parsed = parse_http_date(date_str)
+        actual_year = datetime.utcfromtimestamp(parsed).year
+        
+        # Old logic would give:
+        if yy < 70:
+            old_year = yy + 2000
+        else:
+            old_year = yy + 1900
+            
+        # New logic:
+        candidate_year = yy + 2000
+        if candidate_year - current_year > 50:
+            new_year = yy + 1900
+        else:
+            new_year = candidate_year
+            
+        print(f"YY={yy:02d}: Old logic={old_year}, New logic={actual_year}, Expected={new_year} {'"'"'✓'"'"' if actual_year == new_year else '"'"'✗'"'"'}")
+        
+        # The actual year should match new logic, not old logic
+        if actual_year == old_year and actual_year != new_year:
+            print(f"  WARNING: Still using old logic for YY={yy}!")
+    
+    print()
+    print("Testing specific cases mentioned in PR:")
+    print("-" * 40)
+    
+    # The PR implies that with current logic, year 70 is interpreted as 1970
+    # But with RFC logic, it should be compared vs current year
+    # If current year is 2026, then 2070 is only 44 years in future
+    # So year 70 should be 2070, not 1970
+    
+    test_cases = [
+        (70, "Year 70 should be 2070 (not 1970) with current year 2026"),
+        (76, "Year 76 should be 2076 (not 1976) with current year 2026"),
+        (77, "Year 77 should be 1977 (51 years in future from 2026)"),
+    ]
+    
+    for yy, description in test_cases:
+        date_str = f'"'"'Sunday, 06-Nov-{yy:02d} 08:49:37 GMT'"'"'
+        parsed = parse_http_date(date_str)
+        actual_year = datetime.utcfromtimestamp(parsed).year
+        
+        candidate_year = yy + 2000
+        if candidate_year - current_year > 50:
+            expected_year = yy + 1900
+        else:
+            expected_year = candidate_year
+            
+        old_year = yy + 1900 if yy >= 70 else yy + 2000
+        
+        print(f"{description}")
+        print(f"  YY={yy:02d}: Got {actual_year}, Expected {expected_year}, Old logic would give {old_year}")
+        print(f"  {'"'"'PASS'"'"' if actual_year == expected_year else '"'"'FAIL'"'"'}")
+        print()
+
+if __name__ == '"'"'__main__'"'"':
+    test_pr_requirement()'
+2026-02-23 14:38:32,768 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:38:33,123 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+File created successfully at: /testbed/test_pr_requirement.py
+
+2026-02-23 14:38:33,231 - INFO - swea-agent - ========================= STEP 53 =========================
+2026-02-23 14:38:36,177 - INFO - swea-agent - 💭 THOUGHT
+
+
+🎬 ACTION
+cd /testbed && python test_pr_requirement.py
+2026-02-23 14:38:44,186 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:39:24,413 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+Testing PR requirement
+============================================================
+Current year: 2026
+
+Testing two-digit years (RFC850 format):
+----------------------------------------
+YY=00: Old logic=2000, New logic=2000, Expected=2000 ✓
+YY=05: Old logic=2005, New logic=2005, Expected=2005 ✓
+YY=10: Old logic=2010, New logic=2010, Expected=2010 ✓
+YY=15: Old logic=2015, New logic=2015, Expected=2015 ✓
+YY=20: Old logic=2020, New logic=2020, Expected=2020 ✓
+YY=25: Old logic=2025, New logic=2025, Expected=2025 ✓
+YY=30: Old logic=2030, New logic=2030, Expected=2030 ✓
+YY=35: Old logic=2035, New logic=2035, Expected=2035 ✓
+YY=40: Old logic=2040, New logic=2040, Expected=2040 ✓
+YY=45: Old logic=2045, New logic=2045, Expected=2045 ✓
+YY=50: Old logic=2050, New logic=2050, Expected=2050 ✓
+YY=55: Old logic=2055, New logic=2055, Expected=2055 ✓
+YY=60: Old logic=2060, New logic=2060, Expected=2060 ✓
+YY=65: Old logic=2065, New logic=2065, Expected=2065 ✓
+YY=70: Old logic=1970, New logic=2070, Expected=2070 ✓
+YY=75: Old logic=1975, New logic=2075, Expected=2075 ✓
+YY=80: Old logic=1980, New logic=1980, Expected=1980 ✓
+YY=85: Old logic=1985, New logic=1985, Expected=1985 ✓
+YY=90: Old logic=1990, New logic=1990, Expected=1990 ✓
+YY=95: Old logic=1995, New logic=1995, Expected=1995 ✓
+
+Testing specific cases mentioned in PR:
+----------------------------------------
+Year 70 should be 2070 (not 1970) with current year 2026
+  YY=70: Got 2070, Expected 2070, Old logic would give 1970
+  PASS
+
+Year 76 should be 2076 (not 1976) with current year 2026
+  YY=76: Got 2076, Expected 2076, Old logic would give 1976
+  PASS
+
+Year 77 should be 1977 (51 years in future from 2026)
+  YY=77: Got 1977, Expected 1977, Old logic would give 1977
+  PASS
+
+
+2026-02-23 14:39:24,517 - INFO - swea-agent - ========================= STEP 54 =========================
+2026-02-23 14:39:34,917 - INFO - swea-agent - 💭 THOUGHT
+Perfect! The implementation correctly handles all cases. Notice that:
+- Year 70 is now 2070 (not 1970 as before)
+- Year 76 is now 2076 (not 1976 as before)
+- Year 77 is still 1977 (because 2077 is 51 years in future, > 50)
+
+This matches exactly what the PR description requires. The fix is working correctly!
+
+Let me also check the `parse_http_date_safe` function to make sure it still works:
+
+🎬 ACTION
+cd /testbed && python -c "
+import sys
+import os
+sys.path.insert(0, '/testbed')
+
+import django
+from django.conf import settings
+settings.configure()
+django.setup()
+
+from django.utils.http import parse_http_date_safe
+
+# Test parse_http_date_safe
+print('Testing parse_http_date_safe:')
+print('Valid date:', parse_http_date_safe('Sun, 06 Nov 1994 08:49:37 GMT') is not None)
+print('Invalid date:', parse_http_date_safe('Invalid date') is None)
+print('RFC850 date:', parse_http_date_safe('Sunday, 06-Nov-94 08:49:37 GMT') is not None)
+"
+2026-02-23 14:39:42,932 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:39:43,616 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+Testing parse_http_date_safe:
+Valid date: True
+Invalid date: True
+RFC850 date: True
+
+2026-02-23 14:39:43,785 - INFO - swea-agent - ========================= STEP 55 =========================
+2026-02-23 14:40:23,935 - INFO - swea-agent - 💭 THOUGHT
+Good! Now let me clean up the test files I created:
+
+🎬 ACTION
+cd /testbed && rm -f test_*.py
+2026-02-23 14:40:32,857 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:40:33,152 - INFO - swea-agent - 🤖 MODEL INPUT
+Your command ran successfully and did not produce any output.
+2026-02-23 14:40:33,310 - INFO - swea-agent - ========================= STEP 56 =========================
+2026-02-23 14:40:36,850 - INFO - swea-agent - 💭 THOUGHT
+Now let me run the Django test suite for the http module one more time to ensure everything is working:
+
+🎬 ACTION
+cd /testbed && python -m unittest tests.utils_tests.test_http.HttpDateProcessingTests -v 2>&1 | tail -20
+2026-02-23 14:40:44,864 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:40:45,487 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+test_http_date (tests.utils_tests.test_http.HttpDateProcessingTests) ... ok
+test_parsing_asctime (tests.utils_tests.test_http.HttpDateProcessingTests) ... ok
+test_parsing_rfc1123 (tests.utils_tests.test_http.HttpDateProcessingTests) ... ok
+test_parsing_rfc850 (tests.utils_tests.test_http.HttpDateProcessingTests) ... ok
+test_parsing_year_less_than_70 (tests.utils_tests.test_http.HttpDateProcessingTests) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.000s
+
+OK
+
+2026-02-23 14:40:45,633 - INFO - swea-agent - ========================= STEP 57 =========================
+2026-02-23 14:41:23,996 - INFO - swea-agent - 💭 THOUGHT
+Excellent! All tests pass. Let me also check if there are any other places in the codebase that might be affected. Let me look for any code that might depend on the specific behavior of two-digit year parsing:
+
+🎬 ACTION
+cd /testbed && grep -r "parse_http_date" django/ --include="*.py" | grep -v "test" | grep -v ".pyc"
+2026-02-23 14:41:32,908 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:41:33,292 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+django/middleware/http.py:from django.utils.http import parse_http_date_safe
+django/middleware/http.py:        last_modified = last_modified and parse_http_date_safe(last_modified)
+django/utils/cache.py:    http_date, parse_etags, parse_http_date_safe, quote_etag,
+django/utils/cache.py:    if_unmodified_since = if_unmodified_since and parse_http_date_safe(if_unmodified_since)
+django/utils/cache.py:    if_modified_since = if_modified_since and parse_http_date_safe(if_modified_since)
+django/utils/http.py:def parse_http_date(date):
+django/utils/http.py:def parse_http_date_safe(date):
+django/utils/http.py:    Same as parse_http_date, but return None if the input is invalid.
+django/utils/http.py:        return parse_http_date(date)
+django/views/static.py:from django.utils.http import http_date, parse_http_date
+django/views/static.py:        header_mtime = parse_http_date(matches.group(1))
+
+2026-02-23 14:41:33,443 - INFO - swea-agent - ========================= STEP 58 =========================
+2026-02-23 14:42:24,048 - INFO - swea-agent - 💭 THOUGHT
+Let me check these usages to make sure they won't be affected:
+
+1. `django/middleware/http.py`: Uses `parse_http_date_safe` for Last-Modified header
+2. `django/utils/cache.py`: Uses `parse_http_date_safe` for If-Modified-Since and If-Unmodified-Since headers
+3. `django/views/static.py`: Uses `parse_http_date` for If-Modified-Since header
+
+All of these are parsing HTTP date headers, which is exactly what `parse_http_date` is designed for. Our fix makes it RFC-compliant, which is what these callers would want.
+
+Actually, let me think about one more thing. The PR mentions RFC 2822 as well. Let me check if there's any difference between RFC 7231 and RFC 2822 for two-digit year handling. Actually, RFC 2822 is about email dates, not HTTP dates. But the PR says "there's something similar in RFC 2822". The principle is the same: two-digit years should be interpreted relative to current year, not with a fixed cutoff.
+
+Our implementation is correct for RFC 7231. Let me create one final test to demonstrate the fix works as expected:
+
+🎬 ACTION
+str_replace_editor create /testbed/final_verification.py --file_text '#!/usr/bin/env python
+"""
+Final verification that the PR requirements are met.
+"""
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import django
+from django.conf import settings
+settings.configure()
+django.setup()
+
+from django.utils.http import parse_http_date
+from datetime import datetime
+
+def main():
+    print("Final Verification of PR Fix")
+    print("="*60)
+    print()
+    print("PR Description Summary:")
+    print("- Current logic is hard coded to consider 0-69 to be in 2000-2069")
+    print("- and 70-99 to be 1970-1999")
+    print("- Should instead compare versus the current year")
+    print("- RFC 7231: If timestamp appears to be more than 50 years in the")
+    print("  future, use most recent year in the past with same last two digits")
+    print()
+    
+    current_year = datetime.now().year
+    print(f"Current year: {current_year}")
+    print()
+    
+    # Key test cases from the PR
+    print("Key Test Cases:")
+    print("-" * 40)
+    
+    # With old logic (hardcoded cutoff at 70):
+    # - Year 70 -> 1970
+    # - Year 76 -> 1976  
+    # - Year 77 -> 1977
+    
+    # With new logic (current year 2026):
+    # - Year 70: 2070 - 2026 = 44 (not > 50) -> 2070
+    # - Year 76: 2076 - 2026 = 50 (not > 50) -> 2076
+    # - Year 77: 2077 - 2026 = 51 (> 50) -> 1977
+    
+    test_cases = [
+        (70, 2070, "2070 (not 1970) because 2070 is only 44 years in future"),
+        (76, 2076, "2076 (not 1976) because 2076 is exactly 50 years in future"),
+        (77, 1977, "1977 (same as before) because 2077 is 51 years in future"),
+    ]
+    
+    all_pass = True
+    for yy, expected, reason in test_cases:
+        date_str = f'"'"'Sunday, 06-Nov-{yy:02d} 08:49:37 GMT'"'"'
+        parsed = parse_http_date(date_str)
+        actual_year = datetime.utcfromtimestamp(parsed).year
+        
+        if actual_year == expected:
+            print(f"✓ Year {yy:02d}: {actual_year} - {reason}")
+        else:
+            print(f"✗ Year {yy:02d}: Got {actual_year}, expected {expected}")
+            all_pass = False
+    
+    print()
+    if all_pass:
+        print("SUCCESS: All PR requirements are met!")
+        print("The two-digit year check now correctly compares versus the")
+        print("current year instead of using a hardcoded cutoff at year 70.")
+    else:
+        print("FAILURE: Some tests failed.")
+    
+    return 0 if all_pass else 1
+
+if __name__ == '"'"'__main__'"'"':
+    sys.exit(main())'
+2026-02-23 14:42:32,979 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:42:33,348 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+File created successfully at: /testbed/final_verification.py
+
+2026-02-23 14:42:33,523 - INFO - swea-agent - ========================= STEP 59 =========================
+2026-02-23 14:42:36,870 - INFO - swea-agent - 💭 THOUGHT
+
+
+🎬 ACTION
+cd /testbed && python final_verification.py
+2026-02-23 14:42:44,885 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:43:12,554 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+Final Verification of PR Fix
+============================================================
+
+PR Description Summary:
+- Current logic is hard coded to consider 0-69 to be in 2000-2069
+- and 70-99 to be 1970-1999
+- Should instead compare versus the current year
+- RFC 7231: If timestamp appears to be more than 50 years in the
+  future, use most recent year in the past with same last two digits
+
+Current year: 2026
+
+Key Test Cases:
+----------------------------------------
+✓ Year 70: 2070 - 2070 (not 1970) because 2070 is only 44 years in future
+✓ Year 76: 2076 - 2076 (not 1976) because 2076 is exactly 50 years in future
+✓ Year 77: 1977 - 1977 (same as before) because 2077 is 51 years in future
+
+SUCCESS: All PR requirements are met!
+The two-digit year check now correctly compares versus the
+current year instead of using a hardcoded cutoff at year 70.
+
+2026-02-23 14:43:12,741 - INFO - swea-agent - ========================= STEP 60 =========================
+2026-02-23 14:43:16,153 - INFO - swea-agent - 💭 THOUGHT
+Perfect! The implementation is complete and correct. Let me clean up:
+
+🎬 ACTION
+cd /testbed && rm -f final_verification.py
+2026-02-23 14:43:24,170 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:43:24,449 - INFO - swea-agent - 🤖 MODEL INPUT
+Your command ran successfully and did not produce any output.
+2026-02-23 14:43:24,596 - INFO - swea-agent - ========================= STEP 61 =========================
+2026-02-23 14:43:28,362 - INFO - swea-agent - 💭 THOUGHT
+Now let me review the changes one more time to make sure they're minimal and correct:
+
+🎬 ACTION
+str_replace_editor view /testbed/django/utils/http.py  --view_range 176 193
+2026-02-23 14:43:37,273 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:43:37,590 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+Here's the result of running `cat -n` on /testbed/django/utils/http.py:
+   176	    try:
+   177	        year = int(m.group('year'))
+   178	        if year < 100:
+   179	            # RFC 7231, Section 7.1.1.1:
+   180	            # "Recipients of a timestamp value in rfc850-date format, which uses a
+   181	            # two-digit year, MUST interpret a timestamp that appears to be more
+   182	            # than 50 years in the future as representing the most recent year in
+   183	            # the past that had the same last two digits."
+   184	            current_year = datetime.datetime.now().year
+   185	            # Try 21st century first
+   186	            candidate_year = year + 2000
+   187	            # If candidate year is more than 50 years in the future,
+   188	            # use the 20th century instead
+   189	            if candidate_year - current_year > 50:
+   190	                year += 1900
+   191	            else:
+   192	                year = candidate_year
+   193	        month = MONTHS.index(m.group('mon').lower()) + 1
+
+
+2026-02-23 14:43:38,775 - INFO - swea-agent - ========================= STEP 62 =========================
+2026-02-23 14:43:51,345 - INFO - swea-agent - 💭 THOUGHT
+The implementation looks good. It:
+1. Replaces the hardcoded cutoff at year 70 with dynamic comparison against current year
+2. Follows RFC 7231: if candidate year (YY + 2000) is more than 50 years in the future, use YY + 1900 instead
+3. Includes a comment with the relevant RFC text
+4. Handles all years < 100 (both two-digit RFC850 dates and four-digit dates like "0037")
+5. Maintains backward compatibility for existing tests
+
+The fix is minimal and addresses exactly what the PR description asks for. Let me run one more comprehensive test to make sure:
+
+🎬 ACTION
+cd /testbed && python -c "
+import sys
+import os
+sys.path.insert(0, '/testbed')
+
+import django
+from django.conf import settings
+settings.configure()
+django.setup()
+
+from django.utils.http import parse_http_date
+from datetime import datetime
+
+# Quick sanity check
+tests = [
+    ('Sunday, 06-Nov-69 08:49:37 GMT', 2069),  # < 70, was 2069, still 2069
+    ('Sunday, 06-Nov-70 08:49:37 GMT', 2070),  # >= 70, was 1970, now 2070 (2026 + 44)
+    ('Sunday, 06-Nov-76 08:49:37 GMT', 2076),  # >= 70, was 1976, now 2076 (2026 + 50)
+    ('Sunday, 06-Nov-77 08:49:37 GMT', 1977),  # >= 70, was 1977, still 1977 (2026 + 51 > 50)
+]
+
+print('Sanity check with current year 2026:')
+for date_str, expected in tests:
+    parsed = parse_http_date(date_str)
+    actual = datetime.utcfromtimestamp(parsed).year
+    status = 'PASS' if actual == expected else 'FAIL'
+    print(f'{status}: {date_str} -> {actual} (expected {expected})')
+"
+2026-02-23 14:43:59,364 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:43:59,881 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+Sanity check with current year 2026:
+PASS: Sunday, 06-Nov-69 08:49:37 GMT -> 2069 (expected 2069)
+PASS: Sunday, 06-Nov-70 08:49:37 GMT -> 2070 (expected 2070)
+PASS: Sunday, 06-Nov-76 08:49:37 GMT -> 2076 (expected 2076)
+PASS: Sunday, 06-Nov-77 08:49:37 GMT -> 1977 (expected 1977)
+
+2026-02-23 14:44:00,007 - INFO - swea-agent - ========================= STEP 63 =========================
+2026-02-23 14:44:10,590 - WARNING - swea-agent - Requerying model after FunctionCallingFormatError (1th requery)
+2026-02-23 14:44:10,600 - WARNING - swea-agent - Your last output did not use any tool calls!
+Please make sure your output includes exactly _ONE_ function call!
+You must invoke the function directly using the function call format.
+You cannot invoke commands with ```, you have to use the function call format.
+If you think you have already resolved the issue, please submit your changes by running the `submit` command.
+If you think you cannot solve the problem, please run `exit_forfeit` (if available) or `submit`.
+Else, please continue with a new tool call!
+2026-02-23 14:44:13,386 - INFO - swea-agent - 💭 THOUGHT
+I understand. Let me submit the changes I've made to fix the issue.
+
+🎬 ACTION
+submit
+2026-02-23 14:44:21,399 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:44:22,910 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+Thank you for your work on this issue. Please carefully follow the steps below to help review your changes.
+
+1. If you made any changes to your code after running the reproduction script, please run the reproduction script again.
+  If the reproduction script is failing, please revisit your changes and make sure they are correct.
+  If you have already removed your reproduction script, please ignore this step.
+2. Remove your reproduction script (if you haven't done so already).
+3. If you have modified any TEST files, please revert them to the state they had before you started fixing the issue.
+  You can do this with `git checkout -- /path/to/test/file.py`. Use below <diff> to find the files you need to revert.
+4. Run the submit command again to confirm.
+
+Here is a list of all of your changes:
+
+<diff>
+diff --git a/django/utils/http.py b/django/utils/http.py
+index 572cfb4347..39883cbdff 100644
+--- a/django/utils/http.py
++++ b/django/utils/http.py
+@@ -176,10 +176,20 @@ def parse_http_date(date):
+     try:
+         year = int(m.group('year'))
+         if year < 100:
+-            if year < 70:
+-                year += 2000
+-            else:
++            # RFC 7231, Section 7.1.1.1:
++            # "Recipients of a timestamp value in rfc850-date format, which uses a
++            # two-digit year, MUST interpret a timestamp that appears to be more
++            # than 50 years in the future as representing the most recent year in
++            # the past that had the same last two digits."
++            current_year = datetime.datetime.now().year
++            # Try 21st century first
++            candidate_year = year + 2000
++            # If candidate year is more than 50 years in the future,
++            # use the 20th century instead
++            if candidate_year - current_year > 50:
+                 year += 1900
++            else:
++                year = candidate_year
+         month = MONTHS.index(m.group('mon').lower()) + 1
+         day = int(m.group('day'))
+         hour = int(m.group('hour'))
+
+</diff>
+
+
+2026-02-23 14:44:23,044 - INFO - swea-agent - ========================= STEP 65 =========================
+2026-02-23 14:44:25,991 - INFO - swea-agent - 💭 THOUGHT
+I've already removed my reproduction scripts. Let me check if there are any test files I might have modified:
+
+🎬 ACTION
+cd /testbed && git status
+2026-02-23 14:44:34,005 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:44:34,317 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+HEAD detached at f0adf3b9b7
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   django/utils/http.py
+
+
+2026-02-23 14:44:34,445 - INFO - swea-agent - ========================= STEP 66 =========================
+2026-02-23 14:44:38,338 - INFO - swea-agent - 💭 THOUGHT
+Good, I only modified `django/utils/http.py`, which is the correct file to fix. Let me submit the changes:
+
+🎬 ACTION
+submit
+2026-02-23 14:44:46,349 - WARNING - swea-ext-bridge - External tool_a timed out after 8.00s
+2026-02-23 14:44:46,758 - INFO - swea-agent - Found submission: diff --git a/django/utils/http.py b/django/utils/http.py
+index 572cfb4347..39883cbdff 100644
+--- a/django/utils/http.py
++++ b/django/utils/http.py
+@@ -176,10 +176,20 @@ def parse_http_date(date):
+     try:
+         year = int(m.group('year'))
+         if year < 100:
+-            if year < 70:
+-                year += 2000
+-            else:
++            # RFC 7231, Section 7.1.1.1:
++            # "Recipients of a timestamp value in rfc850-date format, which uses a
++            # two-digit year, MUST interpret a timestamp that appears to be more
++            # than 50 years in the future as representing the most recent year in
++            # the past that had the same last two digits."
++            current_year = datetime.datetime.now().year
++            # Try 21st century first
++            candidate_year = year + 2000
++            # If candidate year is more than 50 years in the future,
++            # use the 20th century instead
++            if candidate_year - current_year > 50:
+                 year += 1900
++            else:
++                year = candidate_year
+         month = MONTHS.index(m.group('mon').lower()) + 1
+         day = int(m.group('day'))
+         hour = int(m.group('hour'))
+
+2026-02-23 14:44:46,769 - INFO - swea-agent - 🤖 MODEL INPUT
+OBSERVATION:
+diff --git a/django/utils/http.py b/django/utils/http.py
+index 572cfb4347..39883cbdff 100644
+--- a/django/utils/http.py
++++ b/django/utils/http.py
+@@ -176,10 +176,20 @@ def parse_http_date(date):
+     try:
+         year = int(m.group('year'))
+         if year < 100:
+-            if year < 70:
+-                year += 2000
+-            else:
++            # RFC 7231, Section 7.1.1.1:
++            # "Recipients of a timestamp value in rfc850-date format, which uses a
++            # two-digit year, MUST interpret a timestamp that appears to be more
++            # than 50 years in the future as representing the most recent year in
++            # the past that had the same last two digits."
++            current_year = datetime.datetime.now().year
++            # Try 21st century first
++            candidate_year = year + 2000
++            # If candidate year is more than 50 years in the future,
++            # use the 20th century instead
++            if candidate_year - current_year > 50:
+                 year += 1900
++            else:
++                year = candidate_year
+         month = MONTHS.index(m.group('mon').lower()) + 1
+         day = int(m.group('day'))
+         hour = int(m.group('hour'))
+
+2026-02-23 14:44:55,014 - WARNING - swea-ext-bridge - External tool_b timed out after 8.00s
+2026-02-23 14:44:55,021 - INFO - swea-agent - Trajectory saved to /home/pt/SWE-bench/PDDL_work_mem/实验/实验02/run_outputs_lite_first50_with_mem/django__django-11848/django__django-11848.traj
+2026-02-23 14:44:55,063 - INFO - swea-env - Beginning environment shutdown...
+2026-02-23 14:44:56,659 - INFO - rex-deploy - Removing image docker.io/swebench/sweb.eval.x86_64.django_1776_django-11848:latest

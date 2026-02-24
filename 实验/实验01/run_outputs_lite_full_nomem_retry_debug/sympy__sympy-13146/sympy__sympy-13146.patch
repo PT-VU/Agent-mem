@@ -1,0 +1,38 @@
+diff --git a/reproduce_issue.py b/reproduce_issue.py
+new file mode 100644
+index 0000000000..83d011da47
+--- /dev/null
++++ b/reproduce_issue.py
+@@ -0,0 +1,11 @@
++import sympy
++from sympy import *
++x = Symbol('x')
++expr1 = S(1)/2*x**2.5
++expr2 = S(1)*x**(S(5)/2)/2
++res = expr1 - expr2
++res = simplify(res.evalf(5))
++print("Result:", res)
++print("Type of result:", type(res))
++print("Is it zero?", res == 0)
++print("Simplified result:", simplify(res))
+\ No newline at end of file
+diff --git a/reproduce_issue2.py b/reproduce_issue2.py
+new file mode 100644
+index 0000000000..3d2c5f2ec3
+--- /dev/null
++++ b/reproduce_issue2.py
+@@ -0,0 +1,13 @@
++import sympy
++from sympy import *
++x = Symbol('x')
++expr1 = S(1)/2*x**2.5
++expr2 = S(1)*x**(S(5)/2)/2
++print("expr1:", expr1)
++print("expr2:", expr2)
++print("expr1 type:", type(expr1))
++print("expr2 type:", type(expr2))
++print("expr1 - expr2:", expr1 - expr2)
++print("simplify(expr1 - expr2):", simplify(expr1 - expr2))
++print("(expr1 - expr2).evalf(5):", (expr1 - expr2).evalf(5))
++print("simplify((expr1 - expr2).evalf(5)):", simplify((expr1 - expr2).evalf(5)))
+\ No newline at end of file

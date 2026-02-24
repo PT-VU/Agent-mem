@@ -1,0 +1,35 @@
+diff --git a/django/db/models/fields/__init__.py b/django/db/models/fields/__init__.py
+index 1a55d3d417..d49b6339cd 100644
+--- a/django/db/models/fields/__init__.py
++++ b/django/db/models/fields/__init__.py
+@@ -764,10 +764,28 @@ class Field(RegisterLookupMixin):
+             if not getattr(cls, self.attname, None):
+                 setattr(cls, self.attname, self.descriptor_class(self))
+         if self.choices is not None:
+-            if not hasattr(cls, 'get_%s_display' % self.name):
++            method_name = 'get_%s_display' % self.name
++            # Check if the method already exists in the class hierarchy
++            for base in cls.__mro__:
++                if method_name in base.__dict__:
++                    # Method exists in a base class
++                    existing_method = base.__dict__[method_name]
++                    # Check if it's a default Django-generated method (partialmethod)
++                    # or a user-defined method (not a partialmethod)
++                    if isinstance(existing_method, partialmethod):
++                        # It's a default method, replace it with one bound to the current field
++                        setattr(
++                            cls,
++                            method_name,
++                            partialmethod(cls._get_FIELD_display, field=self),
++                        )
++                    # If it's not a partialmethod, it's a user-defined method, don't replace it
++                    break
++            else:
++                # Method doesn't exist in any base class, create it
+                 setattr(
+                     cls,
+-                    'get_%s_display' % self.name,
++                    method_name,
+                     partialmethod(cls._get_FIELD_display, field=self),
+                 )
+ 

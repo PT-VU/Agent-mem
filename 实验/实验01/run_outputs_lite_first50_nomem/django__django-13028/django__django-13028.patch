@@ -1,0 +1,131 @@
+diff --git a/django/db/models/expressions.py b/django/db/models/expressions.py
+index 76f8fded41..0f7b009009 100644
+--- a/django/db/models/expressions.py
++++ b/django/db/models/expressions.py
+@@ -13,6 +13,28 @@ from django.utils.functional import cached_property
+ from django.utils.hashable import make_hashable
+ 
+ 
++def _check_class_attribute(obj, attr_name, default):
++    """
++    Check if a class has an attribute that's not a descriptor.
++    
++    This is used to check class attributes like 'filterable', 'conditional',
++    'contains_aggregate' etc. without being confused by instance attributes
++    (like model fields) with the same name.
++    """
++    # Get the class, not the instance
++    obj_class = type(obj)
++    
++    # Check if the class has the attribute
++    if hasattr(obj_class, attr_name):
++        attr_value = getattr(obj_class, attr_name)
++        # If it's a descriptor (like a model field), it's not the class attribute we're looking for
++        if not hasattr(attr_value, '__get__'):
++            return attr_value
++    # If the class doesn't have the attribute, or it's a descriptor,
++    # return the default (not the instance attribute)
++    return default
++
++
+ class SQLiteNumericMixin:
+     """
+     Some expressions with output_field=DecimalField() must be cast to
+@@ -91,7 +113,7 @@ class Combinable:
+         return self._combine(other, self.POW, False)
+ 
+     def __and__(self, other):
+-        if getattr(self, 'conditional', False) and getattr(other, 'conditional', False):
++        if _check_class_attribute(self, 'conditional', False) and _check_class_attribute(other, 'conditional', False):
+             return Q(self) & Q(other)
+         raise NotImplementedError(
+             "Use .bitand() and .bitor() for bitwise logical operations."
+@@ -110,7 +132,7 @@ class Combinable:
+         return self._combine(other, self.BITXOR, False)
+ 
+     def __or__(self, other):
+-        if getattr(self, 'conditional', False) and getattr(other, 'conditional', False):
++        if _check_class_attribute(self, 'conditional', False) and _check_class_attribute(other, 'conditional', False):
+             return Q(self) | Q(other)
+         raise NotImplementedError(
+             "Use .bitand() and .bitor() for bitwise logical operations."
+@@ -884,9 +906,9 @@ class When(Expression):
+         if lookups:
+             if condition is None:
+                 condition, lookups = Q(**lookups), None
+-            elif getattr(condition, 'conditional', False):
++            elif _check_class_attribute(condition, 'conditional', False):
+                 condition, lookups = Q(condition, **lookups), None
+-        if condition is None or not getattr(condition, 'conditional', False) or lookups:
++        if condition is None or not _check_class_attribute(condition, 'conditional', False) or lookups:
+             raise TypeError(
+                 'When() supports a Q object, a boolean expression, or lookups '
+                 'as a condition.'
+@@ -1209,7 +1231,7 @@ class Window(Expression):
+         self.order_by = order_by
+         self.frame = frame
+ 
+-        if not getattr(expression, 'window_compatible', False):
++        if not _check_class_attribute(expression, 'window_compatible', False):
+             raise ValueError(
+                 "Expression '%s' isn't compatible with OVER clauses." %
+                 expression.__class__.__name__
+diff --git a/django/db/models/sql/query.py b/django/db/models/sql/query.py
+index ce18098fd2..88bfbd9315 100644
+--- a/django/db/models/sql/query.py
++++ b/django/db/models/sql/query.py
+@@ -23,7 +23,7 @@ from django.core.exceptions import (
+ from django.db import DEFAULT_DB_ALIAS, NotSupportedError, connections
+ from django.db.models.aggregates import Count
+ from django.db.models.constants import LOOKUP_SEP
+-from django.db.models.expressions import BaseExpression, Col, F, OuterRef, Ref
++from django.db.models.expressions import BaseExpression, Col, F, OuterRef, Ref, _check_class_attribute
+ from django.db.models.fields import Field
+ from django.db.models.fields.related_lookups import MultiColSource
+ from django.db.models.lookups import Lookup
+@@ -44,6 +44,9 @@ from django.utils.tree import Node
+ __all__ = ['Query', 'RawQuery']
+ 
+ 
++
++
++
+ def get_field_names_from_opts(opts):
+     return set(chain.from_iterable(
+         (f.name, f.attname) if f.concrete else (f.name,)
+@@ -455,7 +458,7 @@ class Query(BaseExpression):
+                 # used.
+                 has_existing_aggregate_annotations = any(
+                     annotation for annotation in existing_annotations
+-                    if getattr(annotation, 'contains_aggregate', True)
++                    if _check_class_attribute(annotation, 'contains_aggregate', True)
+                 )
+                 if inner_query.default_cols and has_existing_aggregate_annotations:
+                     inner_query.group_by = (self.model._meta.pk.get_col(inner_query.get_initial_alias()),)
+@@ -1124,7 +1127,7 @@ class Query(BaseExpression):
+ 
+     def check_filterable(self, expression):
+         """Raise an error if expression cannot be used in a WHERE clause."""
+-        if not getattr(expression, 'filterable', True):
++        if not _check_class_attribute(expression, 'filterable', True):
+             raise NotSupportedError(
+                 expression.__class__.__name__ + ' is disallowed in the filter '
+                 'clause.'
+@@ -1242,7 +1245,7 @@ class Query(BaseExpression):
+                 check_filterable=check_filterable,
+             )
+         if hasattr(filter_expr, 'resolve_expression'):
+-            if not getattr(filter_expr, 'conditional', False):
++            if not _check_class_attribute(filter_expr, 'conditional', False):
+                 raise TypeError('Cannot filter against a non-conditional expression.')
+             condition = self.build_lookup(
+                 ['exact'], filter_expr.resolve_expression(self, allow_joins=allow_joins), True
+@@ -1917,7 +1920,7 @@ class Query(BaseExpression):
+                 self.names_to_path(item.split(LOOKUP_SEP), self.model._meta)
+             elif not hasattr(item, 'resolve_expression'):
+                 errors.append(item)
+-            if getattr(item, 'contains_aggregate', False):
++            if _check_class_attribute(item, 'contains_aggregate', False):
+                 raise FieldError(
+                     'Using an aggregate in order_by() without also including '
+                     'it in annotate() is not allowed: %s' % item

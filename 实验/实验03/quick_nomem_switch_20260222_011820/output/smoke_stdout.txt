@@ -1,0 +1,127 @@
+👋 INFO     This is SWE-agent version 1.1.0                                     
+            (hash='77f0a5ea8849640c87a5d2498a9a089740108710') with SWE-ReX      
+            version 1.4.0 (rex_hash='unavailable').                             
+🔧 WARN     system_template/instance_template is not set, using empty string.   
+            Perhaps you were overwriting the default config? See                
+            https://swe-agent.com/latest/usage/cl_tutorial/ for more            
+            information. Note: You can ignore this warning in human mode.       
+🔌 INFO     Loaded external agent hook:                                         
+            PDDL_work_mem.tools.sweagent_ext_tools.baseline_hook:BaselineLogging
+            Hook                                                                
+🪴 INFO     Environment Initialized                                             
+🤠 INFO     Setting up agent for instance 0be0a711-3a9e-477b-8a55-0932e479f942  
+🤠 INFO     Trajectory will be saved to                                         
+            /tmp/tmpkciqaq66/0be0a711-3a9e-477b-8a55-0932e479f942.traj          
+🧰 INFO     Resetting tools                                                     
+🤠 INFO     SYSTEM (main)                                                       
+                                                                                
+🧰 WARN     State file is empty, returning empty state                          
+🧰 DEBUG    Retrieved state from environment: {}                                
+🤠 INFO     🤖 MODEL INPUT                                                      
+                                                                                
+🤠 INFO     ========================= STEP 1 =========================          
+🤠 INFO     💭 THOUGHT                                                          
+            echo ok                                                             
+                                                                                
+            🎬 ACTION                                                           
+            echo ok                                                             
+🧰 WARN     State file is empty, returning empty state                          
+🧰 DEBUG    Retrieved state from environment: {}                                
+🤠 INFO     🤖 MODEL INPUT                                                      
+            Observation:                                                        
+🤠 INFO     ========================= STEP 2 =========================          
+🤠 INFO     💭 THOUGHT                                                          
+            raise                                                               
+                                                                                
+            🎬 ACTION                                                           
+            raise                                                               
+🤠 ERROR    Exiting due to environment error: forced command error              
+            Traceback (most recent call last):                                  
+              File "/home/pt/SWE-bench/SWE-agent/sweagent/agent/agents.py", line
+            1141, in forward_with_handling                                      
+                return self.forward(history)                                    
+                       ^^^^^^^^^^^^^^^^^^^^^                                    
+              File "/home/pt/SWE-bench/SWE-agent/sweagent/agent/agents.py", line
+            1070, in forward                                                    
+                return self.handle_action(step)                                 
+                       ^^^^^^^^^^^^^^^^^^^^^^^^                                 
+              File "/home/pt/SWE-bench/SWE-agent/sweagent/agent/agents.py", line
+            972, in handle_action                                               
+                step.observation = self._env.communicate(                       
+                                   ^^^^^^^^^^^^^^^^^^^^^^                       
+              File                                                              
+            "/home/pt/SWE-bench/SWE-agent/sweagent/environment/swe_env.py", line
+            221, in communicate                                                 
+                r = asyncio.run(                                                
+                    ^^^^^^^^^^^^                                                
+              File "/usr/lib/python3.12/asyncio/runners.py", line 194, in run   
+                return runner.run(main)                                         
+                       ^^^^^^^^^^^^^^^^                                         
+              File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run   
+                return self._loop.run_until_complete(task)                      
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^                      
+              File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in   
+            run_until_complete                                                  
+                return future.result()                                          
+                       ^^^^^^^^^^^^^^^                                          
+              File                                                              
+            "/home/pt/SWE-bench/PDDL_work_mem/tools/sweagent_ext_tools/tests/smo
+            ke_test.py", line 46, in run_in_session                             
+                raise SwerexException("forced command error")                   
+            swerex.exceptions.SwerexException: forced command error             
+🤠 WARN     Exit due to environment error: forced command error                 
+🤠 WARN     Attempting autosubmission after error                               
+🤠 INFO     Executing submission command git add -A && git diff --cached >      
+            /root/model.patch in /                                              
+🤠 INFO     Found submission:                                                   
+🤠 INFO     🤖 MODEL INPUT                                                      
+            Observation:                                                        
+📊 INFO     Baseline log written for 2 steps                                    
+🤠 INFO     Trajectory saved to                                                 
+            /tmp/tmpkciqaq66/0be0a711-3a9e-477b-8a55-0932e479f942.traj          
+🪴 INFO     Beginning environment shutdown...                                   
+🔧 WARN     system_template/instance_template is not set, using empty string.   
+            Perhaps you were overwriting the default config? See                
+            https://swe-agent.com/latest/usage/cl_tutorial/ for more            
+            information. Note: You can ignore this warning in human mode.       
+🔌 INFO     Loaded external agent hook:                                         
+            PDDL_work_mem.tools.sweagent_ext_tools.baseline_hook:BaselineLogging
+            Hook                                                                
+🪴 INFO     Environment Initialized                                             
+🤠 INFO     Setting up agent for instance 215ced4b-0c3f-4ec3-a296-d8375faa4caa  
+🤠 INFO     Trajectory will be saved to                                         
+            /tmp/tmpoo9g9kyw/215ced4b-0c3f-4ec3-a296-d8375faa4caa.traj          
+🧰 INFO     Resetting tools                                                     
+🤠 INFO     SYSTEM (main)                                                       
+                                                                                
+🧰 WARN     State file is empty, returning empty state                          
+🧰 DEBUG    Retrieved state from environment: {}                                
+🤠 INFO     🤖 MODEL INPUT                                                      
+                                                                                
+🤠 INFO     ========================= STEP 1 =========================          
+🤠 INFO     💭 THOUGHT                                                          
+            failcmd                                                             
+                                                                                
+            🎬 ACTION                                                           
+            failcmd                                                             
+🧰 WARN     State file is empty, returning empty state                          
+🧰 DEBUG    Retrieved state from environment: {}                                
+🤠 INFO     🤖 MODEL INPUT                                                      
+            Observation: simulated command error                                
+🤠 INFO     ========================= STEP 2 =========================          
+🤠 WARN     Exit due to cost limit                                              
+🤠 WARN     Attempting autosubmission after error                               
+🤠 INFO     Executing submission command git add -A && git diff --cached >      
+            /root/model.patch in /                                              
+🤠 INFO     Found submission:                                                   
+🤠 INFO     🤖 MODEL INPUT                                                      
+            Observation:                                                        
+📊 INFO     Baseline log written for 2 steps                                    
+🤠 INFO     Trajectory saved to                                                 
+            /tmp/tmpoo9g9kyw/215ced4b-0c3f-4ec3-a296-d8375faa4caa.traj          
+🪴 INFO     Beginning environment shutdown...                                   
+🦖 DEBUG    Ensuring deployment is stopped because object is deleted            
+SMOKE TEST PASS mode=no-mem
+log_file=/home/pt/SWE-bench/PDDL_work_mem/实验/实验03/quick_nomem_switch_20260222_011820/output/sweagent_ext_tools.log
+baseline_plan_count=3
+🦖 DEBUG    Ensuring deployment is stopped because object is deleted            

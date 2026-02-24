@@ -1,0 +1,36 @@
+diff --git a/reproduce_issue.py b/reproduce_issue.py
+new file mode 100644
+index 0000000000..f39706f789
+--- /dev/null
++++ b/reproduce_issue.py
+@@ -0,0 +1,29 @@
++#!/usr/bin/env python3
++"""Script to reproduce the Derivative kind attribute issue."""
++
++from sympy import Integral, Derivative
++from sympy import MatrixSymbol
++from sympy.abc import x
++
++print("Testing Integral kind attribute:")
++A = MatrixSymbol('A', 2, 2)
++i = Integral(A, x)
++print(f"Integral(A, x).kind = {i.kind}")
++print(f"Expected: MatrixKind(NumberKind)")
++print()
++
++print("Testing Derivative kind attribute:")
++d = Derivative(A, x)
++print(f"Derivative(A, x).kind = {d.kind}")
++print(f"Expected: MatrixKind(NumberKind)")
++print()
++
++# Let's also test with regular symbols
++from sympy import Symbol
++print("Testing with regular symbols:")
++s = Symbol('s')
++i2 = Integral(s, x)
++print(f"Integral(s, x).kind = {i2.kind}")
++
++d2 = Derivative(s, x)
++print(f"Derivative(s, x).kind = {d2.kind}")
+\ No newline at end of file

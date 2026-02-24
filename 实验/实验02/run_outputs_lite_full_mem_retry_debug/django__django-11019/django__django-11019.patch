@@ -1,0 +1,34 @@
+diff --git a/reproduce_issue.py b/reproduce_issue.py
+new file mode 100644
+index 0000000000..e4ae7d46ed
+--- /dev/null
++++ b/reproduce_issue.py
+@@ -0,0 +1,27 @@
++import warnings
++from django import forms
++
++# Enable all warnings
++warnings.simplefilter('always')
++
++class ColorPicker(forms.Widget):
++    class Media:
++        js = ['color-picker.js']
++
++class SimpleTextWidget(forms.Widget):
++    class Media:
++        js = ['text-editor.js']
++
++class FancyTextWidget(forms.Widget):
++    class Media:
++        js = ['text-editor.js', 'text-editor-extras.js', 'color-picker.js']
++
++class MyForm(forms.Form):
++    background_color = forms.CharField(widget=ColorPicker())
++    intro = forms.CharField(widget=SimpleTextWidget())
++    body = forms.CharField(widget=FancyTextWidget())
++
++print("Testing the issue...")
++form = MyForm()
++print(f"Form media: {form.media}")
++print(f"Form media JS: {form.media._js}")
+\ No newline at end of file

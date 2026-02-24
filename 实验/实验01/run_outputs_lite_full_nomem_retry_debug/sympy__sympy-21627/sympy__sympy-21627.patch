@@ -1,0 +1,21 @@
+diff --git a/reproduce_error.py b/reproduce_error.py
+new file mode 100644
+index 0000000000..f3e240691c
+--- /dev/null
++++ b/reproduce_error.py
+@@ -0,0 +1,14 @@
++import sympy
++
++# Reproduce the error from the PR description
++expr = sympy.sympify("cosh(acos(-i + acosh(-g + i)))")
++print("Expression:", expr)
++print("Type:", type(expr))
++
++try:
++    result = expr.is_zero
++    print("is_zero result:", result)
++except RecursionError as e:
++    print("RecursionError occurred:", e)
++    import traceback
++    traceback.print_exc()
+\ No newline at end of file

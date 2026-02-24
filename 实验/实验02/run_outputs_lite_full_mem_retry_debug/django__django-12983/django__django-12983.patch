@@ -1,0 +1,49 @@
+diff --git a/test_slugify_issue.py b/test_slugify_issue.py
+new file mode 100644
+index 0000000000..0713aea079
+--- /dev/null
++++ b/test_slugify_issue.py
+@@ -0,0 +1,42 @@
++#!/usr/bin/env python
++"""Test script to reproduce the slugify issue with leading/trailing dashes and underscores."""
++
++from django.utils import text
++
++# Test case from PR description
++print("Test from PR description:")
++result = text.slugify("___This is a test ---")
++print(f"text.slugify('___This is a test ---') = '{result}'")
++print(f"Expected: 'this-is-a-test'")
++print(f"Match: {result == 'this-is-a-test'}")
++print()
++
++# Additional test cases
++test_cases = [
++    ("___This is a test ---", "this-is-a-test"),
++    ("---This is a test ___", "this-is-a-test"),
++    ("___test___", "test"),
++    ("---test---", "test"),
++    ("_-_-test-_-_", "test"),
++    ("   test   ", "test"),
++    ("___   test   ---", "test"),
++    ("-test-", "test"),
++    ("_test_", "test"),
++    ("---", ""),
++    ("___", ""),
++    ("-_-_", ""),
++    ("", ""),
++    ("hello-world", "hello-world"),
++    ("_hello_world_", "hello-world"),
++    ("-hello-world-", "hello-world"),
++]
++
++print("Additional test cases:")
++for input_str, expected in test_cases:
++    result = text.slugify(input_str)
++    match = result == expected
++    print(f"text.slugify({repr(input_str)}) = {repr(result)}")
++    print(f"  Expected: {repr(expected)}, Match: {match}")
++    if not match:
++        print(f"  MISMATCH!")
++    print()
+\ No newline at end of file

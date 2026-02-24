@@ -1,0 +1,39 @@
+2026-02-19 17:14:42,778 - INFO - swea-run - Starting run. Find output files at /home/pt/SWE-bench/PDDL_work_mem/实验/实验01/run_outputs_local_nomem_rerun3
+2026-02-19 17:14:42,780 - INFO - swea-run - Running on instance django__django-16255
+2026-02-19 17:14:44,884 - ERROR - swea-run - Traceback (most recent call last):
+  File "/home/pt/SWE-bench/SWE-agent/sweagent/run/run_batch.py", line 312, in run_instance
+    result = self._run_instance(instance)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/pt/SWE-bench/SWE-agent/sweagent/run/run_batch.py", line 362, in _run_instance
+    result = agent.run(
+             ^^^^^^^^^^
+  File "/home/pt/SWE-bench/SWE-agent/sweagent/agent/agents.py", line 1334, in run
+    self.setup(env=env, problem_statement=problem_statement, output_dir=output_dir)
+  File "/home/pt/SWE-bench/SWE-agent/sweagent/agent/agents.py", line 594, in setup
+    self.tools.install(self._env)
+  File "/home/pt/SWE-bench/SWE-agent/sweagent/tools/tools.py", line 259, in install
+    self._install_commands(env)
+  File "/home/pt/SWE-bench/SWE-agent/sweagent/tools/tools.py", line 314, in _install_commands
+    asyncio.run(self._upload_bundles(env))
+  File "/usr/lib/python3.12/asyncio/runners.py", line 194, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/home/pt/SWE-bench/SWE-agent/sweagent/tools/tools.py", line 282, in _upload_bundles
+    await asyncio.gather(
+  File "/home/pt/SWE-bench/SWE-agent/.venv/lib/python3.12/site-packages/swerex/runtime/local.py", line 467, in upload
+    shutil.copytree(request.source_path, request.target_path)
+  File "/usr/lib/python3.12/shutil.py", line 600, in copytree
+    return _copytree(entries=entries, src=src, dst=dst, symlinks=symlinks,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/shutil.py", line 498, in _copytree
+    os.makedirs(dst, exist_ok=dirs_exist_ok)
+  File "<frozen os>", line 225, in makedirs
+FileExistsError: [Errno 17] File exists: '/home/pt/.sweagent_runtime/tools/registry'
+
+2026-02-19 17:14:44,889 - ERROR - swea-run - ❌ Failed on django__django-16255: [Errno 17] File exists: '/home/pt/.sweagent_runtime/tools/registry'

@@ -1,0 +1,45 @@
+diff --git a/reproduce_error.py b/reproduce_error.py
+new file mode 100644
+index 00000000..62f8ba3c
+--- /dev/null
++++ b/reproduce_error.py
+@@ -0,0 +1,38 @@
++import seaborn.objects as so
++import numpy as np
++
++# Test case from the PR description
++print("Testing PolyFit with missing data...")
++try:
++    plot = so.Plot([1, 2, 3, None, 4], [1, 2, 3, 4, 5]).add(so.Line(), so.PolyFit())
++    plot.plot()
++    print("Success!")
++except Exception as e:
++    print(f"Error: {type(e).__name__}: {e}")
++
++# Test with NaN values
++print("\nTesting PolyFit with NaN values...")
++try:
++    plot = so.Plot([1, 2, 3, np.nan, 4], [1, 2, 3, 4, 5]).add(so.Line(), so.PolyFit())
++    plot.plot()
++    print("Success!")
++except Exception as e:
++    print(f"Error: {type(e).__name__}: {e}")
++
++# Test with missing data in y
++print("\nTesting PolyFit with missing data in y...")
++try:
++    plot = so.Plot([1, 2, 3, 4, 5], [1, 2, 3, None, 4]).add(so.Line(), so.PolyFit())
++    plot.plot()
++    print("Success!")
++except Exception as e:
++    print(f"Error: {type(e).__name__}: {e}")
++
++# Test with all valid data (should work)
++print("\nTesting PolyFit with all valid data...")
++try:
++    plot = so.Plot([1, 2, 3, 4, 5], [1, 2, 3, 4, 5]).add(so.Line(), so.PolyFit())
++    plot.plot()
++    print("Success!")
++except Exception as e:
++    print(f"Error: {type(e).__name__}: {e}")
+\ No newline at end of file

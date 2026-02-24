@@ -1,0 +1,69 @@
+diff --git a/django/db/models/fields/__init__.py b/django/db/models/fields/__init__.py
+index d610dc86f0..b5229b8e07 100644
+--- a/django/db/models/fields/__init__.py
++++ b/django/db/models/fields/__init__.py
+@@ -2,6 +2,7 @@ import collections.abc
+ import copy
+ import datetime
+ import decimal
++import enum
+ import operator
+ import uuid
+ import warnings
+@@ -792,6 +793,10 @@ class Field(RegisterLookupMixin):
+         """Perform preliminary non-db specific value checks and conversions."""
+         if isinstance(value, Promise):
+             value = value._proxy____cast()
++        # Handle Django's choice enums (TextChoices, IntegerChoices, etc.)
++        # by extracting the underlying value
++        if isinstance(value, enum.Enum):
++            value = value.value
+         return value
+ 
+     def get_db_prep_value(self, value, connection, prepared=False):
+@@ -1008,6 +1013,8 @@ class CharField(Field):
+         return "CharField"
+ 
+     def to_python(self, value):
++        if isinstance(value, enum.Enum):
++            return value.value
+         if isinstance(value, str) or value is None:
+             return value
+         return str(value)
+diff --git a/django/db/models/query_utils.py b/django/db/models/query_utils.py
+index 189fb4fa44..8276ce8539 100644
+--- a/django/db/models/query_utils.py
++++ b/django/db/models/query_utils.py
+@@ -10,6 +10,7 @@ import functools
+ import inspect
+ from collections import namedtuple
+ 
++import django.core.exceptions
+ from django.db.models.constants import LOOKUP_SEP
+ from django.utils import tree
+ 
+@@ -138,6 +139,24 @@ class DeferredAttribute:
+             data[field_name] = val
+         return data[field_name]
+ 
++    def __set__(self, instance, value):
++        """
++        Set the value on the instance. Convert enum values to their underlying
++        values.
++        """
++        import enum
++        if isinstance(value, enum.Enum):
++            value = value.value
++        # Convert the value to the field's Python type
++        try:
++            value = self.field.to_python(value)
++        except django.core.exceptions.ValidationError:
++            # If to_python fails, store the value as-is
++            # This can happen for example when a non-nullable BooleanField
++            # has a default value of None
++            pass
++        instance.__dict__[self.field.attname] = value
++
+     def _check_parent_chain(self, instance):
+         """
+         Check if the field value can be fetched from a parent field already

@@ -1,0 +1,36 @@
+diff --git a/reproduce_errors.py b/reproduce_errors.py
+new file mode 100644
+index 0000000000..c37cdaac77
+--- /dev/null
++++ b/reproduce_errors.py
+@@ -0,0 +1,29 @@
++#!/usr/bin/env python
++"""Script to reproduce the idiff errors mentioned in the PR description."""
++
++from sympy import Eq, idiff, symbols, Function, exp
++
++# Create symbols
++x, y = symbols('x y')
++f = Function('f')
++
++print("Testing idiff with Eq...")
++try:
++    result = idiff(Eq(y*exp(y), x*exp(x)), y, x)
++    print(f"Result: {result}")
++except Exception as e:
++    print(f"Error: {type(e).__name__}: {e}")
++
++print("\nTesting idiff with f(x) instead of y...")
++try:
++    result = idiff(f(x)*exp(f(x)) - x*exp(x), f(x), x)
++    print(f"Result: {result}")
++except Exception as e:
++    print(f"Error: {type(e).__name__}: {e}")
++
++print("\nTesting idiff with y*exp(y) - x*exp(x) (should work)...")
++try:
++    result = idiff(y*exp(y) - x*exp(x), y, x)
++    print(f"Result: {result}")
++except Exception as e:
++    print(f"Error: {type(e).__name__}: {e}")
+\ No newline at end of file

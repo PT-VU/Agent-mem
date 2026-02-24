@@ -1,0 +1,58 @@
+diff --git a/reproduce_issue.py b/reproduce_issue.py
+new file mode 100644
+index 0000000000..15b3ab41f5
+--- /dev/null
++++ b/reproduce_issue.py
+@@ -0,0 +1,51 @@
++#!/usr/bin/env python
++"""Script to reproduce the issue described in the PR."""
++
++import sympy as sp
++
++# Test case 1: Should yield sin(k)
++print("Test case 1: Should yield sin(k)")
++k = sp.symbols('k')
++f1 = 1 / 2 * (-sp.I*sp.exp(sp.I*k) + sp.I*sp.exp(-sp.I*k))
++print(f"f1 = {f1}")
++print(f"trigsimp(f1) = {sp.trigsimp(f1)}")
++print(f"Expected: sin(k) = {sp.sin(k)}")
++print()
++
++# Test case 2: Should yield sinc(k)
++print("Test case 2: Should yield sinc(k)")
++f2 = 1 / 2 / k * (-sp.I*sp.exp(sp.I*k) + sp.I*sp.exp(-sp.I*k))
++print(f"f2 = {f2}")
++print(f"trigsimp(f2) = {sp.trigsimp(f2)}")
++print(f"Expected: sinc(k) = {sp.sinc(k)}")
++print()
++
++# Let's also test some related expressions
++print("Additional test cases:")
++print()
++
++# Test with cos
++f3 = 1 / 2 * (sp.exp(sp.I*k) + sp.exp(-sp.I*k))
++print(f"f3 = {f3}")
++print(f"trigsimp(f3) = {sp.trigsimp(f3)}")
++print(f"Expected: cos(k) = {sp.cos(k)}")
++print()
++
++# Test with sinh
++f4 = 1 / 2 * (sp.exp(k) - sp.exp(-k))
++print(f"f4 = {f4}")
++print(f"trigsimp(f4) = {sp.trigsimp(f4)}")
++print(f"Expected: sinh(k) = {sp.sinh(k)}")
++print()
++
++# Test with cosh
++f5 = 1 / 2 * (sp.exp(k) + sp.exp(-k))
++print(f"f5 = {f5}")
++print(f"trigsimp(f5) = {sp.trigsimp(f5)}")
++print(f"Expected: cosh(k) = {sp.cosh(k)}")
++print()
++
++# Let's also try simplify
++print("Trying simplify() instead of trigsimp():")
++print(f"simplify(f1) = {sp.simplify(f1)}")
++print(f"simplify(f2) = {sp.simplify(f2)}")
+\ No newline at end of file

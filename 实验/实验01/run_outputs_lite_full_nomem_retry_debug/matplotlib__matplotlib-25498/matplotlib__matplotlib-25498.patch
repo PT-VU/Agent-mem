@@ -1,0 +1,40 @@
+diff --git a/reproduce_issue.py b/reproduce_issue.py
+new file mode 100644
+index 0000000000..b6e6bb75a1
+--- /dev/null
++++ b/reproduce_issue.py
+@@ -0,0 +1,33 @@
++import matplotlib.pyplot as plt
++from matplotlib.colors import LogNorm
++import numpy as np
++
++img = 10**np.random.normal(1, 1, size=(50, 50))
++
++fig, ax = plt.subplots(1, 1)
++plot = ax.imshow(img, cmap='gray')
++cb = fig.colorbar(plot, ax=ax)
++
++# Try to set vmin and vmax on the LogNorm before assigning it
++log_norm = LogNorm()
++log_norm.vmin = img.min()
++log_norm.vmax = img.max()
++plot.norm = log_norm
++
++print("Testing cb.update_normal(plot)...")
++try:
++    cb.update_normal(plot)  # no effect
++    print("cb.update_normal(plot) executed without error")
++except Exception as e:
++    print(f"cb.update_normal(plot) raised exception: {e}")
++
++print("\nTesting cb.update_bruteforce(plot)...")
++try:
++    cb.update_bruteforce(plot)  # throws ZeroDivisionError
++    print("cb.update_bruteforce(plot) executed without error")
++except Exception as e:
++    print(f"cb.update_bruteforce(plot) raised exception: {e}")
++    import traceback
++    traceback.print_exc()
++
++plt.close(fig)
+\ No newline at end of file

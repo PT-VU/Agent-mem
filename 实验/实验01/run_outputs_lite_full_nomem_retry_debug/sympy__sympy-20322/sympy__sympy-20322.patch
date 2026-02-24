@@ -1,0 +1,39 @@
+diff --git a/reproduce_issue.py b/reproduce_issue.py
+new file mode 100644
+index 0000000000..2237b7be16
+--- /dev/null
++++ b/reproduce_issue.py
+@@ -0,0 +1,32 @@
++import sympy
++
++print("Testing sympify/simplify with ceiling inconsistency")
++print("=" * 60)
++
++# Test case from the PR description
++expr_str = '4*ceiling(x/4 - 3/4)'
++
++print(f"Expression: {expr_str}")
++print()
++
++# Test with evaluate=False
++print("1. sympify with evaluate=False:")
++expr_false = sympy.sympify(expr_str, evaluate=False)
++print(f"   Original: {expr_false}")
++simplified_false = expr_false.simplify()
++print(f"   Simplified: {simplified_false}")
++print()
++
++# Test with evaluate=True
++print("2. sympify with evaluate=True:")
++expr_true = sympy.sympify(expr_str, evaluate=True)
++print(f"   Original: {expr_true}")
++simplified_true = expr_true.simplify()
++print(f"   Simplified: {simplified_true}")
++print()
++
++# Check if they're equal
++print("3. Comparison:")
++print(f"   Are both simplified forms equal? {simplified_false == simplified_true}")
++print(f"   simplified_false: {simplified_false}")
++print(f"   simplified_true: {simplified_true}")
+\ No newline at end of file

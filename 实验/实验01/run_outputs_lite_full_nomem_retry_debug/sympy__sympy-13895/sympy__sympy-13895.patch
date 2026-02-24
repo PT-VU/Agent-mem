@@ -1,0 +1,96 @@
+diff --git a/debug_issue.py b/debug_issue.py
+new file mode 100644
+index 0000000000..1f7f658d7b
+--- /dev/null
++++ b/debug_issue.py
+@@ -0,0 +1,46 @@
++#!/usr/bin/env python
++"""Debug the issue in more detail."""
++
++from sympy import *
++
++x = Symbol('x')
++e = (-x/4 - S(1)/12)**x - 1
++print(f"Original expression e = {e}")
++
++# Let's trace through what simplify does
++print("\nLet's examine the base of the power:")
++base = -x/4 - S(1)/12
++print(f"base = {base}")
++print(f"base.simplify() = {base.simplify()}")
++
++print("\nThe expression is: base**x - 1")
++print(f"base**x = {base**x}")
++
++print("\nLet's see what happens when we factor the base:")
++print(f"factor(base) = {factor(base)}")
++
++print("\nLet's rewrite base in different forms:")
++print(f"base = {base}")
++print(f"base.as_numer_denom() = {base.as_numer_denom()}")
++print(f"(-1)*base = {(-1)*base}")
++print(f"(-1)*base.simplify() = {(-1)*base.simplify()}")
++
++print("\nLet's look at the base more carefully:")
++print(f"base = -x/4 - 1/12")
++print(f"= -(x/4 + 1/12)")
++print(f"= -(3x/12 + 1/12)")
++print(f"= -(3x + 1)/12")
++
++print("\nSo base = -(3x + 1)/12")
++print(f"base**x = (-(3x + 1)/12)**x")
++
++print("\nNow let's see what simplification does:")
++print(f"simplify(base**x) = {simplify(base**x)}")
++
++print("\nLet's check powsimp:")
++from sympy.simplify import powsimp
++print(f"powsimp(base**x) = {powsimp(base**x)}")
++
++print("\nLet's check the actual simplification step by step:")
++print(f"(-(3x + 1)/12)**x = {(-(3*x + 1)/12)**x}")
++print(f"simplify((-(3x + 1)/12)**x) = {simplify((-(3*x + 1)/12)**x)}")
+\ No newline at end of file
+diff --git a/reproduce_issue.py b/reproduce_issue.py
+new file mode 100644
+index 0000000000..bbcfbad4f4
+--- /dev/null
++++ b/reproduce_issue.py
+@@ -0,0 +1,36 @@
++#!/usr/bin/env python
++"""Script to reproduce the issue described in the PR."""
++
++from sympy import *
++
++print("Reproducing the issue from the PR description:")
++print("=" * 60)
++
++x = Symbol('x')
++e = (-x/4 - S(1)/12)**x - 1
++print(f"Original expression e = {e}")
++
++f = simplify(e)
++print(f"Simplified expression f = {f}")
++
++print("\nChecking if expressions are equal:")
++print(f"e == f: {e.equals(f)}")
++
++print("\nTesting with x = 9/5:")
++a = S(9)/5
++
++e_val = e.subs(x, a)
++f_val = f.subs(x, a)
++print(f"e.subs(x, 9/5) = {e_val}")
++print(f"f.subs(x, 9/5) = {f_val}")
++
++print("\nNumerical evaluation:")
++print(f"N(e.subs(x, 9/5)) = {N(e_val)}")
++print(f"N(f.subs(x, 9/5)) = {N(f_val)}")
++
++print("\nSimplified forms:")
++print(f"simplify(e.subs(x, 9/5)) = {simplify(e_val)}")
++print(f"simplify(f.subs(x, 9/5)) = {simplify(f_val)}")
++
++print("\n" + "=" * 60)
++print("The issue is that the simplified expression f is not equivalent to e!")
+\ No newline at end of file

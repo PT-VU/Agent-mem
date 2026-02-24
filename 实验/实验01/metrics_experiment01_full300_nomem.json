@@ -1,0 +1,124 @@
+{
+  "experiment_id": "实验01",
+  "subset": "SWE-bench Lite",
+  "mode": "no-mem",
+  "output_dir": "PDDL_work_mem/实验/实验01/run_outputs_lite_full_nomem_retry_debug",
+  "generated_at": "2026-02-22T00:09:37+01:00",
+  "scope": {
+    "included": "仅 SWE-bench 解题轨迹与轨迹事件统计（.traj + tool events）",
+    "excluded": "Docker/镜像/预下载/WSL 基础设施错误"
+  },
+  "definitions": {
+    "instance_success": "trajectory info.submission 非空，或 exit_status 以 submitted 开头",
+    "instance_failure": "非 success 的实例",
+    "trajectory_tool_action": "trajectory step 中 action 非空",
+    "trajectory_tool_failure_action": "action 对应 observation 命中工具层失败模式",
+    "no_edit_signal_instance": "无编辑动作 + 无提交 + edited_files30 显示未编辑"
+  },
+  "instance_metrics": {
+    "total_instances": 300,
+    "successful_instances": 96,
+    "failed_instances": 204,
+    "success_rate": 0.32,
+    "failure_rate": 0.68,
+    "submitted_instances": 96,
+    "exit_status_breakdown": {
+      "exit_cost": 204,
+      "submitted (exit_cost)": 96
+    },
+    "unsolved_reason_breakdown": {
+      "exit_cost_no_submission": 204
+    }
+  },
+  "trajectory_diagnostics": {
+    "step_count_distribution": {
+      "min": 7,
+      "max": 7,
+      "mean": 7.0,
+      "median": 7.0,
+      "p90": 7.0
+    },
+    "api_calls_distribution": {
+      "min": 7,
+      "max": 7,
+      "mean": 7.0,
+      "median": 7.0,
+      "p90": 7.0
+    },
+    "instance_cost_distribution": {
+      "min": 0.001043,
+      "max": 0.009118,
+      "mean": 0.002835,
+      "median": 0.002719,
+      "total": 0.850469
+    },
+    "action_family_counts": {
+      "bash": 799,
+      "str_replace_editor.create": 111,
+      "str_replace_editor.str_replace": 8,
+      "str_replace_editor.view": 882
+    },
+    "tool_action_total": 1800,
+    "tool_failed_actions": 0,
+    "tool_success_actions": 1800,
+    "tool_call_success_rate": 1.0,
+    "tool_failure_category_counts": {},
+    "instances_with_tool_failures": 0
+  },
+  "editing_and_patch_signals": {
+    "instances_with_edit_action": 96,
+    "instances_no_edit_signal": 204,
+    "instances_with_submission_but_no_edit_action": 0,
+    "patch_total_added_lines": 5016,
+    "patch_total_deleted_lines": 0,
+    "patch_total_files_changed": 113,
+    "patch_avg_changed_lines_per_submitted_instance": 52.25
+  },
+  "failure_concentration": {
+    "failed_instances_by_repo": {
+      "django": 100,
+      "sympy": 33,
+      "scikit-learn": 15,
+      "matplotlib": 13,
+      "sphinx-doc": 12,
+      "pytest-dev": 8,
+      "psf": 6,
+      "astropy": 5,
+      "pylint-dev": 4,
+      "pallets": 3,
+      "pydata": 3,
+      "mwaskom": 2
+    },
+    "successful_instances_by_repo": {
+      "sympy": 44,
+      "django": 14,
+      "matplotlib": 10,
+      "pytest-dev": 9,
+      "scikit-learn": 8,
+      "sphinx-doc": 4,
+      "mwaskom": 2,
+      "pydata": 2,
+      "pylint-dev": 2,
+      "astropy": 1
+    }
+  },
+  "event_log_supplement": {
+    "event_log_files": 8,
+    "events_by_type": {
+      "plan_generated": 702,
+      "run_done": 116
+    },
+    "run_done_total": 116,
+    "run_done_exit_status_breakdown": {
+      "exit_cost": 60,
+      "submitted (exit_cost)": 56
+    },
+    "run_done_has_submission_true": 56,
+    "run_done_has_submission_false": 60,
+    "note": "仅覆盖已启用 wrapper 日志的窗口。"
+  },
+  "data_sources": {
+    "traj_glob": "PDDL_work_mem/实验/实验01/run_outputs_lite_full_nomem_retry_debug/*/*.traj",
+    "tool_events_glob": "PDDL_work_mem/实验/实验01/no_mem_tool_events_window_*.jsonl"
+  }
+}

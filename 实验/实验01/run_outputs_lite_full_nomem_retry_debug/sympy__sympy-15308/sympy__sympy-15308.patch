@@ -1,0 +1,30 @@
+diff --git a/reproduce_issue.py b/reproduce_issue.py
+new file mode 100644
+index 0000000000..e9abe3c9f2
+--- /dev/null
++++ b/reproduce_issue.py
+@@ -0,0 +1,23 @@
++#!/usr/bin/env python
++"""Script to reproduce the LaTeX printing issue for trace of matrix expression."""
++
++from sympy import MatrixSymbol, trace, latex
++from sympy.abc import n
++
++# Create a matrix symbol
++A = MatrixSymbol("A", n, n)
++
++# Try to get LaTeX for trace(A**2)
++result = latex(trace(A**2))
++print(f"latex(trace(A**2)) = {result}")
++print(f"Expected something like: \\operatorname{{tr}}\\left(A^{{2}}\\right) or similar")
++print()
++
++# Let's also check what latex() returns for A**2 alone
++print(f"latex(A**2) = {latex(A**2)}")
++print()
++
++# Let's check the type of trace(A**2)
++expr = trace(A**2)
++print(f"Type of trace(A**2): {type(expr)}")
++print(f"Expression: {expr}")
+\ No newline at end of file

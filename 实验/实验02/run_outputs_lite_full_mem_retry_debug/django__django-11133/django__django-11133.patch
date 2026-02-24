@@ -1,0 +1,61 @@
+diff --git a/reproduce_issue.py b/reproduce_issue.py
+new file mode 100644
+index 0000000000..cd9d8aff20
+--- /dev/null
++++ b/reproduce_issue.py
+@@ -0,0 +1,54 @@
++#!/usr/bin/env python
++import sys
++sys.path.insert(0, '/testbed')
++
++import django
++from django.conf import settings
++
++# Configure Django settings
++if not settings.configured:
++    settings.configure(
++        DEBUG=True,
++        SECRET_KEY='test-secret-key',
++        DEFAULT_CHARSET='utf-8',
++    )
++    django.setup()
++
++from django.http import HttpResponse
++
++# Test cases from the PR description
++print("Test 1: String content")
++response = HttpResponse("My Content")
++print(f"response.content: {response.content}")
++print(f"Expected: b'My Content'")
++print()
++
++print("Test 2: Bytes content")
++response = HttpResponse(b"My Content")
++print(f"response.content: {response.content}")
++print(f"Expected: b'My Content'")
++print()
++
++print("Test 3: memoryview content")
++response = HttpResponse(memoryview(b"My Content"))
++print(f"response.content: {response.content}")
++print(f"Expected: b'My Content'")
++print()
++
++# Additional test cases
++print("Test 4: memoryview with different content")
++response = HttpResponse(memoryview(b"Hello World"))
++print(f"response.content: {response.content}")
++print(f"Expected: b'Hello World'")
++print()
++
++print("Test 5: Empty memoryview")
++response = HttpResponse(memoryview(b""))
++print(f"response.content: {response.content}")
++print(f"Expected: b''")
++print()
++
++print("Test 6: memoryview from bytearray")
++response = HttpResponse(memoryview(bytearray(b"ByteArray Content")))
++print(f"response.content: {response.content}")
++print(f"Expected: b'ByteArray Content'")
+\ No newline at end of file

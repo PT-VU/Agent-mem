@@ -1,0 +1,96 @@
+diff --git a/django/core/checks/model_checks.py b/django/core/checks/model_checks.py
+index 5c2266ca1d..9af79c3f67 100644
+--- a/django/core/checks/model_checks.py
++++ b/django/core/checks/model_checks.py
+@@ -5,21 +5,37 @@ from itertools import chain
+ 
+ from django.apps import apps
+ from django.core.checks import Error, Tags, register
++from django.db.utils import ConnectionRouter, DEFAULT_DB_ALIAS
+ 
+ 
+ @register(Tags.models)
+ def check_all_models(app_configs=None, **kwargs):
++    # Get database router
++    router = ConnectionRouter()
++    
++    # Maps for tracking duplicates per database
++    # (db_alias, name) -> list of model labels
+     db_table_models = defaultdict(list)
+     indexes = defaultdict(list)
+     constraints = defaultdict(list)
++    
+     errors = []
+     if app_configs is None:
+         models = apps.get_models()
+     else:
+         models = chain.from_iterable(app_config.get_models() for app_config in app_configs)
++    
+     for model in models:
++        # Determine which database this model would use for writing
++        # (which is what matters for table, index, and constraint creation)
++        db_alias = router.db_for_write(model)
++        if db_alias is None:
++            # If router doesn't specify, use default
++            db_alias = DEFAULT_DB_ALIAS
++        
+         if model._meta.managed and not model._meta.proxy:
+-            db_table_models[model._meta.db_table].append(model._meta.label)
++            db_table_models[(db_alias, model._meta.db_table)].append(model._meta.label)
++        
+         if not inspect.ismethod(model.check):
+             errors.append(
+                 Error(
+@@ -31,21 +47,27 @@ def check_all_models(app_configs=None, **kwargs):
+             )
+         else:
+             errors.extend(model.check(**kwargs))
++        
++        # Track indexes and constraints per database
+         for model_index in model._meta.indexes:
+-            indexes[model_index.name].append(model._meta.label)
++            indexes[(db_alias, model_index.name)].append(model._meta.label)
+         for model_constraint in model._meta.constraints:
+-            constraints[model_constraint.name].append(model._meta.label)
+-    for db_table, model_labels in db_table_models.items():
+-        if len(model_labels) != 1:
++            constraints[(db_alias, model_constraint.name)].append(model._meta.label)
++    
++    # Check for duplicate table names in the same database
++    for (db_alias, db_table), model_labels in db_table_models.items():
++        if len(model_labels) > 1:
+             errors.append(
+                 Error(
+                     "db_table '%s' is used by multiple models: %s."
+-                    % (db_table, ', '.join(db_table_models[db_table])),
++                    % (db_table, ', '.join(model_labels)),
+                     obj=db_table,
+                     id='models.E028',
+                 )
+             )
+-    for index_name, model_labels in indexes.items():
++    
++    # Check for duplicate index names in the same database
++    for (db_alias, index_name), model_labels in indexes.items():
+         if len(model_labels) > 1:
+             model_labels = set(model_labels)
+             errors.append(
+@@ -58,7 +80,9 @@ def check_all_models(app_configs=None, **kwargs):
+                     id='models.E029' if len(model_labels) == 1 else 'models.E030',
+                 ),
+             )
+-    for constraint_name, model_labels in constraints.items():
++    
++    # Check for duplicate constraint names in the same database
++    for (db_alias, constraint_name), model_labels in constraints.items():
+         if len(model_labels) > 1:
+             model_labels = set(model_labels)
+             errors.append(
+@@ -71,6 +95,7 @@ def check_all_models(app_configs=None, **kwargs):
+                     id='models.E031' if len(model_labels) == 1 else 'models.E032',
+                 ),
+             )
++    
+     return errors
+ 
+ 

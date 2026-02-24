@@ -1,0 +1,171 @@
+diff --git a/reproduce_issue.py b/reproduce_issue.py
+new file mode 100644
+index 000000000..a5ecdef3f
+--- /dev/null
++++ b/reproduce_issue.py
+@@ -0,0 +1,78 @@
++#!/usr/bin/env python
++"""Reproduce the annotation-only member bug in autodoc."""
++
++import os
++import tempfile
++import shutil
++from pathlib import Path
++
++# Create a temporary directory for our test
++test_dir = tempfile.mkdtemp()
++print(f"Test directory: {test_dir}")
++
++# Create example.py
++example_py = """
++class Foo:
++    \"\"\"docstring\"\"\"
++    attr1: int  #: docstring
++
++
++class Bar(Foo):
++    \"\"\"docstring\"\"\"
++    attr2: str  #: docstring
++"""
++
++with open(os.path.join(test_dir, "example.py"), "w") as f:
++    f.write(example_py)
++
++# Create conf.py
++conf_py = """
++import sys
++import os
++sys.path.insert(0, os.path.abspath('.'))
++
++extensions = ['sphinx.ext.autodoc']
++master_doc = 'index'
++"""
++
++with open(os.path.join(test_dir, "conf.py"), "w") as f:
++    f.write(conf_py)
++
++# Create index.rst
++index_rst = """
++Test Documentation
++==================
++
++.. autoclass:: example.Bar
++   :members:
++   :inherited-members:
++"""
++
++with open(os.path.join(test_dir, "index.rst"), "w") as f:
++    f.write(index_rst)
++
++# Run sphinx-build
++import subprocess
++result = subprocess.run(
++    ["sphinx-build", "-b", "text", test_dir, os.path.join(test_dir, "_build")],
++    capture_output=True,
++    text=True
++)
++
++print("Sphinx build output:")
++print(result.stdout)
++if result.stderr:
++    print("Errors:")
++    print(result.stderr)
++
++# Check the output
++output_file = os.path.join(test_dir, "_build", "index.txt")
++if os.path.exists(output_file):
++    print("\nGenerated documentation:")
++    with open(output_file, "r") as f:
++        print(f.read())
++else:
++    print(f"Output file not found: {output_file}")
++
++# Clean up
++shutil.rmtree(test_dir)
+\ No newline at end of file
+diff --git a/reproduce_issue_with_undoc.py b/reproduce_issue_with_undoc.py
+new file mode 100644
+index 000000000..dcb7e3179
+--- /dev/null
++++ b/reproduce_issue_with_undoc.py
+@@ -0,0 +1,79 @@
++#!/usr/bin/env python
++"""Reproduce the annotation-only member bug in autodoc with undoc-members."""
++
++import os
++import tempfile
++import shutil
++from pathlib import Path
++
++# Create a temporary directory for our test
++test_dir = tempfile.mkdtemp()
++print(f"Test directory: {test_dir}")
++
++# Create example.py
++example_py = """
++class Foo:
++    \"\"\"docstring\"\"\"
++    attr1: int  #: docstring
++
++
++class Bar(Foo):
++    \"\"\"docstring\"\"\"
++    attr2: str  #: docstring
++"""
++
++with open(os.path.join(test_dir, "example.py"), "w") as f:
++    f.write(example_py)
++
++# Create conf.py
++conf_py = """
++import sys
++import os
++sys.path.insert(0, os.path.abspath('.'))
++
++extensions = ['sphinx.ext.autodoc']
++master_doc = 'index'
++"""
++
++with open(os.path.join(test_dir, "conf.py"), "w") as f:
++    f.write(conf_py)
++
++# Create index.rst with undoc-members
++index_rst = """
++Test Documentation
++==================
++
++.. autoclass:: example.Bar
++   :members:
++   :inherited-members:
++   :undoc-members:
++"""
++
++with open(os.path.join(test_dir, "index.rst"), "w") as f:
++    f.write(index_rst)
++
++# Run sphinx-build
++import subprocess
++result = subprocess.run(
++    ["sphinx-build", "-b", "text", test_dir, os.path.join(test_dir, "_build")],
++    capture_output=True,
++    text=True
++)
++
++print("Sphinx build output:")
++print(result.stdout)
++if result.stderr:
++    print("Errors:")
++    print(result.stderr)
++
++# Check the output
++output_file = os.path.join(test_dir, "_build", "index.txt")
++if os.path.exists(output_file):
++    print("\nGenerated documentation:")
++    with open(output_file, "r") as f:
++        print(f.read())
++else:
++    print(f"Output file not found: {output_file}")
++
++# Clean up
++shutil.rmtree(test_dir)
+\ No newline at end of file

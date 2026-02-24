@@ -1,0 +1,40 @@
+diff --git a/astropy/modeling/physical_models.py b/astropy/modeling/physical_models.py
+index 437f97db1d..26f6f0f878 100644
+--- a/astropy/modeling/physical_models.py
++++ b/astropy/modeling/physical_models.py
+@@ -180,9 +180,34 @@ class BlackBody(Fittable1DModel):
+     @property
+     def bolometric_flux(self):
+         """Bolometric flux."""
++        # Get the scale value, converting to dimensionless if it has units
++        if self.scale.unit is not None:
++            # Scale has units, get it as a quantity
++            scale_quantity = self.scale.quantity
++            # scale_quantity should be a Quantity if scale.unit is not None
++            if scale_quantity is not None:
++                try:
++                    # Check if the units are dimensionless
++                    if scale_quantity.unit.physical_type == 'dimensionless':
++                        # Convert to dimensionless_unscaled
++                        scale_value = scale_quantity.to(u.dimensionless_unscaled).value
++                    else:
++                        # For non-dimensionless units (e.g., surface brightness),
++                        # use the raw value (maintaining backward compatibility)
++                        scale_value = self.scale.value
++                except (AttributeError, u.UnitConversionError):
++                    # If accessing unit or conversion fails, fall back to raw value
++                    scale_value = self.scale.value
++            else:
++                # scale_quantity is None (shouldn't happen if scale.unit is not None)
++                scale_value = self.scale.value
++        else:
++            # Scale has no units, use the raw value
++            scale_value = self.scale.value
++        
+         # bolometric flux in the native units of the planck function
+         native_bolflux = (
+-            self.scale.value * const.sigma_sb * self.temperature ** 4 / np.pi
++            scale_value * const.sigma_sb * self.temperature ** 4 / np.pi
+         )
+         # return in more "astro" units
+         return native_bolflux.to(u.erg / (u.cm ** 2 * u.s))

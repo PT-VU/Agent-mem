@@ -1,0 +1,48 @@
+diff --git a/reproduce_issue.py b/reproduce_issue.py
+new file mode 100644
+index 000000000..0c9ff2337
+--- /dev/null
++++ b/reproduce_issue.py
+@@ -0,0 +1,41 @@
++import numpy as np
++import pandas as pd
++from sklearn.cluster import AffinityPropagation
++
++# Create the test data from the PR description
++data = pd.DataFrame([[1,0,0,0,0,0],[0,1,1,1,0,0],[0,0,1,0,0,1]])
++print("Data shape:", data.shape)
++print("Data:\n", data)
++
++# Run affinity propagation with max_iter=2 to force non-convergence
++af = AffinityPropagation(affinity='euclidean', verbose=True, copy=False, max_iter=2).fit(data)
++
++print("\nResults:")
++print("cluster_centers_indices_:", af.cluster_centers_indices_)
++print("labels_:", af.labels_)
++print("n_iter_:", af.n_iter_)
++
++# Check what the documentation says should happen
++print("\nAccording to documentation, when algorithm does not converge:")
++print("- cluster_centers_indices_ should be empty array")
++print("- labels_ should be -1 for each training sample")
++
++# Let's also test with a simpler example
++print("\n\n=== Testing with simpler example ===")
++X = np.array([[0, 0], [1, 1], [-2, -2]])
++print("X shape:", X.shape)
++print("X:\n", X)
++
++# Force non-convergence by allowing only a single iteration
++af2 = AffinityPropagation(preference=-10, max_iter=1, verbose=True).fit(X)
++
++print("\nResults:")
++print("cluster_centers_indices_:", af2.cluster_centers_indices_)
++print("labels_:", af2.labels_)
++print("n_iter_:", af2.n_iter_)
++
++# Check if it converged
++print("\nChecking convergence:")
++print("max_iter:", af2.max_iter)
++print("n_iter_:", af2.n_iter_)
++print("Did it converge? (n_iter_ < max_iter):", af2.n_iter_ < af2.max_iter)
+\ No newline at end of file

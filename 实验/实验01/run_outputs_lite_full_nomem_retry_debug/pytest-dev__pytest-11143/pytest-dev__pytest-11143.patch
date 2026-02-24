@@ -1,0 +1,79 @@
+diff --git a/reproduce_issue.py b/reproduce_issue.py
+new file mode 100644
+index 000000000..7abffc7c2
+--- /dev/null
++++ b/reproduce_issue.py
+@@ -0,0 +1,72 @@
++#!/usr/bin/env python
++"""Script to reproduce the issue where first expression is a number."""
++
++import tempfile
++import os
++import subprocess
++import sys
++
++# Create a test file with a number as the first expression
++test_content = """1
++import pytest
++
++def test_something():
++    assert True
++"""
++
++# Create a test file with a string (docstring) as first expression for comparison
++test_content_with_docstring = '''"""This is a docstring"""
++import pytest
++
++def test_something():
++    assert True
++'''
++
++# Create a test file with PYTEST_DONT_REWRITE in docstring
++test_content_with_disable = '''"""PYTEST_DONT_REWRITE"""
++import pytest
++
++def test_something():
++    assert True
++'''
++
++def run_test(content, filename):
++    """Run pytest on a test file with given content."""
++    with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
++        f.write(content)
++        f.flush()
++        temp_file = f.name
++    
++    try:
++        # Run pytest on the file
++        result = subprocess.run(
++            [sys.executable, "-m", "pytest", temp_file, "-v"],
++            capture_output=True,
++            text=True
++        )
++        return result.returncode, result.stdout, result.stderr
++    finally:
++        os.unlink(temp_file)
++
++print("Test 1: First expression is a number (should fail with TypeError)")
++print("=" * 60)
++returncode, stdout, stderr = run_test(test_content, "test_number_first.py")
++print(f"Return code: {returncode}")
++print(f"Stdout:\n{stdout}")
++print(f"Stderr:\n{stderr}")
++print()
++
++print("Test 2: First expression is a docstring (should work)")
++print("=" * 60)
++returncode, stdout, stderr = run_test(test_content_with_docstring, "test_docstring_first.py")
++print(f"Return code: {returncode}")
++print(f"Stdout:\n{stdout}")
++print(f"Stderr:\n{stderr}")
++print()
++
++print("Test 3: First expression is PYTEST_DONT_REWRITE docstring (should skip rewrite)")
++print("=" * 60)
++returncode, stdout, stderr = run_test(test_content_with_disable, "test_disable_first.py")
++print(f"Return code: {returncode}")
++print(f"Stdout:\n{stdout}")
++print(f"Stderr:\n{stderr}")
+\ No newline at end of file

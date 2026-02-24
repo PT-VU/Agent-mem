@@ -1,0 +1,41 @@
+diff --git a/reproduce_issue.py b/reproduce_issue.py
+new file mode 100644
+index 0000000000..14d549bc55
+--- /dev/null
++++ b/reproduce_issue.py
+@@ -0,0 +1,34 @@
++#!/usr/bin/env python
++"""Script to reproduce the IndexError in numberformat.py"""
++
++from django.utils.numberformat import format as nformat
++
++# Test cases that should trigger the error
++test_cases = [
++    None,
++    "",
++    "   ",  # whitespace only
++]
++
++print("Testing numberformat.format with potential null/empty values...")
++print("=" * 60)
++
++for test_value in test_cases:
++    print(f"\nTesting value: {repr(test_value)}")
++    try:
++        result = nformat(test_value, ".")
++        print(f"  Result: {repr(result)}")
++    except Exception as e:
++        print(f"  ERROR: {type(e).__name__}: {e}")
++
++# Also test with decimal_pos parameter
++print("\n\nTesting with decimal_pos parameter...")
++print("=" * 60)
++
++for test_value in test_cases:
++    print(f"\nTesting value: {repr(test_value)} with decimal_pos=2")
++    try:
++        result = nformat(test_value, ".", decimal_pos=2)
++        print(f"  Result: {repr(result)}")
++    except Exception as e:
++        print(f"  ERROR: {type(e).__name__}: {e}")
+\ No newline at end of file

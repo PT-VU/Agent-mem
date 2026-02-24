@@ -1,0 +1,74 @@
+diff --git a/reproduce_issue.py b/reproduce_issue.py
+new file mode 100644
+index 000000000..c7b0e315c
+--- /dev/null
++++ b/reproduce_issue.py
+@@ -0,0 +1,67 @@
++#!/usr/bin/env python
++"""Script to reproduce the LabelEncoder empty list transform issue."""
++
++import numpy as np
++from sklearn.preprocessing import LabelEncoder
++
++print("Testing LabelEncoder with empty list transform...")
++print("=" * 60)
++
++# Test case 1: Fit with integers, transform empty list
++print("\nTest 1: Fit with integers [1, 2], transform []")
++le1 = LabelEncoder()
++le1.fit([1, 2])
++print(f"le1.classes_ = {le1.classes_}, dtype = {le1.classes_.dtype}")
++try:
++    result1 = le1.transform([])
++    print(f"Success: le1.transform([]) = {result1}, dtype = {result1.dtype}")
++except Exception as e:
++    print(f"Error: {type(e).__name__}: {e}")
++
++# Test case 2: Fit with strings, transform empty list
++print("\nTest 2: Fit with strings ['a', 'b'], transform []")
++le2 = LabelEncoder()
++le2.fit(["a", "b"])
++print(f"le2.classes_ = {le2.classes_}, dtype = {le2.classes_.dtype}")
++try:
++    result2 = le2.transform([])
++    print(f"Success: le2.transform([]) = {result2}, dtype = {result2.dtype}")
++except Exception as e:
++    print(f"Error: {type(e).__name__}: {e}")
++
++# Test case 3: Fit with floats, transform empty list
++print("\nTest 3: Fit with floats [1.0, 2.0], transform []")
++le3 = LabelEncoder()
++le3.fit([1.0, 2.0])
++print(f"le3.classes_ = {le3.classes_}, dtype = {le3.classes_.dtype}")
++try:
++    result3 = le3.transform([])
++    print(f"Success: le3.transform([]) = {result3}, dtype = {result3.dtype}")
++except Exception as e:
++    print(f"Error: {type(e).__name__}: {e}")
++
++# Test case 4: Check what column_or_1d does with empty list
++print("\n" + "=" * 60)
++print("Testing column_or_1d behavior with empty list:")
++from sklearn.utils import column_or_1d
++empty_list = []
++result = column_or_1d(empty_list, warn=True)
++print(f"column_or_1d([]) = {result}, dtype = {result.dtype}")
++
++# Test case 5: Check np.searchsorted behavior
++print("\n" + "=" * 60)
++print("Testing np.searchsorted behavior:")
++classes_int = np.array([1, 2])
++classes_str = np.array(['a', 'b'])
++empty_array_int = np.array([], dtype=int)
++empty_array_float = np.array([], dtype=float)
++
++print(f"np.searchsorted({classes_int}, []) = {np.searchsorted(classes_int, [])}")
++print(f"np.searchsorted({classes_str}, []) = {np.searchsorted(classes_str, [])}")
++print(f"np.searchsorted({classes_int}, np.array([], dtype=int)) = {np.searchsorted(classes_int, empty_array_int)}")
++print(f"np.searchsorted({classes_str}, np.array([], dtype=int)) = {np.searchsorted(classes_str, empty_array_int)}")
++print(f"np.searchsorted({classes_str}, np.array([], dtype=float)) = ", end="")
++try:
++    print(np.searchsorted(classes_str, empty_array_float))
++except Exception as e:
++    print(f"Error: {type(e).__name__}: {e}")
+\ No newline at end of file

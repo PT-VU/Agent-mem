@@ -1,0 +1,73 @@
+diff --git a/reproduce_issue.py b/reproduce_issue.py
+new file mode 100644
+index 0000000000..30e58ffb41
+--- /dev/null
++++ b/reproduce_issue.py
+@@ -0,0 +1,66 @@
++#!/usr/bin/env python
++"""Script to reproduce the Mod(x**2, x) issue."""
++
++from sympy import Symbol, Mod, S
++
++print("Testing Mod(x**2, x) issue...")
++print()
++
++# Test 1: Symbolic x
++x = Symbol('x')
++print(f"Test 1: Symbolic x")
++print(f"Mod(x**2, x) = {Mod(x**2, x)}")
++print()
++
++# Test 2: x = 1.5 (non-integer)
++x_val = S(1.5)
++print(f"Test 2: x = {x_val} (non-integer)")
++print(f"Mod({x_val}**2, {x_val}) = {Mod(x_val**2, x_val)}")
++print(f"Expected: 0.75 (since 1.5**2 = 2.25, 2.25 % 1.5 = 0.75)")
++print()
++
++# Test 3: x = 2 (integer)
++x_val = S(2)
++print(f"Test 3: x = {x_val} (integer)")
++print(f"Mod({x_val}**2, {x_val}) = {Mod(x_val**2, x_val)}")
++print(f"Expected: 0 (since 2**2 = 4, 4 % 2 = 0)")
++print()
++
++# Test 4: x = -1.5 (non-integer)
++x_val = S(-1.5)
++print(f"Test 4: x = {x_val} (non-integer)")
++print(f"Mod({x_val}**2, {x_val}) = {Mod(x_val**2, x_val)}")
++print(f"Expected: 0.75 (since (-1.5)**2 = 2.25, 2.25 % -1.5 = 0.75)")
++print()
++
++# Test 5: More complex power
++x = Symbol('x')
++print(f"Test 5: Mod(x**3, x)")
++print(f"Mod(x**3, x) = {Mod(x**3, x)}")
++print()
++
++# Test 6: Non-integer base with integer exponent
++x_val = S(1.5)
++print(f"Test 6: x = {x_val}, Mod(x**3, x)")
++print(f"Mod({x_val}**3, {x_val}) = {Mod(x_val**3, x_val)}")
++print(f"Expected: 0 (since 1.5**3 = 3.375, 3.375 % 1.5 = 0.375)")
++print()
++
++# Test 7: Check if x.is_integer works correctly
++print("Test 7: Checking is_integer property")
++x_sym = Symbol('x')
++print(f"Symbol('x').is_integer = {x_sym.is_integer}")
++x_int = S(2)
++print(f"S(2).is_integer = {x_int.is_integer}")
++x_float = S(1.5)
++print(f"S(1.5).is_integer = {x_float.is_integer}")
++print()
++
++# Test 8: Check if base of Pow is integer
++from sympy import Pow
++x_sym = Symbol('x')
++pow_expr = x_sym**2
++print(f"Test 8: Checking Pow properties")
++print(f"(x**2).is_Pow = {pow_expr.is_Pow}")
++print(f"(x**2).exp.is_Integer = {pow_expr.exp.is_Integer}")
++print(f"(x**2).base.is_integer = {pow_expr.base.is_integer}")
+\ No newline at end of file

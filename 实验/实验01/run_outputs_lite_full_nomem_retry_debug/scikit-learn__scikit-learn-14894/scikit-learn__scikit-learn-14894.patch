@@ -1,0 +1,42 @@
+diff --git a/reproduce_error.py b/reproduce_error.py
+new file mode 100644
+index 000000000..71a4ec848
+--- /dev/null
++++ b/reproduce_error.py
+@@ -0,0 +1,35 @@
++import numpy as np
++import scipy
++import sklearn
++from sklearn.svm import SVR
++
++x_train = np.array([[0, 1, 0, 0],
++                    [0, 0, 0, 1],
++                    [0, 0, 1, 0],
++                    [0, 0, 0, 1]])
++y_train = np.array([0.04, 0.04, 0.10, 0.16])
++
++model = SVR(C=316.227766017, cache_size=200, coef0=0.0, degree=3, epsilon=0.1,
++            gamma=1.0, kernel='linear', max_iter=15000,
++            shrinking=True, tol=0.001, verbose=False)
++
++# dense x_train has no error
++print("Fitting with dense data...")
++model.fit(x_train, y_train)
++print(f"Dense fit successful. support_vectors_.shape: {model.support_vectors_.shape}")
++print(f"Dense fit successful. dual_coef_.shape: {model.dual_coef_.shape}")
++
++# convert to sparse
++print("\nFitting with sparse data...")
++xtrain = scipy.sparse.csr_matrix(x_train)
++model2 = SVR(C=316.227766017, cache_size=200, coef0=0.0, degree=3, epsilon=0.1,
++             gamma=1.0, kernel='linear', max_iter=15000,
++             shrinking=True, tol=0.001, verbose=False)
++try:
++    model2.fit(xtrain, y_train)
++    print(f"Sparse fit successful. support_vectors_.shape: {model2.support_vectors_.shape}")
++    print(f"Sparse fit successful. dual_coef_.shape: {model2.dual_coef_.shape}")
++except ZeroDivisionError as e:
++    print(f"ZeroDivisionError: {e}")
++    import traceback
++    traceback.print_exc()
+\ No newline at end of file

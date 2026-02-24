@@ -1,0 +1,34 @@
+diff --git a/django/db/models/sql/compiler.py b/django/db/models/sql/compiler.py
+index 09a9d73077..cd7141d6f6 100644
+--- a/django/db/models/sql/compiler.py
++++ b/django/db/models/sql/compiler.py
+@@ -500,7 +500,29 @@ class SQLCompiler:
+             if combinator:
+                 if not getattr(features, 'supports_select_{}'.format(combinator)):
+                     raise NotSupportedError('{} is not supported on this database backend.'.format(combinator))
++                # Get distinct fields before getting combinator SQL
++                distinct_fields, distinct_params = self.get_distinct()
+                 result, params = self.get_combinator_sql(combinator, self.query.combinator_all)
++                # If distinct is set, wrap the combinator SQL in a SELECT DISTINCT query
++                if self.query.distinct:
++                    # The combinator SQL is a list with one element
++                    combinator_sql = result[0]
++                    # Wrap it in a SELECT DISTINCT query
++                    result = ['SELECT']
++                    if distinct_fields:
++                        distinct_result, distinct_params = self.connection.ops.distinct_sql(
++                            distinct_fields,
++                            distinct_params,
++                        )
++                        result += distinct_result
++                        params += distinct_params
++                    else:
++                        result.append('DISTINCT')
++                    result.append('* FROM (')
++                    result.append(combinator_sql)
++                    result.append(')')
++                    # Add the subquery alias
++                    result.append(self.connection.ops.quote_name(self.query.model._meta.db_table))
+             else:
+                 distinct_fields, distinct_params = self.get_distinct()
+                 # This must come after 'select', 'ordering', and 'distinct'
