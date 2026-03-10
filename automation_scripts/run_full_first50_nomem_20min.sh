@@ -1,0 +1,1 @@
+../06_artificial_intelligence/experiments/03_run_outputs_full_first50_nomem_20min/no_mem/scripts/run_full_first50_nomem_20min.sh

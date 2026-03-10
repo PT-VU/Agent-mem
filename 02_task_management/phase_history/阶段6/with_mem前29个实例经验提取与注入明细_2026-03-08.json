@@ -1,0 +1,2228 @@
+{
+  "count_total": 29,
+  "count_nonempty": 13,
+  "count_empty": 16,
+  "sum_tool_a_success": 1398,
+  "sum_injection_selected_success": 61,
+  "sum_abstract_generated_success": 76,
+  "sum_abstract_added_success": 63,
+  "sum_repair_patterns_added_success": 328,
+  "sum_failure_cards_fail": 16,
+  "llm_balance_failures": 16,
+  "docker_daemon_failures": 1,
+  "docker_sigbus_failures": 1,
+  "docker_build_255_failures": 1,
+  "instances": [
+    {
+      "instance_id": "astropy__astropy-11693",
+      "log_path": "/home/pt/SWE-bench/PDDL_work_mem/06_artificial_intelligence/experiments/03_run_outputs_full_first50_nomem_20min/with_mem/reruns/withmem_full50_20min_p1_online_20260307_194549/outputs/run_outputs_full_first50_with_mem_20min/astropy__astropy-11693/astropy__astropy-11693.trace.log",
+      "nonempty_patch": true,
+      "tool_a_calls": 94,
+      "tool_b_calls": 1,
+      "first_tool_a_log_time": "2026-03-07 19:46:25,786",
+      "last_tool_a_log_time": "2026-03-07 20:16:46,317",
+      "first_tool_b_log_time": "2026-03-07 20:17:50,382",
+      "last_tool_b_log_time": "2026-03-07 20:17:50,382",
+      "injection_selected_count": 1,
+      "selected_subgraph_count": 1,
+      "candidate_count_after_filter": 28,
+      "planning_tips_count": 1,
+      "planning_tips": [
+        {
+          "type": "workflow_step",
+          "step_number": 1,
+          "intent": "Generate plan for task",
+          "action_type": "tool_call",
+          "recommendation": "Consider: Generate plan for task..."
+        }
+      ],
+      "abstract_generated": 8,
+      "experience_ids": [
+        "bb9fe85b-bc84-418e-a6fd-14518220bfa9",
+        "abs_2_1772911069",
+        "abs_3_1772911069",
+        "abs_4_1772911069",
+        "abs_5_1772911069",
+        "abs_6_1772911069",
+        "abs_7_1772911069",
+        "abs_8_1772911069"
+      ],
+      "failure_card_generated": false,
+      "failure_card_reason": "task_success",
+      "failure_card_id": null,
+      "extraction_triggered": true,
+      "extraction_reason": "run_done_high_cost",
+      "llm_used": true,
+      "assessment_count": 7,
+      "abstract_added": 7,
+      "repair_patterns_added": 38,
+      "critical_signal": {
+        "attempt_id": "attempt-0:task_20260307_184621_main",
+        "critical_step": 1,
+        "critical_module": "planning",
+        "error_type": "repetitive_planning",
+        "root_cause": "The system is stuck in an infinite planning loop where it repeatedly generates plans without progressing to execution or reflection phases, indicating a failure in the state transition mechanism from planning to action.",
+        "cascading_effects": [
+          {
+            "step": 2,
+            "impact": "planning::repetitive_planning"
+          },
+          {
+            "step": 3,
+            "impact": "planning::repetitive_planning"
+          },
+          {
+            "step": 4,
+            "impact": "planning::repetitive_planning"
+          },
+          {
+            "step": 5,
+            "impact": "planning::repetitive_planning"
+          },
+          {
+            "step": 89,
+            "impact": "planning::constraint_ignorance"
+          },
+          {
+            "step": 94,
+            "impact": "planning::constraint_ignorance"
+          }
+        ],
+        "correction_guidance": "Implement a state machine or progress tracker that enforces transitions after successful planning. Add checks to prevent identical planning actions from repeating consecutively, and introduce timeouts or maximum iteration limits for the planning phase.",
+        "confidence": 0.95
+      },
+      "task_summary": "run_done exit_status=submitted has_submission=True",
+      "synthesized_task": false,
+      "primary_fail_reasons": [],
+      "tool_a_payload_timestamp": "2026-03-07T19:16:45.240017+00:00",
+      "tool_b_payload_timestamp": "2026-03-07T19:17:49.388694+00:00"
+    },
+    {
+      "instance_id": "astropy__astropy-12057",
+      "log_path": "/home/pt/SWE-bench/PDDL_work_mem/06_artificial_intelligence/experiments/03_run_outputs_full_first50_nomem_20min/with_mem/reruns/withmem_full50_20min_p1_online_20260307_194549/outputs/run_outputs_full_first50_with_mem_20min/astropy__astropy-12057/astropy__astropy-12057.trace.log",
+      "nonempty_patch": true,
+      "tool_a_calls": 88,
+      "tool_b_calls": 1,
+      "first_tool_a_log_time": "2026-03-07 20:18:19,937",
+      "last_tool_a_log_time": "2026-03-07 20:47:26,951",
+      "first_tool_b_log_time": "2026-03-07 20:48:01,380",
+      "last_tool_b_log_time": "2026-03-07 20:48:01,380",
+      "injection_selected_count": 5,
+      "selected_subgraph_count": 2,
+      "candidate_count_after_filter": 28,
+      "planning_tips_count": 5,
+      "planning_tips": [
+        {
+          "type": "repair_pattern_v2",
+          "pattern_id": "2ccab4ca-ec1a-4fb8-aba6-32a2f7712011",
+          "recommendation": "Implement a state-checking mechanism in the planning module to detect repetitive cycles and force progression, or add a timeout/iteration limit to break loops and trigger error handling.",
+          "verification_commands": [
+            "pytest -q"
+          ],
+          "confidence": 0.95,
+          "score": 0.494662,
+          "critical_alignment_score": 0.08,
+          "evidence_refs": [
+            "action://0fe60099-c29f-4f09-9ffb-22453788b843",
+            "action://d88f63fa-d50b-4f0a-9a20-246ba32568d3",
+            "action://2207928d-0d5e-4a48-8e42-32817cbcd867",
+            "action://c1d8734e-bc8f-4ffd-8710-77846cefa8ce"
+          ]
+        },
+        {
+          "type": "abstract_pattern",
+          "experience_id": "abs_5_1772911069",
+          "pattern_type": "critical_planning_repetitive_planning",
+          "recommendation": "Implement a state-checking mechanism in the planning module to detect repetitive cycles and force progression, or add a timeout/iteration limit to break loops and trigger error handling.",
+          "success_conditions": [
+            "validate_fix_with_targeted_check_before_submission",
+            "apply_strategy_shift_for_repetitive_planning",
+            "include_explicit_test_plan_before_code_edit"
+          ],
+          "failure_avoidance": [
+            "avoid_repeat_repetitive_planning_without_strategy_shift"
+          ],
+          "confidence": 0.95,
+          "score": 0.384038,
+          "critical_alignment_score": 0.08
+        },
+        {
+          "type": "abstract_pattern",
+          "experience_id": "abs_2_1772911069",
+          "pattern_type": "critical_planning_repetitive_planning",
+          "recommendation": "Implement a state machine or progress tracker that enforces transitions after successful planning. Add checks to prevent identical planning actions from repeating consecutively, and introduce timeouts or maximum iteration limits for the planning phase.",
+          "success_conditions": [
+            "validate_fix_with_targeted_check_before_submission",
+            "apply_strategy_shift_for_repetitive_planning",
+            "include_explicit_test_plan_before_code_edit"
+          ],
+          "failure_avoidance": [
+            "avoid_repeat_repetitive_planning_without_strategy_shift"
+          ],
+          "confidence": 0.95,
+          "score": 0.382727,
+          "critical_alignment_score": 0.08
+        },
+        {
+          "type": "belief_tip",
+          "belief_id": "6a554daf-2058-4fad-8638-f100d20ddaa3",
+          "belief_type": "workflow",
+          "recommendation": "Generate plan for task -> Generate plan for task -> Generate plan for task",
+          "confidence": 0.05
+        },
+        {
+          "type": "workflow_step",
+          "step_number": 1,
+          "intent": "Generate plan for task",
+          "action_type": "tool_call",
+          "recommendation": "Consider: Generate plan for task..."
+        }
+      ],
+      "abstract_generated": 5,
+      "experience_ids": [
+        "bb9fe85b-bc84-418e-a6fd-14518220bfa9",
+        "abs_9_1772912880",
+        "abs_10_1772912880",
+        "abs_11_1772912880",
+        "abs_12_1772912880"
+      ],
+      "failure_card_generated": false,
+      "failure_card_reason": "task_success",
+      "failure_card_id": null,
+      "extraction_triggered": true,
+      "extraction_reason": "run_done_high_cost",
+      "llm_used": true,
+      "assessment_count": 4,
+      "abstract_added": 4,
+      "repair_patterns_added": 20,
+      "critical_signal": {
+        "attempt_id": "attempt-0:task_20260307_191815_main",
+        "critical_step": 1,
+        "critical_module": "planning",
+        "error_type": "inefficient_planning",
+        "root_cause": "The agent is stuck in a planning loop, repeatedly generating plans without transitioning to execution, likely due to a failure to validate or commit to a final actionable plan.",
+        "cascading_effects": [
+          {
+            "step": 80,
+            "impact": "system::timeout_or_infinite_loop"
+          },
+          {
+            "step": 86,
+            "impact": "planning::constraint_ignorance"
+          },
+          {
+            "step": 88,
+            "impact": "planning::constraint_ignorance"
+          }
+        ],
+        "correction_guidance": "Implement a termination condition for planning (e.g., max planning steps, plan confidence threshold, or explicit 'plan finalized' signal) and enforce a transition to execution. Add validation that the plan meets task constraints before exiting planning.",
+        "confidence": 0.95
+      },
+      "task_summary": "run_done exit_status=submitted has_submission=True",
+      "synthesized_task": false,
+      "primary_fail_reasons": [],
+      "tool_a_payload_timestamp": "2026-03-07T19:47:25.535633+00:00",
+      "tool_b_payload_timestamp": "2026-03-07T19:48:00.285563+00:00"
+    },
+    {
+      "instance_id": "astropy__astropy-12318",
+      "log_path": "/home/pt/SWE-bench/PDDL_work_mem/06_artificial_intelligence/experiments/03_run_outputs_full_first50_nomem_20min/with_mem/reruns/withmem_full50_20min_p1_online_20260307_194549/outputs/run_outputs_full_first50_with_mem_20min/astropy__astropy-12318/astropy__astropy-12318.trace.log",
+      "nonempty_patch": true,
+      "tool_a_calls": 86,
+      "tool_b_calls": 1,
+      "first_tool_a_log_time": "2026-03-07 20:48:32,098",
+      "last_tool_a_log_time": "2026-03-07 21:16:02,950",
+      "first_tool_b_log_time": "2026-03-07 21:16:46,439",
+      "last_tool_b_log_time": "2026-03-07 21:16:46,439",
+      "injection_selected_count": 5,
+      "selected_subgraph_count": 3,
+      "candidate_count_after_filter": 28,
+      "planning_tips_count": 5,
+      "planning_tips": [
+        {
+          "type": "repair_pattern_v2",
+          "pattern_id": "4958377d-35db-47d7-ad9f-4f5aca88a3c0",
+          "recommendation": "Implement a state machine or progress tracker that enforces transitions after successful planning. Add checks to prevent identical planning actions from repeating consecutively, and introduce timeouts or maximum iteration limits for the planning phase.",
+          "verification_commands": [
+            "pytest -q"
+          ],
+          "confidence": 0.95,
+          "score": 0.4825,
+          "critical_alignment_score": 0.08,
+          "evidence_refs": [
+            "action://04777ba1-5979-4716-88ca-2c9271d9cd1a",
+            "action://c2c386e4-99ef-476d-8a53-dfaf9f30432b",
+            "action://0fe60099-c29f-4f09-9ffb-22453788b843",
+            "action://d88f63fa-d50b-4f0a-9a20-246ba32568d3"
+          ]
+        },
+        {
+          "type": "abstract_pattern",
+          "experience_id": "abs_2_1772911069",
+          "pattern_type": "critical_planning_repetitive_planning",
+          "recommendation": "Implement a state machine or progress tracker that enforces transitions after successful planning. Add checks to prevent identical planning actions from repeating consecutively, and introduce timeouts or maximum iteration limits for the planning phase.",
+          "success_conditions": [
+            "validate_fix_with_targeted_check_before_submission",
+            "apply_strategy_shift_for_repetitive_planning",
+            "include_explicit_test_plan_before_code_edit"
+          ],
+          "failure_avoidance": [
+            "avoid_repeat_repetitive_planning_without_strategy_shift"
+          ],
+          "confidence": 0.95,
+          "score": 0.3725,
+          "critical_alignment_score": 0.08
+        },
+        {
+          "type": "abstract_pattern",
+          "experience_id": "abs_3_1772911069",
+          "pattern_type": "critical_planning_repetitive_planning",
+          "recommendation": "Implement a state-tracking mechanism that updates after each planning step to prevent redundant executions. Add checks for plan uniqueness or progress validation before allowing subsequent planning actions. Ensure the system can detect when a plan has already been generated and e",
+          "success_conditions": [
+            "validate_fix_with_targeted_check_before_submission",
+            "apply_strategy_shift_for_repetitive_planning",
+            "include_explicit_test_plan_before_code_edit"
+          ],
+          "failure_avoidance": [
+            "avoid_repeat_repetitive_planning_without_strategy_shift"
+          ],
+          "confidence": 0.95,
+          "score": 0.3725,
+          "critical_alignment_score": 0.08
+        },
+        {
+          "type": "belief_tip",
+          "belief_id": "6a554daf-2058-4fad-8638-f100d20ddaa3",
+          "belief_type": "workflow",
+          "recommendation": "Generate plan for task -> Generate plan for task -> Generate plan for task",
+          "confidence": 0.1
+        },
+        {
+          "type": "workflow_step",
+          "step_number": 1,
+          "intent": "Generate plan for task",
+          "action_type": "tool_call",
+          "recommendation": "Consider: Generate plan for task..."
+        }
+      ],
+      "abstract_generated": 5,
+      "experience_ids": [
+        "bb9fe85b-bc84-418e-a6fd-14518220bfa9",
+        "abs_13_1772914604",
+        "abs_14_1772914604",
+        "abs_15_1772914604",
+        "abs_16_1772914604"
+      ],
+      "failure_card_generated": false,
+      "failure_card_reason": "task_success",
+      "failure_card_id": null,
+      "extraction_triggered": true,
+      "extraction_reason": "run_done_high_cost",
+      "llm_used": true,
+      "assessment_count": 4,
+      "abstract_added": 4,
+      "repair_patterns_added": 20,
+      "critical_signal": {
+        "attempt_id": "attempt-0:task_20260307_194827_main",
+        "critical_step": 1,
+        "critical_module": "planning",
+        "error_type": "inefficient_planning",
+        "root_cause": "The system is stuck in a planning loop due to an inability to converge on a final actionable plan, likely caused by missing or ambiguous criteria for plan finalization or a failure to trigger the transition from planning to execution.",
+        "cascading_effects": [
+          {
+            "step": 80,
+            "impact": "system::stagnation"
+          },
+          {
+            "step": 82,
+            "impact": "planning::constraint_ignorance"
+          },
+          {
+            "step": 86,
+            "impact": "planning::constraint_ignorance"
+          }
+        ],
+        "correction_guidance": "Implement a clear termination condition for the planning phase, such as a maximum number of planning iterations, a confidence threshold for the plan, or a specific trigger (e.g., user confirmation or resource availability check) to move to execution. Additionally, ensure the planning module outputs a concrete, actionable plan rather than remaining in an abstract state.",
+        "confidence": 0.95
+      },
+      "task_summary": "run_done exit_status=submitted has_submission=True",
+      "synthesized_task": false,
+      "primary_fail_reasons": [],
+      "tool_a_payload_timestamp": "2026-03-07T20:15:58.946960+00:00",
+      "tool_b_payload_timestamp": "2026-03-07T20:16:44.969091+00:00"
+    },
+    {
+      "instance_id": "astropy__astropy-12544",
+      "log_path": "/home/pt/SWE-bench/PDDL_work_mem/06_artificial_intelligence/experiments/03_run_outputs_full_first50_nomem_20min/with_mem/reruns/withmem_full50_20min_p1_online_20260307_194549/outputs/run_outputs_full_first50_with_mem_20min/astropy__astropy-12544/astropy__astropy-12544.trace.log",
+      "nonempty_patch": true,
+      "tool_a_calls": 136,
+      "tool_b_calls": 1,
+      "first_tool_a_log_time": "2026-03-07 21:18:04,901",
+      "last_tool_a_log_time": "2026-03-07 22:01:27,847",
+      "first_tool_b_log_time": "2026-03-07 22:02:05,137",
+      "last_tool_b_log_time": "2026-03-07 22:02:05,137",
+      "injection_selected_count": 5,
+      "selected_subgraph_count": 3,
+      "candidate_count_after_filter": 28,
+      "planning_tips_count": 5,
+      "planning_tips": [
+        {
+          "type": "repair_pattern_v2",
+          "pattern_id": "2ccab4ca-ec1a-4fb8-aba6-32a2f7712011",
+          "recommendation": "Implement a state-checking mechanism in the planning module to detect repetitive cycles and force progression, or add a timeout/iteration limit to break loops and trigger error handling.",
+          "verification_commands": [
+            "pytest -q"
+          ],
+          "confidence": 0.95,
+          "score": 0.495735,
+          "critical_alignment_score": 0.08,
+          "evidence_refs": [
+            "action://0fe60099-c29f-4f09-9ffb-22453788b843",
+            "action://d88f63fa-d50b-4f0a-9a20-246ba32568d3",
+            "action://2207928d-0d5e-4a48-8e42-32817cbcd867",
+            "action://c1d8734e-bc8f-4ffd-8710-77846cefa8ce"
+          ]
+        },
+        {
+          "type": "abstract_pattern",
+          "experience_id": "abs_5_1772911069",
+          "pattern_type": "critical_planning_repetitive_planning",
+          "recommendation": "Implement a state-checking mechanism in the planning module to detect repetitive cycles and force progression, or add a timeout/iteration limit to break loops and trigger error handling.",
+          "success_conditions": [
+            "validate_fix_with_targeted_check_before_submission",
+            "apply_strategy_shift_for_repetitive_planning",
+            "include_explicit_test_plan_before_code_edit"
+          ],
+          "failure_avoidance": [
+            "avoid_repeat_repetitive_planning_without_strategy_shift"
+          ],
+          "confidence": 0.95,
+          "score": 0.385,
+          "critical_alignment_score": 0.08
+        },
+        {
+          "type": "abstract_pattern",
+          "experience_id": "abs_2_1772911069",
+          "pattern_type": "critical_planning_repetitive_planning",
+          "recommendation": "Implement a state machine or progress tracker that enforces transitions after successful planning. Add checks to prevent identical planning actions from repeating consecutively, and introduce timeouts or maximum iteration limits for the planning phase.",
+          "success_conditions": [
+            "validate_fix_with_targeted_check_before_submission",
+            "apply_strategy_shift_for_repetitive_planning",
+            "include_explicit_test_plan_before_code_edit"
+          ],
+          "failure_avoidance": [
+            "avoid_repeat_repetitive_planning_without_strategy_shift"
+          ],
+          "confidence": 0.95,
+          "score": 0.383476,
+          "critical_alignment_score": 0.08
+        },
+        {
+          "type": "belief_tip",
+          "belief_id": "6a554daf-2058-4fad-8638-f100d20ddaa3",
+          "belief_type": "workflow",
+          "recommendation": "Generate plan for task -> Generate plan for task -> Generate plan for task",
+          "confidence": 0.15
+        },
+        {
+          "type": "workflow_step",
+          "step_number": 1,
+          "intent": "Generate plan for task",
+          "action_type": "tool_call",
+          "recommendation": "Consider: Generate plan for task..."
+        }
+      ],
+      "abstract_generated": 5,
+      "experience_ids": [
+        "bb9fe85b-bc84-418e-a6fd-14518220bfa9",
+        "abs_17_1772917323",
+        "abs_18_1772917323",
+        "abs_19_1772917323",
+        "abs_20_1772917323"
+      ],
+      "failure_card_generated": false,
+      "failure_card_reason": "task_success",
+      "failure_card_id": null,
+      "extraction_triggered": true,
+      "extraction_reason": "run_done_high_cost",
+      "llm_used": true,
+      "assessment_count": 4,
+      "abstract_added": 4,
+      "repair_patterns_added": 20,
+      "critical_signal": {
+        "attempt_id": "attempt-0:task_20260307_201741_main",
+        "critical_step": 1,
+        "critical_module": "planning",
+        "error_type": "excessive_planning",
+        "root_cause": "The agent is trapped in a planning loop due to an inability to finalize a plan or a system-level failure that prevents the transition from planning to execution. This is evidenced by 80 consecutive planning steps with identical intent and no execution actions, indicating a breakdown in the decision-making or action-triggering mechanism.",
+        "cascading_effects": [
+          {
+            "step": 80,
+            "impact": "system::stuck_in_loop"
+          },
+          {
+            "step": 133,
+            "impact": "planning::constraint_ignorance"
+          },
+          {
+            "step": 136,
+            "impact": "planning::constraint_ignorance"
+          }
+        ],
+        "correction_guidance": "1. Implement a planning timeout or step limit to force exit from excessive planning loops. 2. Add validation checks to ensure plans are actionable before proceeding. 3. Introduce fallback mechanisms to switch to execution if planning iterations exceed a threshold. 4. Review system-level constraints or permissions that may be blocking action execution.",
+        "confidence": 0.95
+      },
+      "task_summary": "run_done exit_status=submitted has_submission=True",
+      "synthesized_task": false,
+      "primary_fail_reasons": [],
+      "tool_a_payload_timestamp": "2026-03-07T21:01:25.954021+00:00",
+      "tool_b_payload_timestamp": "2026-03-07T21:02:03.486806+00:00"
+    },
+    {
+      "instance_id": "astropy__astropy-12825",
+      "log_path": "/home/pt/SWE-bench/PDDL_work_mem/06_artificial_intelligence/experiments/03_run_outputs_full_first50_nomem_20min/with_mem/reruns/withmem_full50_20min_p1_online_20260307_194549/outputs/run_outputs_full_first50_with_mem_20min/astropy__astropy-12825/astropy__astropy-12825.trace.log",
+      "nonempty_patch": true,
+      "tool_a_calls": 119,
+      "tool_b_calls": 1,
+      "first_tool_a_log_time": "2026-03-07 22:02:34,863",
+      "last_tool_a_log_time": "2026-03-07 22:38:21,933",
+      "first_tool_b_log_time": "2026-03-07 22:39:04,280",
+      "last_tool_b_log_time": "2026-03-07 22:39:04,280",
+      "injection_selected_count": 5,
+      "selected_subgraph_count": 3,
+      "candidate_count_after_filter": 28,
+      "planning_tips_count": 5,
+      "planning_tips": [
+        {
+          "type": "repair_pattern_v2",
+          "pattern_id": "4958377d-35db-47d7-ad9f-4f5aca88a3c0",
+          "recommendation": "Implement a state machine or progress tracker that enforces transitions after successful planning. Add checks to prevent identical planning actions from repeating consecutively, and introduce timeouts or maximum iteration limits for the planning phase.",
+          "verification_commands": [
+            "pytest -q"
+          ],
+          "confidence": 0.95,
+          "score": 0.4825,
+          "critical_alignment_score": 0.08,
+          "evidence_refs": [
+            "action://04777ba1-5979-4716-88ca-2c9271d9cd1a",
+            "action://c2c386e4-99ef-476d-8a53-dfaf9f30432b",
+            "action://0fe60099-c29f-4f09-9ffb-22453788b843",
+            "action://d88f63fa-d50b-4f0a-9a20-246ba32568d3"
+          ]
+        },
+        {
+          "type": "abstract_pattern",
+          "experience_id": "abs_2_1772911069",
+          "pattern_type": "critical_planning_repetitive_planning",
+          "recommendation": "Implement a state machine or progress tracker that enforces transitions after successful planning. Add checks to prevent identical planning actions from repeating consecutively, and introduce timeouts or maximum iteration limits for the planning phase.",
+          "success_conditions": [
+            "validate_fix_with_targeted_check_before_submission",
+            "apply_strategy_shift_for_repetitive_planning",
+            "include_explicit_test_plan_before_code_edit"
+          ],
+          "failure_avoidance": [
+            "avoid_repeat_repetitive_planning_without_strategy_shift"
+          ],
+          "confidence": 0.95,
+          "score": 0.3725,
+          "critical_alignment_score": 0.08
+        },
+        {
+          "type": "abstract_pattern",
+          "experience_id": "bb9fe85b-bc84-418e-a6fd-14518220bfa9",
+          "pattern_type": "direct_success_flow",
+          "recommendation": "run_done exit_status=submitted has_submission=true ; generate plan for task ; generate plan for task ; generate plan for task ; generate plan for task",
+          "success_conditions": [
+            "inspect_code_context_before_modification",
+            "run_relevant_tests_before_submission",
+            "review_diff_before_submission"
+          ],
+          "failure_avoidance": [
+            "avoid_large_unverified_changes_before_running_checks"
+          ],
+          "confidence": 0.7,
+          "score": 0.405,
+          "critical_alignment_score": 0.0
+        },
+        {
+          "type": "belief_tip",
+          "belief_id": "6a554daf-2058-4fad-8638-f100d20ddaa3",
+          "belief_type": "workflow",
+          "recommendation": "Generate plan for task -> Generate plan for task -> Generate plan for task",
+          "confidence": 0.2
+        },
+        {
+          "type": "workflow_step",
+          "step_number": 1,
+          "intent": "Generate plan for task",
+          "action_type": "tool_call",
+          "recommendation": "Consider: Generate plan for task..."
+        }
+      ],
+      "abstract_generated": 5,
+      "experience_ids": [
+        "94bdf035-ed5b-41d6-8e03-dd08ed429a21",
+        "abs_22_1772919541",
+        "abs_23_1772919541",
+        "abs_24_1772919541",
+        "abs_25_1772919541"
+      ],
+      "failure_card_generated": false,
+      "failure_card_reason": "task_success",
+      "failure_card_id": null,
+      "extraction_triggered": true,
+      "extraction_reason": "run_done_high_cost",
+      "llm_used": true,
+      "assessment_count": 4,
+      "abstract_added": 4,
+      "repair_patterns_added": 20,
+      "critical_signal": {
+        "attempt_id": "attempt-0:task_20260307_210230_main",
+        "critical_step": 1,
+        "critical_module": "planning",
+        "error_type": "inefficient_planning",
+        "root_cause": "The system is stuck in a planning loop due to an inability to finalize a plan or transition from planning to execution, likely caused by missing or ambiguous success criteria for plan completion, or a failure in the planning module's state transition logic.",
+        "cascading_effects": [
+          {
+            "step": 80,
+            "impact": "system::stuck_in_loop"
+          },
+          {
+            "step": 115,
+            "impact": "planning::constraint_ignorance"
+          },
+          {
+            "step": 119,
+            "impact": "planning::constraint_ignorance"
+          }
+        ],
+        "correction_guidance": "1. Implement a clear exit condition or success metric for the planning phase (e.g., a confidence threshold, a maximum step limit, or a specific plan validation check). 2. Ensure the system can transition to execution or reflection after planning by updating the state management logic. 3. Add monitoring to detect repetitive identical steps and trigger a fallback or error-handling routine.",
+        "confidence": 0.95
+      },
+      "task_summary": "run_done exit_status=submitted has_submission=True",
+      "synthesized_task": false,
+      "primary_fail_reasons": [],
+      "tool_a_payload_timestamp": "2026-03-07T21:38:19.512965+00:00",
+      "tool_b_payload_timestamp": "2026-03-07T21:39:02.058006+00:00"
+    },
+    {
+      "instance_id": "astropy__astropy-12842",
+      "log_path": "/home/pt/SWE-bench/PDDL_work_mem/06_artificial_intelligence/experiments/03_run_outputs_full_first50_nomem_20min/with_mem/reruns/withmem_full50_20min_p1_online_20260307_194549/outputs/run_outputs_full_first50_with_mem_20min/astropy__astropy-12842/astropy__astropy-12842.trace.log",
+      "nonempty_patch": true,
+      "tool_a_calls": 122,
+      "tool_b_calls": 1,
+      "first_tool_a_log_time": "2026-03-07 22:39:37,437",
+      "last_tool_a_log_time": "2026-03-07 23:19:59,830",
+      "first_tool_b_log_time": "2026-03-07 23:20:41,950",
+      "last_tool_b_log_time": "2026-03-07 23:20:41,950",
+      "injection_selected_count": 5,
+      "selected_subgraph_count": 3,
+      "candidate_count_after_filter": 28,
+      "planning_tips_count": 5,
+      "planning_tips": [
+        {
+          "type": "repair_pattern_v2",
+          "pattern_id": "2ccab4ca-ec1a-4fb8-aba6-32a2f7712011",
+          "recommendation": "Implement a state-checking mechanism in the planning module to detect repetitive cycles and force progression, or add a timeout/iteration limit to break loops and trigger error handling.",
+          "verification_commands": [
+            "pytest -q"
+          ],
+          "confidence": 0.95,
+          "score": 0.49375,
+          "critical_alignment_score": 0.08,
+          "evidence_refs": [
+            "action://0fe60099-c29f-4f09-9ffb-22453788b843",
+            "action://d88f63fa-d50b-4f0a-9a20-246ba32568d3",
+            "action://2207928d-0d5e-4a48-8e42-32817cbcd867",
+            "action://c1d8734e-bc8f-4ffd-8710-77846cefa8ce"
+          ]
+        },
+        {
+          "type": "abstract_pattern",
+          "experience_id": "abs_5_1772911069",
+          "pattern_type": "critical_planning_repetitive_planning",
+          "recommendation": "Implement a state-checking mechanism in the planning module to detect repetitive cycles and force progression, or add a timeout/iteration limit to break loops and trigger error handling.",
+          "success_conditions": [
+            "validate_fix_with_targeted_check_before_submission",
+            "apply_strategy_shift_for_repetitive_planning",
+            "include_explicit_test_plan_before_code_edit"
+          ],
+          "failure_avoidance": [
+            "avoid_repeat_repetitive_planning_without_strategy_shift"
+          ],
+          "confidence": 0.95,
+          "score": 0.383214,
+          "critical_alignment_score": 0.08
+        },
+        {
+          "type": "abstract_pattern",
+          "experience_id": "bb9fe85b-bc84-418e-a6fd-14518220bfa9",
+          "pattern_type": "direct_success_flow",
+          "recommendation": "run_done exit_status=submitted has_submission=true ; generate plan for task ; generate plan for task ; generate plan for task ; generate plan for task",
+          "success_conditions": [
+            "inspect_code_context_before_modification",
+            "run_relevant_tests_before_submission",
+            "review_diff_before_submission"
+          ],
+          "failure_avoidance": [
+            "avoid_large_unverified_changes_before_running_checks"
+          ],
+          "confidence": 0.7,
+          "score": 0.405,
+          "critical_alignment_score": 0.0
+        },
+        {
+          "type": "belief_tip",
+          "belief_id": "6a554daf-2058-4fad-8638-f100d20ddaa3",
+          "belief_type": "workflow",
+          "recommendation": "Generate plan for task -> Generate plan for task -> Generate plan for task",
+          "confidence": 0.25
+        },
+        {
+          "type": "workflow_step",
+          "step_number": 1,
+          "intent": "Generate plan for task",
+          "action_type": "tool_call",
+          "recommendation": "Consider: Generate plan for task..."
+        }
+      ],
+      "abstract_generated": 5,
+      "experience_ids": [
+        "bb9fe85b-bc84-418e-a6fd-14518220bfa9",
+        "abs_26_1772922038",
+        "abs_27_1772922038",
+        "abs_28_1772922038",
+        "abs_29_1772922038"
+      ],
+      "failure_card_generated": false,
+      "failure_card_reason": "task_success",
+      "failure_card_id": null,
+      "extraction_triggered": true,
+      "extraction_reason": "run_done_high_cost",
+      "llm_used": true,
+      "assessment_count": 4,
+      "abstract_added": 4,
+      "repair_patterns_added": 20,
+      "critical_signal": {
+        "attempt_id": "attempt-0:task_20260307_213932_main",
+        "critical_step": 1,
+        "critical_module": "planning",
+        "error_type": "repetitive_planning",
+        "root_cause": "The agent is stuck in a planning loop due to an inability to transition from plan generation to execution, likely caused by missing or inadequate termination conditions in the planning module or failure to recognize when a sufficient plan has been generated.",
+        "cascading_effects": [
+          {
+            "step": 80,
+            "impact": "system::lack_of_progression"
+          },
+          {
+            "step": 120,
+            "impact": "planning::constraint_ignorance"
+          },
+          {
+            "step": 122,
+            "impact": "planning::constraint_ignorance"
+          }
+        ],
+        "correction_guidance": "Implement a mechanism to limit consecutive planning steps, enforce transition triggers based on plan completeness or confidence thresholds, and ensure the planning module outputs actionable steps that can be passed to execution modules.",
+        "confidence": 0.95
+      },
+      "task_summary": "run_done exit_status=submitted has_submission=True",
+      "synthesized_task": false,
+      "primary_fail_reasons": [],
+      "tool_a_payload_timestamp": "2026-03-07T22:19:56.667442+00:00",
+      "tool_b_payload_timestamp": "2026-03-07T22:20:39.366041+00:00"
+    },
+    {
+      "instance_id": "astropy__astropy-12880",
+      "log_path": "/home/pt/SWE-bench/PDDL_work_mem/06_artificial_intelligence/experiments/03_run_outputs_full_first50_nomem_20min/with_mem/reruns/withmem_full50_20min_p1_online_20260307_194549/outputs/run_outputs_full_first50_with_mem_20min/astropy__astropy-12880/astropy__astropy-12880.trace.log",
+      "nonempty_patch": true,
+      "tool_a_calls": 109,
+      "tool_b_calls": 1,
+      "first_tool_a_log_time": "2026-03-07 23:21:12,263",
+      "last_tool_a_log_time": "2026-03-07 23:55:13,809",
+      "first_tool_b_log_time": "2026-03-07 23:55:52,475",
+      "last_tool_b_log_time": "2026-03-07 23:55:52,475",
+      "injection_selected_count": 5,
+      "selected_subgraph_count": 3,
+      "candidate_count_after_filter": 28,
+      "planning_tips_count": 5,
+      "planning_tips": [
+        {
+          "type": "repair_pattern_v2",
+          "pattern_id": "b030728a-4a00-4bc5-9430-ab1ec9e09a36",
+          "recommendation": "Implement a state-tracking mechanism that updates after each planning step to prevent redundant executions. Add checks for plan uniqueness or progress validation before allowing subsequent planning actions. Ensure the system can detect when a plan has already been generated and either proceed to execution or adjust the strategy based on new constraints.",
+          "verification_commands": [
+            "pytest -q"
+          ],
+          "confidence": 0.95,
+          "score": 0.502353,
+          "critical_alignment_score": 0.08,
+          "evidence_refs": [
+            "action://04777ba1-5979-4716-88ca-2c9271d9cd1a",
+            "action://c2c386e4-99ef-476d-8a53-dfaf9f30432b",
+            "action://0fe60099-c29f-4f09-9ffb-22453788b843",
+            "action://d88f63fa-d50b-4f0a-9a20-246ba32568d3"
+          ]
+        },
+        {
+          "type": "abstract_pattern",
+          "experience_id": "bb9fe85b-bc84-418e-a6fd-14518220bfa9",
+          "pattern_type": "direct_success_flow",
+          "recommendation": "run_done exit_status=submitted has_submission=true ; generate plan for task ; generate plan for task ; generate plan for task ; generate plan for task",
+          "success_conditions": [
+            "inspect_code_context_before_modification",
+            "run_relevant_tests_before_submission",
+            "review_diff_before_submission"
+          ],
+          "failure_avoidance": [
+            "avoid_large_unverified_changes_before_running_checks"
+          ],
+          "confidence": 0.7,
+          "score": 0.445,
+          "critical_alignment_score": 0.0
+        },
+        {
+          "type": "abstract_pattern",
+          "experience_id": "abs_3_1772911069",
+          "pattern_type": "critical_planning_repetitive_planning",
+          "recommendation": "Implement a state-tracking mechanism that updates after each planning step to prevent redundant executions. Add checks for plan uniqueness or progress validation before allowing subsequent planning actions. Ensure the system can detect when a plan has already been generated and e",
+          "success_conditions": [
+            "validate_fix_with_targeted_check_before_submission",
+            "apply_strategy_shift_for_repetitive_planning",
+            "include_explicit_test_plan_before_code_edit"
+          ],
+          "failure_avoidance": [
+            "avoid_repeat_repetitive_planning_without_strategy_shift"
+          ],
+          "confidence": 0.95,
+          "score": 0.394274,
+          "critical_alignment_score": 0.08
+        },
+        {
+          "type": "belief_tip",
+          "belief_id": "6a554daf-2058-4fad-8638-f100d20ddaa3",
+          "belief_type": "workflow",
+          "recommendation": "Generate plan for task -> Generate plan for task -> Generate plan for task",
+          "confidence": 0.3
+        },
+        {
+          "type": "workflow_step",
+          "step_number": 1,
+          "intent": "Generate plan for task",
+          "action_type": "tool_call",
+          "recommendation": "Consider: Generate plan for task..."
+        }
+      ],
+      "abstract_generated": 5,
+      "experience_ids": [
+        "bb9fe85b-bc84-418e-a6fd-14518220bfa9",
+        "abs_30_1772924149",
+        "abs_31_1772924149",
+        "abs_32_1772924149",
+        "abs_33_1772924149"
+      ],
+      "failure_card_generated": false,
+      "failure_card_reason": "task_success",
+      "failure_card_id": null,
+      "extraction_triggered": true,
+      "extraction_reason": "run_done_high_cost",
+      "llm_used": true,
+      "assessment_count": 4,
+      "abstract_added": 4,
+      "repair_patterns_added": 20,
+      "critical_signal": {
+        "attempt_id": "attempt-0:task_20260307_222104_main",
+        "critical_step": 1,
+        "critical_module": "planning",
+        "error_type": "inefficient_planning",
+        "root_cause": "The system is trapped in an infinite planning loop due to a failure to establish clear termination criteria for the planning phase, resulting in repeated identical planning steps without progressing to execution.",
+        "cascading_effects": [
+          {
+            "step": 80,
+            "impact": "system::lack_of_progress"
+          },
+          {
+            "step": 108,
+            "impact": "planning::constraint_ignorance"
+          },
+          {
+            "step": 109,
+            "impact": "planning::constraint_ignorance"
+          }
+        ],
+        "correction_guidance": "Implement explicit conditions to exit planning, such as: 1) Define a maximum number of planning iterations, 2) Set criteria for plan completeness (e.g., all subtasks defined, resources allocated), 3) Add a validation step to confirm plan feasibility before transitioning to execution, and 4) Introduce a timeout mechanism to force exit from planning if stuck.",
+        "confidence": 0.95
+      },
+      "task_summary": "run_done exit_status=submitted has_submission=True",
+      "synthesized_task": false,
+      "primary_fail_reasons": [],
+      "tool_a_payload_timestamp": "2026-03-07T22:55:10.189486+00:00",
+      "tool_b_payload_timestamp": "2026-03-07T22:55:49.803826+00:00"
+    },
+    {
+      "instance_id": "astropy__astropy-12891",
+      "log_path": "/home/pt/SWE-bench/PDDL_work_mem/06_artificial_intelligence/experiments/03_run_outputs_full_first50_nomem_20min/with_mem/reruns/withmem_full50_20min_p1_online_20260307_194549/outputs/run_outputs_full_first50_with_mem_20min/astropy__astropy-12891/astropy__astropy-12891.trace.log",
+      "nonempty_patch": true,
+      "tool_a_calls": 130,
+      "tool_b_calls": 1,
+      "first_tool_a_log_time": "2026-03-07 23:56:25,374",
+      "last_tool_a_log_time": "2026-03-08 00:45:18,466",
+      "first_tool_b_log_time": "2026-03-08 00:45:58,942",
+      "last_tool_b_log_time": "2026-03-08 00:45:58,942",
+      "injection_selected_count": 5,
+      "selected_subgraph_count": 3,
+      "candidate_count_after_filter": 28,
+      "planning_tips_count": 5,
+      "planning_tips": [
+        {
+          "type": "repair_pattern_v2",
+          "pattern_id": "4958377d-35db-47d7-ad9f-4f5aca88a3c0",
+          "recommendation": "Implement a state machine or progress tracker that enforces transitions after successful planning. Add checks to prevent identical planning actions from repeating consecutively, and introduce timeouts or maximum iteration limits for the planning phase.",
+          "verification_commands": [
+            "pytest -q"
+          ],
+          "confidence": 0.95,
+          "score": 0.4825,
+          "critical_alignment_score": 0.08,
+          "evidence_refs": [
+            "action://04777ba1-5979-4716-88ca-2c9271d9cd1a",
+            "action://c2c386e4-99ef-476d-8a53-dfaf9f30432b",
+            "action://0fe60099-c29f-4f09-9ffb-22453788b843",
+            "action://d88f63fa-d50b-4f0a-9a20-246ba32568d3"
+          ]
+        },
+        {
+          "type": "abstract_pattern",
+          "experience_id": "bb9fe85b-bc84-418e-a6fd-14518220bfa9",
+          "pattern_type": "direct_success_flow",
+          "recommendation": "run_done exit_status=submitted has_submission=true ; generate plan for task ; generate plan for task ; generate plan for task ; generate plan for task",
+          "success_conditions": [
+            "inspect_code_context_before_modification",
+            "run_relevant_tests_before_submission",
+            "review_diff_before_submission"
+          ],
+          "failure_avoidance": [
+            "avoid_large_unverified_changes_before_running_checks"
+          ],
+          "confidence": 0.7,
+          "score": 0.445,
+          "critical_alignment_score": 0.0
+        },
+        {
+          "type": "abstract_pattern",
+          "experience_id": "abs_2_1772911069",
+          "pattern_type": "critical_planning_repetitive_planning",
+          "recommendation": "Implement a state machine or progress tracker that enforces transitions after successful planning. Add checks to prevent identical planning actions from repeating consecutively, and introduce timeouts or maximum iteration limits for the planning phase.",
+          "success_conditions": [
+            "validate_fix_with_targeted_check_before_submission",
+            "apply_strategy_shift_for_repetitive_planning",
+            "include_explicit_test_plan_before_code_edit"
+          ],
+          "failure_avoidance": [
+            "avoid_repeat_repetitive_planning_without_strategy_shift"
+          ],
+          "confidence": 0.95,
+          "score": 0.3725,
+          "critical_alignment_score": 0.08
+        },
+        {
+          "type": "belief_tip",
+          "belief_id": "6a554daf-2058-4fad-8638-f100d20ddaa3",
+          "belief_type": "workflow",
+          "recommendation": "Generate plan for task -> Generate plan for task -> Generate plan for task",
+          "confidence": 0.35
+        },
+        {
+          "type": "workflow_step",
+          "step_number": 1,
+          "intent": "Generate plan for task",
+          "action_type": "tool_call",
+          "recommendation": "Consider: Generate plan for task..."
+        }
+      ],
+      "abstract_generated": 5,
+      "experience_ids": [
+        "bb9fe85b-bc84-418e-a6fd-14518220bfa9",
+        "abs_34_1772927155",
+        "abs_35_1772927155",
+        "abs_36_1772927155",
+        "abs_37_1772927155"
+      ],
+      "failure_card_generated": false,
+      "failure_card_reason": "task_success",
+      "failure_card_id": null,
+      "extraction_triggered": true,
+      "extraction_reason": "run_done_high_cost",
+      "llm_used": true,
+      "assessment_count": 4,
+      "abstract_added": 4,
+      "repair_patterns_added": 20,
+      "critical_signal": {
+        "attempt_id": "attempt-0:task_20260307_225619_main",
+        "critical_step": 1,
+        "critical_module": "planning",
+        "error_type": "inefficient_planning",
+        "root_cause": "The agent is stuck in a planning loop, repeatedly generating plans without transitioning to execution. This indicates a failure in the decision-making logic that should trigger action execution after planning is complete.",
+        "cascading_effects": [
+          {
+            "step": 80,
+            "impact": "system::stuck_in_loop"
+          },
+          {
+            "step": 125,
+            "impact": "planning::constraint_ignorance"
+          },
+          {
+            "step": 130,
+            "impact": "planning::constraint_ignorance"
+          }
+        ],
+        "correction_guidance": "Implement a state transition mechanism that moves the agent from planning to execution after a plan is generated. Add checks to prevent re-planning unless new information or failures occur. Ensure the planning module outputs a finalized plan that the execution module can act upon.",
+        "confidence": 0.95
+      },
+      "task_summary": "run_done exit_status=submitted has_submission=True",
+      "synthesized_task": false,
+      "primary_fail_reasons": [],
+      "tool_a_payload_timestamp": "2026-03-07T23:45:14.678562+00:00",
+      "tool_b_payload_timestamp": "2026-03-07T23:45:55.828828+00:00"
+    },
+    {
+      "instance_id": "astropy__astropy-12907",
+      "log_path": "/home/pt/SWE-bench/PDDL_work_mem/06_artificial_intelligence/experiments/03_run_outputs_full_first50_nomem_20min/with_mem/reruns/withmem_full50_20min_p1_online_20260307_194549/outputs/run_outputs_full_first50_with_mem_20min/astropy__astropy-12907/astropy__astropy-12907.trace.log",
+      "nonempty_patch": true,
+      "tool_a_calls": 80,
+      "tool_b_calls": 1,
+      "first_tool_a_log_time": "2026-03-08 00:46:37,657",
+      "last_tool_a_log_time": "2026-03-08 01:14:54,088",
+      "first_tool_b_log_time": "2026-03-08 01:15:42,502",
+      "last_tool_b_log_time": "2026-03-08 01:15:42,502",
+      "injection_selected_count": 5,
+      "selected_subgraph_count": 3,
+      "candidate_count_after_filter": 28,
+      "planning_tips_count": 5,
+      "planning_tips": [
+        {
+          "type": "repair_pattern_v2",
+          "pattern_id": "4958377d-35db-47d7-ad9f-4f5aca88a3c0",
+          "recommendation": "Implement a state machine or progress tracker that enforces transitions after successful planning. Add checks to prevent identical planning actions from repeating consecutively, and introduce timeouts or maximum iteration limits for the planning phase.",
+          "verification_commands": [
+            "pytest -q"
+          ],
+          "confidence": 0.95,
+          "score": 0.4825,
+          "critical_alignment_score": 0.08,
+          "evidence_refs": [
+            "action://04777ba1-5979-4716-88ca-2c9271d9cd1a",
+            "action://c2c386e4-99ef-476d-8a53-dfaf9f30432b",
+            "action://0fe60099-c29f-4f09-9ffb-22453788b843",
+            "action://d88f63fa-d50b-4f0a-9a20-246ba32568d3"
+          ]
+        },
+        {
+          "type": "abstract_pattern",
+          "experience_id": "bb9fe85b-bc84-418e-a6fd-14518220bfa9",
+          "pattern_type": "direct_success_flow",
+          "recommendation": "run_done exit_status=submitted has_submission=true ; generate plan for task ; generate plan for task ; generate plan for task ; generate plan for task",
+          "success_conditions": [
+            "inspect_code_context_before_modification",
+            "run_relevant_tests_before_submission",
+            "review_diff_before_submission"
+          ],
+          "failure_avoidance": [
+            "avoid_large_unverified_changes_before_running_checks"
+          ],
+          "confidence": 0.7,
+          "score": 0.445,
+          "critical_alignment_score": 0.0
+        },
+        {
+          "type": "abstract_pattern",
+          "experience_id": "abs_2_1772911069",
+          "pattern_type": "critical_planning_repetitive_planning",
+          "recommendation": "Implement a state machine or progress tracker that enforces transitions after successful planning. Add checks to prevent identical planning actions from repeating consecutively, and introduce timeouts or maximum iteration limits for the planning phase.",
+          "success_conditions": [
+            "validate_fix_with_targeted_check_before_submission",
+            "apply_strategy_shift_for_repetitive_planning",
+            "include_explicit_test_plan_before_code_edit"
+          ],
+          "failure_avoidance": [
+            "avoid_repeat_repetitive_planning_without_strategy_shift"
+          ],
+          "confidence": 0.95,
+          "score": 0.3725,
+          "critical_alignment_score": 0.08
+        },
+        {
+          "type": "belief_tip",
+          "belief_id": "6a554daf-2058-4fad-8638-f100d20ddaa3",
+          "belief_type": "workflow",
+          "recommendation": "Generate plan for task -> Generate plan for task -> Generate plan for task",
+          "confidence": 0.4
+        },
+        {
+          "type": "workflow_step",
+          "step_number": 1,
+          "intent": "Generate plan for task",
+          "action_type": "tool_call",
+          "recommendation": "Consider: Generate plan for task..."
+        }
+      ],
+      "abstract_generated": 6,
+      "experience_ids": [
+        "bb9fe85b-bc84-418e-a6fd-14518220bfa9",
+        "abs_38_1772928937",
+        "abs_39_1772928937",
+        "abs_40_1772928937",
+        "abs_41_1772928937",
+        "abs_42_1772928937"
+      ],
+      "failure_card_generated": false,
+      "failure_card_reason": "task_success",
+      "failure_card_id": null,
+      "extraction_triggered": true,
+      "extraction_reason": "run_done_high_cost",
+      "llm_used": true,
+      "assessment_count": 5,
+      "abstract_added": 5,
+      "repair_patterns_added": 27,
+      "critical_signal": {
+        "attempt_id": "attempt-0:task_20260307_234630_main",
+        "critical_step": 1,
+        "critical_module": "planning",
+        "error_type": "repetitive_planning",
+        "root_cause": "The system is trapped in a repetitive planning loop where it continuously generates identical plans without transitioning to execution or adapting based on constraints, indicating a failure in the planning module's progression logic or state transition mechanism.",
+        "cascading_effects": [
+          {
+            "step": 2,
+            "impact": "planning::lack_of_progression"
+          },
+          {
+            "step": 75,
+            "impact": "planning::constraint_ignorance"
+          },
+          {
+            "step": 80,
+            "impact": "planning::constraint_ignorance"
+          },
+          {
+            "step": 80,
+            "impact": "system::infinite_loop"
+          }
+        ],
+        "correction_guidance": "Implement a stateful planning mechanism that tracks plan iterations and enforces progression: 1) Add a step counter to limit repetitive planning cycles; 2) Introduce plan validation against task constraints to trigger execution when criteria are met; 3) Implement a state machine that transitions from planning to execution after a viable plan is generated; 4) Add feedback loops where repeated identical plans trigger error handling or alternative strategies.",
+        "confidence": 0.95
+      },
+      "task_summary": "run_done exit_status=submitted has_submission=True",
+      "synthesized_task": false,
+      "primary_fail_reasons": [],
+      "tool_a_payload_timestamp": "2026-03-08T00:14:49.725279+00:00",
+      "tool_b_payload_timestamp": "2026-03-08T00:15:38.561754+00:00"
+    },
+    {
+      "instance_id": "astropy__astropy-12962",
+      "log_path": "/home/pt/SWE-bench/PDDL_work_mem/06_artificial_intelligence/experiments/03_run_outputs_full_first50_nomem_20min/with_mem/reruns/withmem_full50_20min_p1_online_20260307_194549/outputs/run_outputs_full_first50_with_mem_20min/astropy__astropy-12962/astropy__astropy-12962.trace.log",
+      "nonempty_patch": true,
+      "tool_a_calls": 104,
+      "tool_b_calls": 1,
+      "first_tool_a_log_time": "2026-03-08 01:16:15,686",
+      "last_tool_a_log_time": "2026-03-08 01:53:55,390",
+      "first_tool_b_log_time": "2026-03-08 01:54:50,827",
+      "last_tool_b_log_time": "2026-03-08 01:54:50,827",
+      "injection_selected_count": 5,
+      "selected_subgraph_count": 3,
+      "candidate_count_after_filter": 28,
+      "planning_tips_count": 5,
+      "planning_tips": [
+        {
+          "type": "repair_pattern_v2",
+          "pattern_id": "4958377d-35db-47d7-ad9f-4f5aca88a3c0",
+          "recommendation": "Implement a state machine or progress tracker that enforces transitions after successful planning. Add checks to prevent identical planning actions from repeating consecutively, and introduce timeouts or maximum iteration limits for the planning phase.",
+          "verification_commands": [
+            "pytest -q"
+          ],
+          "confidence": 0.95,
+          "score": 0.4825,
+          "critical_alignment_score": 0.08,
+          "evidence_refs": [
+            "action://04777ba1-5979-4716-88ca-2c9271d9cd1a",
+            "action://c2c386e4-99ef-476d-8a53-dfaf9f30432b",
+            "action://0fe60099-c29f-4f09-9ffb-22453788b843",
+            "action://d88f63fa-d50b-4f0a-9a20-246ba32568d3"
+          ]
+        },
+        {
+          "type": "abstract_pattern",
+          "experience_id": "bb9fe85b-bc84-418e-a6fd-14518220bfa9",
+          "pattern_type": "direct_success_flow",
+          "recommendation": "run_done exit_status=submitted has_submission=true ; generate plan for task ; generate plan for task ; generate plan for task ; generate plan for task",
+          "success_conditions": [
+            "inspect_code_context_before_modification",
+            "run_relevant_tests_before_submission",
+            "review_diff_before_submission"
+          ],
+          "failure_avoidance": [
+            "avoid_large_unverified_changes_before_running_checks"
+          ],
+          "confidence": 0.7,
+          "score": 0.445,
+          "critical_alignment_score": 0.0
+        },
+        {
+          "type": "abstract_pattern",
+          "experience_id": "abs_2_1772911069",
+          "pattern_type": "critical_planning_repetitive_planning",
+          "recommendation": "Implement a state machine or progress tracker that enforces transitions after successful planning. Add checks to prevent identical planning actions from repeating consecutively, and introduce timeouts or maximum iteration limits for the planning phase.",
+          "success_conditions": [
+            "validate_fix_with_targeted_check_before_submission",
+            "apply_strategy_shift_for_repetitive_planning",
+            "include_explicit_test_plan_before_code_edit"
+          ],
+          "failure_avoidance": [
+            "avoid_repeat_repetitive_planning_without_strategy_shift"
+          ],
+          "confidence": 0.95,
+          "score": 0.3725,
+          "critical_alignment_score": 0.08
+        },
+        {
+          "type": "belief_tip",
+          "belief_id": "6a554daf-2058-4fad-8638-f100d20ddaa3",
+          "belief_type": "workflow",
+          "recommendation": "Generate plan for task -> Generate plan for task -> Generate plan for task",
+          "confidence": 0.45
+        },
+        {
+          "type": "workflow_step",
+          "step_number": 1,
+          "intent": "Generate plan for task",
+          "action_type": "tool_call",
+          "recommendation": "Consider: Generate plan for task..."
+        }
+      ],
+      "abstract_generated": 8,
+      "experience_ids": [
+        "bb9fe85b-bc84-418e-a6fd-14518220bfa9",
+        "abs_43_1772931286",
+        "abs_44_1772931286",
+        "abs_45_1772931286",
+        "abs_46_1772931286",
+        "abs_47_1772931286",
+        "abs_48_1772931286",
+        "abs_49_1772931286"
+      ],
+      "failure_card_generated": false,
+      "failure_card_reason": "task_success",
+      "failure_card_id": null,
+      "extraction_triggered": true,
+      "extraction_reason": "run_done_high_cost",
+      "llm_used": true,
+      "assessment_count": 7,
+      "abstract_added": 7,
+      "repair_patterns_added": 38,
+      "critical_signal": {
+        "attempt_id": "attempt-0:task_20260308_001608_main",
+        "critical_step": 1,
+        "critical_module": "planning",
+        "error_type": "inefficient_planning",
+        "root_cause": "The system is stuck in an infinite planning loop due to an inability to finalize a plan and transition to execution, likely caused by missing or ambiguous termination criteria for the planning phase.",
+        "cascading_effects": [
+          {
+            "step": 34,
+            "impact": "planning::constraint_ignorance"
+          },
+          {
+            "step": 35,
+            "impact": "planning::constraint_ignorance"
+          },
+          {
+            "step": 66,
+            "impact": "planning::constraint_ignorance"
+          },
+          {
+            "step": 80,
+            "impact": "system::stuck_in_loop"
+          },
+          {
+            "step": 99,
+            "impact": "planning::constraint_ignorance"
+          },
+          {
+            "step": 104,
+            "impact": "planning::constraint_ignorance"
+          }
+        ],
+        "correction_guidance": "Implement explicit termination conditions for planning, such as a maximum number of planning steps, a time limit, or a completeness threshold. Ensure the planning module outputs a concrete, actionable plan and triggers a transition to the execution module. Add validation checks to confirm the plan meets all task constraints before exiting planning.",
+        "confidence": 0.95
+      },
+      "task_summary": "run_done exit_status=submitted has_submission=True",
+      "synthesized_task": false,
+      "primary_fail_reasons": [],
+      "tool_a_payload_timestamp": "2026-03-08T00:53:50.570257+00:00",
+      "tool_b_payload_timestamp": "2026-03-08T00:54:47.806276+00:00"
+    },
+    {
+      "instance_id": "astropy__astropy-13032",
+      "log_path": "/home/pt/SWE-bench/PDDL_work_mem/06_artificial_intelligence/experiments/03_run_outputs_full_first50_nomem_20min/with_mem/reruns/withmem_full50_20min_p1_online_20260307_194549/outputs/run_outputs_full_first50_with_mem_20min/astropy__astropy-13032/astropy__astropy-13032.trace.log",
+      "nonempty_patch": true,
+      "tool_a_calls": 106,
+      "tool_b_calls": 1,
+      "first_tool_a_log_time": "2026-03-08 01:55:22,096",
+      "last_tool_a_log_time": "2026-03-08 02:32:55,378",
+      "first_tool_b_log_time": "2026-03-08 02:33:50,067",
+      "last_tool_b_log_time": "2026-03-08 02:33:50,067",
+      "injection_selected_count": 5,
+      "selected_subgraph_count": 3,
+      "candidate_count_after_filter": 28,
+      "planning_tips_count": 5,
+      "planning_tips": [
+        {
+          "type": "repair_pattern_v2",
+          "pattern_id": "2ccab4ca-ec1a-4fb8-aba6-32a2f7712011",
+          "recommendation": "Implement a state-checking mechanism in the planning module to detect repetitive cycles and force progression, or add a timeout/iteration limit to break loops and trigger error handling.",
+          "verification_commands": [
+            "pytest -q"
+          ],
+          "confidence": 0.95,
+          "score": 0.495735,
+          "critical_alignment_score": 0.08,
+          "evidence_refs": [
+            "action://0fe60099-c29f-4f09-9ffb-22453788b843",
+            "action://d88f63fa-d50b-4f0a-9a20-246ba32568d3",
+            "action://2207928d-0d5e-4a48-8e42-32817cbcd867",
+            "action://c1d8734e-bc8f-4ffd-8710-77846cefa8ce"
+          ]
+        },
+        {
+          "type": "belief_tip",
+          "belief_id": "6a554daf-2058-4fad-8638-f100d20ddaa3",
+          "belief_type": "workflow",
+          "recommendation": "Generate plan for task -> Generate plan for task -> Generate plan for task",
+          "confidence": 0.5
+        },
+        {
+          "type": "abstract_pattern",
+          "experience_id": "bb9fe85b-bc84-418e-a6fd-14518220bfa9",
+          "pattern_type": "direct_success_flow",
+          "recommendation": "run_done exit_status=submitted has_submission=true ; generate plan for task ; generate plan for task ; generate plan for task ; generate plan for task",
+          "success_conditions": [
+            "inspect_code_context_before_modification",
+            "run_relevant_tests_before_submission",
+            "review_diff_before_submission"
+          ],
+          "failure_avoidance": [
+            "avoid_large_unverified_changes_before_running_checks"
+          ],
+          "confidence": 0.7,
+          "score": 0.445,
+          "critical_alignment_score": 0.0
+        },
+        {
+          "type": "abstract_pattern",
+          "experience_id": "abs_5_1772911069",
+          "pattern_type": "critical_planning_repetitive_planning",
+          "recommendation": "Implement a state-checking mechanism in the planning module to detect repetitive cycles and force progression, or add a timeout/iteration limit to break loops and trigger error handling.",
+          "success_conditions": [
+            "validate_fix_with_targeted_check_before_submission",
+            "apply_strategy_shift_for_repetitive_planning",
+            "include_explicit_test_plan_before_code_edit"
+          ],
+          "failure_avoidance": [
+            "avoid_repeat_repetitive_planning_without_strategy_shift"
+          ],
+          "confidence": 0.95,
+          "score": 0.385,
+          "critical_alignment_score": 0.08
+        },
+        {
+          "type": "workflow_step",
+          "step_number": 1,
+          "intent": "Generate plan for task",
+          "action_type": "tool_call",
+          "recommendation": "Consider: Generate plan for task..."
+        }
+      ],
+      "abstract_generated": 6,
+      "experience_ids": [
+        "bb9fe85b-bc84-418e-a6fd-14518220bfa9",
+        "abs_50_1772933624",
+        "abs_51_1772933624",
+        "abs_52_1772933624",
+        "abs_53_1772933624",
+        "abs_25_1772919541"
+      ],
+      "failure_card_generated": false,
+      "failure_card_reason": "task_success",
+      "failure_card_id": null,
+      "extraction_triggered": true,
+      "extraction_reason": "run_done_high_cost",
+      "llm_used": true,
+      "assessment_count": 5,
+      "abstract_added": 5,
+      "repair_patterns_added": 27,
+      "critical_signal": {
+        "attempt_id": "attempt-0:task_20260308_005515_main",
+        "critical_step": 1,
+        "critical_module": "planning",
+        "error_type": "repetitive_planning",
+        "root_cause": "The system is trapped in a repetitive planning loop due to a failure to transition from planning to execution phases, likely caused by missing or faulty termination conditions in the planning module that prevent progression to subsequent actions.",
+        "cascading_effects": [
+          {
+            "step": 2,
+            "impact": "planning::lack_of_progression"
+          },
+          {
+            "step": 80,
+            "impact": "system::infinite_loop"
+          },
+          {
+            "step": 101,
+            "impact": "planning::constraint_ignorance"
+          },
+          {
+            "step": 106,
+            "impact": "planning::constraint_ignorance"
+          }
+        ],
+        "correction_guidance": "Implement a mechanism to enforce progression after planning completion, such as: 1) Add a maximum iteration limit for planning steps; 2) Introduce state tracking to detect identical consecutive plans and trigger a transition to execution; 3) Validate that planning outputs meet execution-ready criteria before exiting the loop.",
+        "confidence": 0.95
+      },
+      "task_summary": "run_done exit_status=submitted has_submission=True",
+      "synthesized_task": false,
+      "primary_fail_reasons": [],
+      "tool_a_payload_timestamp": "2026-03-08T01:32:48.887306+00:00",
+      "tool_b_payload_timestamp": "2026-03-08T01:33:45.912180+00:00"
+    },
+    {
+      "instance_id": "astropy__astropy-13033",
+      "log_path": "/home/pt/SWE-bench/PDDL_work_mem/06_artificial_intelligence/experiments/03_run_outputs_full_first50_nomem_20min/with_mem/reruns/withmem_full50_20min_p1_online_20260307_194549/outputs/run_outputs_full_first50_with_mem_20min/astropy__astropy-13033/astropy__astropy-13033.trace.log",
+      "nonempty_patch": true,
+      "tool_a_calls": 73,
+      "tool_b_calls": 1,
+      "first_tool_a_log_time": "2026-03-08 02:34:27,676",
+      "last_tool_a_log_time": "2026-03-08 03:00:38,646",
+      "first_tool_b_log_time": "2026-03-08 03:01:47,087",
+      "last_tool_b_log_time": "2026-03-08 03:01:47,087",
+      "injection_selected_count": 5,
+      "selected_subgraph_count": 3,
+      "candidate_count_after_filter": 28,
+      "planning_tips_count": 5,
+      "planning_tips": [
+        {
+          "type": "repair_pattern_v2",
+          "pattern_id": "4958377d-35db-47d7-ad9f-4f5aca88a3c0",
+          "recommendation": "Implement a state machine or progress tracker that enforces transitions after successful planning. Add checks to prevent identical planning actions from repeating consecutively, and introduce timeouts or maximum iteration limits for the planning phase.",
+          "verification_commands": [
+            "pytest -q"
+          ],
+          "confidence": 0.95,
+          "score": 0.4825,
+          "critical_alignment_score": 0.08,
+          "evidence_refs": [
+            "action://04777ba1-5979-4716-88ca-2c9271d9cd1a",
+            "action://c2c386e4-99ef-476d-8a53-dfaf9f30432b",
+            "action://0fe60099-c29f-4f09-9ffb-22453788b843",
+            "action://d88f63fa-d50b-4f0a-9a20-246ba32568d3"
+          ]
+        },
+        {
+          "type": "belief_tip",
+          "belief_id": "6a554daf-2058-4fad-8638-f100d20ddaa3",
+          "belief_type": "workflow",
+          "recommendation": "Generate plan for task -> Generate plan for task -> Generate plan for task",
+          "confidence": 0.55
+        },
+        {
+          "type": "abstract_pattern",
+          "experience_id": "bb9fe85b-bc84-418e-a6fd-14518220bfa9",
+          "pattern_type": "direct_success_flow",
+          "recommendation": "run_done exit_status=submitted has_submission=true ; generate plan for task ; generate plan for task ; generate plan for task ; generate plan for task",
+          "success_conditions": [
+            "inspect_code_context_before_modification",
+            "run_relevant_tests_before_submission",
+            "review_diff_before_submission"
+          ],
+          "failure_avoidance": [
+            "avoid_large_unverified_changes_before_running_checks"
+          ],
+          "confidence": 0.7,
+          "score": 0.445,
+          "critical_alignment_score": 0.0
+        },
+        {
+          "type": "abstract_pattern",
+          "experience_id": "abs_2_1772911069",
+          "pattern_type": "critical_planning_repetitive_planning",
+          "recommendation": "Implement a state machine or progress tracker that enforces transitions after successful planning. Add checks to prevent identical planning actions from repeating consecutively, and introduce timeouts or maximum iteration limits for the planning phase.",
+          "success_conditions": [
+            "validate_fix_with_targeted_check_before_submission",
+            "apply_strategy_shift_for_repetitive_planning",
+            "include_explicit_test_plan_before_code_edit"
+          ],
+          "failure_avoidance": [
+            "avoid_repeat_repetitive_planning_without_strategy_shift"
+          ],
+          "confidence": 0.95,
+          "score": 0.3725,
+          "critical_alignment_score": 0.08
+        },
+        {
+          "type": "workflow_step",
+          "step_number": 1,
+          "intent": "Generate plan for task",
+          "action_type": "tool_call",
+          "recommendation": "Consider: Generate plan for task..."
+        }
+      ],
+      "abstract_generated": 8,
+      "experience_ids": [
+        "bb9fe85b-bc84-418e-a6fd-14518220bfa9",
+        "abs_54_1772935301",
+        "abs_55_1772935301",
+        "abs_56_1772935301",
+        "abs_57_1772935301",
+        "abs_58_1772935301",
+        "abs_59_1772935301",
+        "abs_60_1772935301"
+      ],
+      "failure_card_generated": false,
+      "failure_card_reason": "task_success",
+      "failure_card_id": null,
+      "extraction_triggered": true,
+      "extraction_reason": "run_done_high_cost",
+      "llm_used": true,
+      "assessment_count": 7,
+      "abstract_added": 7,
+      "repair_patterns_added": 38,
+      "critical_signal": {
+        "attempt_id": "attempt-0:task_20260308_013420_main",
+        "critical_step": 1,
+        "critical_module": "planning",
+        "error_type": "excessive_planning",
+        "root_cause": "The planning module is stuck in a loop, repeatedly generating plans without transitioning to execution or reflection phases, likely due to a lack of clear termination criteria or feedback mechanisms to validate plan completeness.",
+        "cascading_effects": [
+          {
+            "step": 2,
+            "impact": "planning::excessive_planning"
+          },
+          {
+            "step": 3,
+            "impact": "planning::excessive_planning"
+          },
+          {
+            "step": 4,
+            "impact": "planning::excessive_planning"
+          },
+          {
+            "step": 5,
+            "impact": "planning::excessive_planning"
+          },
+          {
+            "step": 68,
+            "impact": "planning::constraint_ignorance"
+          },
+          {
+            "step": 73,
+            "impact": "planning::constraint_ignorance"
+          }
+        ],
+        "correction_guidance": "Implement a plan validation step that checks for feasibility or sets a maximum planning iteration limit before forcing a transition to execution. Additionally, integrate a feedback loop where execution outcomes inform subsequent planning to prevent indefinite planning cycles.",
+        "confidence": 0.9
+      },
+      "task_summary": "run_done exit_status=submitted has_submission=True",
+      "synthesized_task": false,
+      "primary_fail_reasons": [],
+      "tool_a_payload_timestamp": "2026-03-08T02:00:33.257462+00:00",
+      "tool_b_payload_timestamp": "2026-03-08T02:01:43.457292+00:00"
+    },
+    {
+      "instance_id": "astropy__astropy-13068",
+      "log_path": "/home/pt/SWE-bench/PDDL_work_mem/06_artificial_intelligence/experiments/03_run_outputs_full_first50_nomem_20min/with_mem/reruns/withmem_full50_20min_p1_online_20260307_194549/outputs/run_outputs_full_first50_with_mem_20min/astropy__astropy-13068/astropy__astropy-13068.trace.log",
+      "nonempty_patch": true,
+      "tool_a_calls": 151,
+      "tool_b_calls": 1,
+      "first_tool_a_log_time": "2026-03-08 03:02:17,230",
+      "last_tool_a_log_time": "2026-03-08 04:03:50,338",
+      "first_tool_b_log_time": "2026-03-08 04:04:27,683",
+      "last_tool_b_log_time": "2026-03-08 04:04:27,683",
+      "injection_selected_count": 5,
+      "selected_subgraph_count": 3,
+      "candidate_count_after_filter": 28,
+      "planning_tips_count": 5,
+      "planning_tips": [
+        {
+          "type": "repair_pattern_v2",
+          "pattern_id": "4958377d-35db-47d7-ad9f-4f5aca88a3c0",
+          "recommendation": "Implement a state machine or progress tracker that enforces transitions after successful planning. Add checks to prevent identical planning actions from repeating consecutively, and introduce timeouts or maximum iteration limits for the planning phase.",
+          "verification_commands": [
+            "pytest -q"
+          ],
+          "confidence": 0.95,
+          "score": 0.4825,
+          "critical_alignment_score": 0.08,
+          "evidence_refs": [
+            "action://04777ba1-5979-4716-88ca-2c9271d9cd1a",
+            "action://c2c386e4-99ef-476d-8a53-dfaf9f30432b",
+            "action://0fe60099-c29f-4f09-9ffb-22453788b843",
+            "action://d88f63fa-d50b-4f0a-9a20-246ba32568d3"
+          ]
+        },
+        {
+          "type": "belief_tip",
+          "belief_id": "6a554daf-2058-4fad-8638-f100d20ddaa3",
+          "belief_type": "workflow",
+          "recommendation": "Generate plan for task -> Generate plan for task -> Generate plan for task",
+          "confidence": 0.6
+        },
+        {
+          "type": "abstract_pattern",
+          "experience_id": "bb9fe85b-bc84-418e-a6fd-14518220bfa9",
+          "pattern_type": "direct_success_flow",
+          "recommendation": "run_done exit_status=submitted has_submission=true ; generate plan for task ; generate plan for task ; generate plan for task ; generate plan for task",
+          "success_conditions": [
+            "inspect_code_context_before_modification",
+            "run_relevant_tests_before_submission",
+            "review_diff_before_submission"
+          ],
+          "failure_avoidance": [
+            "avoid_large_unverified_changes_before_running_checks"
+          ],
+          "confidence": 0.7,
+          "score": 0.445,
+          "critical_alignment_score": 0.0
+        },
+        {
+          "type": "abstract_pattern",
+          "experience_id": "abs_2_1772911069",
+          "pattern_type": "critical_planning_repetitive_planning",
+          "recommendation": "Implement a state machine or progress tracker that enforces transitions after successful planning. Add checks to prevent identical planning actions from repeating consecutively, and introduce timeouts or maximum iteration limits for the planning phase.",
+          "success_conditions": [
+            "validate_fix_with_targeted_check_before_submission",
+            "apply_strategy_shift_for_repetitive_planning",
+            "include_explicit_test_plan_before_code_edit"
+          ],
+          "failure_avoidance": [
+            "avoid_repeat_repetitive_planning_without_strategy_shift"
+          ],
+          "confidence": 0.95,
+          "score": 0.3725,
+          "critical_alignment_score": 0.08
+        },
+        {
+          "type": "workflow_step",
+          "step_number": 1,
+          "intent": "Generate plan for task",
+          "action_type": "tool_call",
+          "recommendation": "Consider: Generate plan for task..."
+        }
+      ],
+      "abstract_generated": 5,
+      "experience_ids": [
+        "bb9fe85b-bc84-418e-a6fd-14518220bfa9",
+        "abs_61_1772939061",
+        "abs_62_1772939061",
+        "abs_63_1772939061",
+        "abs_63_1772939061"
+      ],
+      "failure_card_generated": false,
+      "failure_card_reason": "task_success",
+      "failure_card_id": null,
+      "extraction_triggered": true,
+      "extraction_reason": "run_done_high_cost",
+      "llm_used": true,
+      "assessment_count": 4,
+      "abstract_added": 4,
+      "repair_patterns_added": 20,
+      "critical_signal": {
+        "attempt_id": "attempt-0:task_20260308_020210_main",
+        "critical_step": 1,
+        "critical_module": "planning",
+        "error_type": "inefficient_planning",
+        "root_cause": "planning error 'inefficient_planning' first appears at step 1",
+        "cascading_effects": [
+          {
+            "step": 80,
+            "impact": "planning::lack_of_progress"
+          },
+          {
+            "step": 146,
+            "impact": "planning::constraint_ignorance"
+          },
+          {
+            "step": 151,
+            "impact": "planning::constraint_ignorance"
+          }
+        ],
+        "correction_guidance": "add_explicit_validation_plan_before_edit_and_limit_scope_to_related_files",
+        "confidence": 0.95
+      },
+      "task_summary": "run_done exit_status=submitted has_submission=True",
+      "synthesized_task": false,
+      "primary_fail_reasons": [],
+      "tool_a_payload_timestamp": "2026-03-08T03:03:44.509107+00:00",
+      "tool_b_payload_timestamp": "2026-03-08T03:04:23.141417+00:00"
+    },
+    {
+      "instance_id": "astropy__astropy-13073",
+      "log_path": "/home/pt/SWE-bench/PDDL_work_mem/06_artificial_intelligence/experiments/03_run_outputs_full_first50_nomem_20min/with_mem/reruns/withmem_full50_20min_p1_online_20260307_194549/outputs/run_outputs_full_first50_with_mem_20min/astropy__astropy-13073/astropy__astropy-13073.trace.log",
+      "nonempty_patch": false,
+      "tool_a_calls": 0,
+      "tool_b_calls": 1,
+      "first_tool_a_log_time": null,
+      "last_tool_a_log_time": null,
+      "first_tool_b_log_time": "2026-03-08 04:19:16,506",
+      "last_tool_b_log_time": "2026-03-08 04:19:16,506",
+      "injection_selected_count": 0,
+      "selected_subgraph_count": 0,
+      "candidate_count_after_filter": 0,
+      "planning_tips_count": 0,
+      "planning_tips": [],
+      "abstract_generated": 0,
+      "experience_ids": [],
+      "failure_card_generated": true,
+      "failure_card_reason": "fallback_from_no_task_actions",
+      "failure_card_id": "8877a75d-1e7c-4bac-8b41-9c045f343c2e",
+      "extraction_triggered": false,
+      "extraction_reason": "fallback_from_no_task_actions",
+      "llm_used": false,
+      "assessment_count": 0,
+      "abstract_added": 0,
+      "repair_patterns_added": 0,
+      "critical_signal": {},
+      "task_summary": "run_done exit_status=exit_error has_submission=False",
+      "synthesized_task": true,
+      "primary_fail_reasons": [
+        "llm_insufficient_balance"
+      ],
+      "tool_a_payload_timestamp": null,
+      "tool_b_payload_timestamp": "2026-03-08T03:19:12.892266+00:00"
+    },
+    {
+      "instance_id": "astropy__astropy-13075",
+      "log_path": "/home/pt/SWE-bench/PDDL_work_mem/06_artificial_intelligence/experiments/03_run_outputs_full_first50_nomem_20min/with_mem/reruns/withmem_full50_20min_p1_online_20260307_194549/outputs/run_outputs_full_first50_with_mem_20min/astropy__astropy-13075/astropy__astropy-13075.trace.log",
+      "nonempty_patch": false,
+      "tool_a_calls": 0,
+      "tool_b_calls": 1,
+      "first_tool_a_log_time": null,
+      "last_tool_a_log_time": null,
+      "first_tool_b_log_time": "2026-03-08 04:39:02,714",
+      "last_tool_b_log_time": "2026-03-08 04:39:02,714",
+      "injection_selected_count": 0,
+      "selected_subgraph_count": 0,
+      "candidate_count_after_filter": 0,
+      "planning_tips_count": 0,
+      "planning_tips": [],
+      "abstract_generated": 0,
+      "experience_ids": [],
+      "failure_card_generated": true,
+      "failure_card_reason": "fallback_from_no_task_actions",
+      "failure_card_id": "ece066ca-faaa-4216-b390-d2e911ff2496",
+      "extraction_triggered": false,
+      "extraction_reason": "fallback_from_no_task_actions",
+      "llm_used": false,
+      "assessment_count": 0,
+      "abstract_added": 0,
+      "repair_patterns_added": 0,
+      "critical_signal": {},
+      "task_summary": "run_done exit_status=exit_error has_submission=False",
+      "synthesized_task": true,
+      "primary_fail_reasons": [
+        "llm_insufficient_balance"
+      ],
+      "tool_a_payload_timestamp": null,
+      "tool_b_payload_timestamp": "2026-03-08T03:38:58.034246+00:00"
+    },
+    {
+      "instance_id": "astropy__astropy-13132",
+      "log_path": "/home/pt/SWE-bench/PDDL_work_mem/06_artificial_intelligence/experiments/03_run_outputs_full_first50_nomem_20min/with_mem/reruns/withmem_full50_20min_p1_online_20260307_194549/outputs/run_outputs_full_first50_with_mem_20min/astropy__astropy-13132/astropy__astropy-13132.trace.log",
+      "nonempty_patch": false,
+      "tool_a_calls": 0,
+      "tool_b_calls": 1,
+      "first_tool_a_log_time": null,
+      "last_tool_a_log_time": null,
+      "first_tool_b_log_time": "2026-03-08 04:52:42,791",
+      "last_tool_b_log_time": "2026-03-08 04:52:42,791",
+      "injection_selected_count": 0,
+      "selected_subgraph_count": 0,
+      "candidate_count_after_filter": 0,
+      "planning_tips_count": 0,
+      "planning_tips": [],
+      "abstract_generated": 0,
+      "experience_ids": [],
+      "failure_card_generated": true,
+      "failure_card_reason": "fallback_from_no_task_actions",
+      "failure_card_id": "7420e673-723d-4c4b-b8ff-e8b4798211b8",
+      "extraction_triggered": false,
+      "extraction_reason": "fallback_from_no_task_actions",
+      "llm_used": false,
+      "assessment_count": 0,
+      "abstract_added": 0,
+      "repair_patterns_added": 0,
+      "critical_signal": {},
+      "task_summary": "run_done exit_status=exit_error has_submission=False",
+      "synthesized_task": true,
+      "primary_fail_reasons": [
+        "llm_insufficient_balance"
+      ],
+      "tool_a_payload_timestamp": null,
+      "tool_b_payload_timestamp": "2026-03-08T03:52:38.295091+00:00"
+    },
+    {
+      "instance_id": "astropy__astropy-13158",
+      "log_path": "/home/pt/SWE-bench/PDDL_work_mem/06_artificial_intelligence/experiments/03_run_outputs_full_first50_nomem_20min/with_mem/reruns/withmem_full50_20min_p1_online_20260307_194549/outputs/run_outputs_full_first50_with_mem_20min/astropy__astropy-13158/astropy__astropy-13158.trace.log",
+      "nonempty_patch": false,
+      "tool_a_calls": 0,
+      "tool_b_calls": 1,
+      "first_tool_a_log_time": null,
+      "last_tool_a_log_time": null,
+      "first_tool_b_log_time": "2026-03-08 05:10:26,247",
+      "last_tool_b_log_time": "2026-03-08 05:10:26,247",
+      "injection_selected_count": 0,
+      "selected_subgraph_count": 0,
+      "candidate_count_after_filter": 0,
+      "planning_tips_count": 0,
+      "planning_tips": [],
+      "abstract_generated": 0,
+      "experience_ids": [],
+      "failure_card_generated": true,
+      "failure_card_reason": "fallback_from_no_task_actions",
+      "failure_card_id": "c08f3e65-f736-4c9c-9c62-83816992f577",
+      "extraction_triggered": false,
+      "extraction_reason": "fallback_from_no_task_actions",
+      "llm_used": false,
+      "assessment_count": 0,
+      "abstract_added": 0,
+      "repair_patterns_added": 0,
+      "critical_signal": {},
+      "task_summary": "run_done exit_status=exit_error has_submission=False",
+      "synthesized_task": true,
+      "primary_fail_reasons": [
+        "llm_insufficient_balance"
+      ],
+      "tool_a_payload_timestamp": null,
+      "tool_b_payload_timestamp": "2026-03-08T04:10:19.848341+00:00"
+    },
+    {
+      "instance_id": "astropy__astropy-13162",
+      "log_path": "/home/pt/SWE-bench/PDDL_work_mem/06_artificial_intelligence/experiments/03_run_outputs_full_first50_nomem_20min/with_mem/reruns/withmem_full50_20min_p1_online_20260307_194549/outputs/run_outputs_full_first50_with_mem_20min/astropy__astropy-13162/astropy__astropy-13162.trace.log",
+      "nonempty_patch": false,
+      "tool_a_calls": 0,
+      "tool_b_calls": 1,
+      "first_tool_a_log_time": null,
+      "last_tool_a_log_time": null,
+      "first_tool_b_log_time": "2026-03-08 05:25:16,928",
+      "last_tool_b_log_time": "2026-03-08 05:25:16,928",
+      "injection_selected_count": 0,
+      "selected_subgraph_count": 0,
+      "candidate_count_after_filter": 0,
+      "planning_tips_count": 0,
+      "planning_tips": [],
+      "abstract_generated": 0,
+      "experience_ids": [],
+      "failure_card_generated": true,
+      "failure_card_reason": "fallback_from_no_task_actions",
+      "failure_card_id": "0482b36a-9dd5-43cf-b6df-674dff80f1a1",
+      "extraction_triggered": false,
+      "extraction_reason": "fallback_from_no_task_actions",
+      "llm_used": false,
+      "assessment_count": 0,
+      "abstract_added": 0,
+      "repair_patterns_added": 0,
+      "critical_signal": {},
+      "task_summary": "run_done exit_status=exit_error has_submission=False",
+      "synthesized_task": true,
+      "primary_fail_reasons": [
+        "llm_insufficient_balance"
+      ],
+      "tool_a_payload_timestamp": null,
+      "tool_b_payload_timestamp": "2026-03-08T04:25:11.058592+00:00"
+    },
+    {
+      "instance_id": "astropy__astropy-13234",
+      "log_path": "/home/pt/SWE-bench/PDDL_work_mem/06_artificial_intelligence/experiments/03_run_outputs_full_first50_nomem_20min/with_mem/reruns/withmem_full50_20min_p1_online_20260307_194549/outputs/run_outputs_full_first50_with_mem_20min/astropy__astropy-13234/astropy__astropy-13234.trace.log",
+      "nonempty_patch": false,
+      "tool_a_calls": 0,
+      "tool_b_calls": 1,
+      "first_tool_a_log_time": null,
+      "last_tool_a_log_time": null,
+      "first_tool_b_log_time": "2026-03-08 05:41:40,715",
+      "last_tool_b_log_time": "2026-03-08 05:41:40,715",
+      "injection_selected_count": 0,
+      "selected_subgraph_count": 0,
+      "candidate_count_after_filter": 0,
+      "planning_tips_count": 0,
+      "planning_tips": [],
+      "abstract_generated": 0,
+      "experience_ids": [],
+      "failure_card_generated": true,
+      "failure_card_reason": "fallback_from_no_task_actions",
+      "failure_card_id": "6264e06d-5f51-4bf4-bbf6-07b28ba52e33",
+      "extraction_triggered": false,
+      "extraction_reason": "fallback_from_no_task_actions",
+      "llm_used": false,
+      "assessment_count": 0,
+      "abstract_added": 0,
+      "repair_patterns_added": 0,
+      "critical_signal": {},
+      "task_summary": "run_done exit_status=exit_error has_submission=False",
+      "synthesized_task": true,
+      "primary_fail_reasons": [
+        "llm_insufficient_balance"
+      ],
+      "tool_a_payload_timestamp": null,
+      "tool_b_payload_timestamp": "2026-03-08T04:41:34.195734+00:00"
+    },
+    {
+      "instance_id": "astropy__astropy-13236",
+      "log_path": "/home/pt/SWE-bench/PDDL_work_mem/06_artificial_intelligence/experiments/03_run_outputs_full_first50_nomem_20min/with_mem/reruns/withmem_full50_20min_p1_online_20260307_194549/outputs/run_outputs_full_first50_with_mem_20min/astropy__astropy-13236/astropy__astropy-13236.trace.log",
+      "nonempty_patch": false,
+      "tool_a_calls": 0,
+      "tool_b_calls": 1,
+      "first_tool_a_log_time": null,
+      "last_tool_a_log_time": null,
+      "first_tool_b_log_time": "2026-03-08 05:56:18,016",
+      "last_tool_b_log_time": "2026-03-08 05:56:18,016",
+      "injection_selected_count": 0,
+      "selected_subgraph_count": 0,
+      "candidate_count_after_filter": 0,
+      "planning_tips_count": 0,
+      "planning_tips": [],
+      "abstract_generated": 0,
+      "experience_ids": [],
+      "failure_card_generated": true,
+      "failure_card_reason": "fallback_from_no_task_actions",
+      "failure_card_id": "74c2ba90-0685-4ae7-b9b5-b506e237b3da",
+      "extraction_triggered": false,
+      "extraction_reason": "fallback_from_no_task_actions",
+      "llm_used": false,
+      "assessment_count": 0,
+      "abstract_added": 0,
+      "repair_patterns_added": 0,
+      "critical_signal": {},
+      "task_summary": "run_done exit_status=exit_error has_submission=False",
+      "synthesized_task": true,
+      "primary_fail_reasons": [
+        "llm_insufficient_balance"
+      ],
+      "tool_a_payload_timestamp": null,
+      "tool_b_payload_timestamp": "2026-03-08T04:56:14.227467+00:00"
+    },
+    {
+      "instance_id": "astropy__astropy-13306",
+      "log_path": "/home/pt/SWE-bench/PDDL_work_mem/06_artificial_intelligence/experiments/03_run_outputs_full_first50_nomem_20min/with_mem/reruns/withmem_full50_20min_p1_online_20260307_194549/outputs/run_outputs_full_first50_with_mem_20min/astropy__astropy-13306/astropy__astropy-13306.trace.log",
+      "nonempty_patch": false,
+      "tool_a_calls": 0,
+      "tool_b_calls": 1,
+      "first_tool_a_log_time": null,
+      "last_tool_a_log_time": null,
+      "first_tool_b_log_time": "2026-03-08 06:14:29,572",
+      "last_tool_b_log_time": "2026-03-08 06:14:29,572",
+      "injection_selected_count": 0,
+      "selected_subgraph_count": 0,
+      "candidate_count_after_filter": 0,
+      "planning_tips_count": 0,
+      "planning_tips": [],
+      "abstract_generated": 0,
+      "experience_ids": [],
+      "failure_card_generated": true,
+      "failure_card_reason": "fallback_from_no_task_actions",
+      "failure_card_id": "e4705be4-cd64-4ee6-a972-4db8ddb23b83",
+      "extraction_triggered": false,
+      "extraction_reason": "fallback_from_no_task_actions",
+      "llm_used": false,
+      "assessment_count": 0,
+      "abstract_added": 0,
+      "repair_patterns_added": 0,
+      "critical_signal": {},
+      "task_summary": "run_done exit_status=exit_error has_submission=False",
+      "synthesized_task": true,
+      "primary_fail_reasons": [
+        "llm_insufficient_balance"
+      ],
+      "tool_a_payload_timestamp": null,
+      "tool_b_payload_timestamp": "2026-03-08T05:14:25.290639+00:00"
+    },
+    {
+      "instance_id": "astropy__astropy-13390",
+      "log_path": "/home/pt/SWE-bench/PDDL_work_mem/06_artificial_intelligence/experiments/03_run_outputs_full_first50_nomem_20min/with_mem/reruns/withmem_full50_20min_p1_online_20260307_194549/outputs/run_outputs_full_first50_with_mem_20min/astropy__astropy-13390/astropy__astropy-13390.trace.log",
+      "nonempty_patch": false,
+      "tool_a_calls": 0,
+      "tool_b_calls": 1,
+      "first_tool_a_log_time": null,
+      "last_tool_a_log_time": null,
+      "first_tool_b_log_time": "2026-03-08 06:33:18,187",
+      "last_tool_b_log_time": "2026-03-08 06:33:18,187",
+      "injection_selected_count": 0,
+      "selected_subgraph_count": 0,
+      "candidate_count_after_filter": 0,
+      "planning_tips_count": 0,
+      "planning_tips": [],
+      "abstract_generated": 0,
+      "experience_ids": [],
+      "failure_card_generated": true,
+      "failure_card_reason": "fallback_from_no_task_actions",
+      "failure_card_id": "5ff5d141-e3cf-485e-8f48-19279347360a",
+      "extraction_triggered": false,
+      "extraction_reason": "fallback_from_no_task_actions",
+      "llm_used": false,
+      "assessment_count": 0,
+      "abstract_added": 0,
+      "repair_patterns_added": 0,
+      "critical_signal": {},
+      "task_summary": "run_done exit_status=exit_error has_submission=False",
+      "synthesized_task": true,
+      "primary_fail_reasons": [
+        "llm_insufficient_balance"
+      ],
+      "tool_a_payload_timestamp": null,
+      "tool_b_payload_timestamp": "2026-03-08T05:33:13.805054+00:00"
+    },
+    {
+      "instance_id": "astropy__astropy-13398",
+      "log_path": "/home/pt/SWE-bench/PDDL_work_mem/06_artificial_intelligence/experiments/03_run_outputs_full_first50_nomem_20min/with_mem/reruns/withmem_full50_20min_p1_online_20260307_194549/outputs/run_outputs_full_first50_with_mem_20min/astropy__astropy-13398/astropy__astropy-13398.trace.log",
+      "nonempty_patch": false,
+      "tool_a_calls": 0,
+      "tool_b_calls": 1,
+      "first_tool_a_log_time": null,
+      "last_tool_a_log_time": null,
+      "first_tool_b_log_time": "2026-03-08 06:49:15,647",
+      "last_tool_b_log_time": "2026-03-08 06:49:15,647",
+      "injection_selected_count": 0,
+      "selected_subgraph_count": 0,
+      "candidate_count_after_filter": 0,
+      "planning_tips_count": 0,
+      "planning_tips": [],
+      "abstract_generated": 0,
+      "experience_ids": [],
+      "failure_card_generated": true,
+      "failure_card_reason": "fallback_from_no_task_actions",
+      "failure_card_id": "506225cc-b224-47ba-95d6-ee60afbdc5d2",
+      "extraction_triggered": false,
+      "extraction_reason": "fallback_from_no_task_actions",
+      "llm_used": false,
+      "assessment_count": 0,
+      "abstract_added": 0,
+      "repair_patterns_added": 0,
+      "critical_signal": {},
+      "task_summary": "run_done exit_status=exit_error has_submission=False",
+      "synthesized_task": true,
+      "primary_fail_reasons": [
+        "llm_insufficient_balance"
+      ],
+      "tool_a_payload_timestamp": null,
+      "tool_b_payload_timestamp": "2026-03-08T05:49:12.509608+00:00"
+    },
+    {
+      "instance_id": "astropy__astropy-13404",
+      "log_path": "/home/pt/SWE-bench/PDDL_work_mem/06_artificial_intelligence/experiments/03_run_outputs_full_first50_nomem_20min/with_mem/reruns/withmem_full50_20min_p1_online_20260307_194549/outputs/run_outputs_full_first50_with_mem_20min/astropy__astropy-13404/astropy__astropy-13404.trace.log",
+      "nonempty_patch": false,
+      "tool_a_calls": 0,
+      "tool_b_calls": 1,
+      "first_tool_a_log_time": null,
+      "last_tool_a_log_time": null,
+      "first_tool_b_log_time": "2026-03-08 07:11:56,781",
+      "last_tool_b_log_time": "2026-03-08 07:11:56,781",
+      "injection_selected_count": 0,
+      "selected_subgraph_count": 0,
+      "candidate_count_after_filter": 0,
+      "planning_tips_count": 0,
+      "planning_tips": [],
+      "abstract_generated": 0,
+      "experience_ids": [],
+      "failure_card_generated": true,
+      "failure_card_reason": "fallback_from_no_task_actions",
+      "failure_card_id": "06d1c28b-0ee4-45d8-b743-f86db4b275e7",
+      "extraction_triggered": false,
+      "extraction_reason": "fallback_from_no_task_actions",
+      "llm_used": false,
+      "assessment_count": 0,
+      "abstract_added": 0,
+      "repair_patterns_added": 0,
+      "critical_signal": {},
+      "task_summary": "run_done exit_status=exit_error has_submission=False",
+      "synthesized_task": true,
+      "primary_fail_reasons": [
+        "llm_insufficient_balance"
+      ],
+      "tool_a_payload_timestamp": null,
+      "tool_b_payload_timestamp": "2026-03-08T06:11:52.106511+00:00"
+    },
+    {
+      "instance_id": "astropy__astropy-13417",
+      "log_path": "/home/pt/SWE-bench/PDDL_work_mem/06_artificial_intelligence/experiments/03_run_outputs_full_first50_nomem_20min/with_mem/reruns/withmem_full50_20min_p1_online_20260307_194549/outputs/run_outputs_full_first50_with_mem_20min/astropy__astropy-13417/astropy__astropy-13417.trace.log",
+      "nonempty_patch": false,
+      "tool_a_calls": 0,
+      "tool_b_calls": 1,
+      "first_tool_a_log_time": null,
+      "last_tool_a_log_time": null,
+      "first_tool_b_log_time": "2026-03-08 07:25:27,696",
+      "last_tool_b_log_time": "2026-03-08 07:25:27,696",
+      "injection_selected_count": 0,
+      "selected_subgraph_count": 0,
+      "candidate_count_after_filter": 0,
+      "planning_tips_count": 0,
+      "planning_tips": [],
+      "abstract_generated": 0,
+      "experience_ids": [],
+      "failure_card_generated": true,
+      "failure_card_reason": "fallback_from_no_task_actions",
+      "failure_card_id": "7274a78d-a4fb-4fd6-826f-5613f2f20aa3",
+      "extraction_triggered": false,
+      "extraction_reason": "fallback_from_no_task_actions",
+      "llm_used": false,
+      "assessment_count": 0,
+      "abstract_added": 0,
+      "repair_patterns_added": 0,
+      "critical_signal": {},
+      "task_summary": "run_done exit_status=exit_error has_submission=False",
+      "synthesized_task": true,
+      "primary_fail_reasons": [
+        "llm_insufficient_balance"
+      ],
+      "tool_a_payload_timestamp": null,
+      "tool_b_payload_timestamp": "2026-03-08T06:25:22.690230+00:00"
+    },
+    {
+      "instance_id": "astropy__astropy-13438",
+      "log_path": "/home/pt/SWE-bench/PDDL_work_mem/06_artificial_intelligence/experiments/03_run_outputs_full_first50_nomem_20min/with_mem/reruns/withmem_full50_20min_p1_online_20260307_194549/outputs/run_outputs_full_first50_with_mem_20min/astropy__astropy-13438/astropy__astropy-13438.trace.log",
+      "nonempty_patch": false,
+      "tool_a_calls": 0,
+      "tool_b_calls": 1,
+      "first_tool_a_log_time": null,
+      "last_tool_a_log_time": null,
+      "first_tool_b_log_time": "2026-03-08 07:42:19,170",
+      "last_tool_b_log_time": "2026-03-08 07:42:19,170",
+      "injection_selected_count": 0,
+      "selected_subgraph_count": 0,
+      "candidate_count_after_filter": 0,
+      "planning_tips_count": 0,
+      "planning_tips": [],
+      "abstract_generated": 0,
+      "experience_ids": [],
+      "failure_card_generated": true,
+      "failure_card_reason": "fallback_from_no_task_actions",
+      "failure_card_id": "0346d45a-62b3-4a2f-b857-09add9296fd8",
+      "extraction_triggered": false,
+      "extraction_reason": "fallback_from_no_task_actions",
+      "llm_used": false,
+      "assessment_count": 0,
+      "abstract_added": 0,
+      "repair_patterns_added": 0,
+      "critical_signal": {},
+      "task_summary": "run_done exit_status=exit_error has_submission=False",
+      "synthesized_task": true,
+      "primary_fail_reasons": [
+        "llm_insufficient_balance"
+      ],
+      "tool_a_payload_timestamp": null,
+      "tool_b_payload_timestamp": "2026-03-08T06:42:15.051654+00:00"
+    },
+    {
+      "instance_id": "astropy__astropy-13453",
+      "log_path": "/home/pt/SWE-bench/PDDL_work_mem/06_artificial_intelligence/experiments/03_run_outputs_full_first50_nomem_20min/with_mem/reruns/withmem_full50_20min_p1_online_20260307_194549/outputs/run_outputs_full_first50_with_mem_20min/astropy__astropy-13453/astropy__astropy-13453.trace.log",
+      "nonempty_patch": false,
+      "tool_a_calls": 0,
+      "tool_b_calls": 1,
+      "first_tool_a_log_time": null,
+      "last_tool_a_log_time": null,
+      "first_tool_b_log_time": "2026-03-08 08:01:07,361",
+      "last_tool_b_log_time": "2026-03-08 08:01:07,361",
+      "injection_selected_count": 0,
+      "selected_subgraph_count": 0,
+      "candidate_count_after_filter": 0,
+      "planning_tips_count": 0,
+      "planning_tips": [],
+      "abstract_generated": 0,
+      "experience_ids": [],
+      "failure_card_generated": true,
+      "failure_card_reason": "fallback_from_no_task_actions",
+      "failure_card_id": "a6da86b7-9ab1-4891-96e1-7deb02511996",
+      "extraction_triggered": false,
+      "extraction_reason": "fallback_from_no_task_actions",
+      "llm_used": false,
+      "assessment_count": 0,
+      "abstract_added": 0,
+      "repair_patterns_added": 0,
+      "critical_signal": {},
+      "task_summary": "run_done exit_status=exit_error has_submission=False",
+      "synthesized_task": true,
+      "primary_fail_reasons": [
+        "llm_insufficient_balance"
+      ],
+      "tool_a_payload_timestamp": null,
+      "tool_b_payload_timestamp": "2026-03-08T07:01:02.038152+00:00"
+    },
+    {
+      "instance_id": "astropy__astropy-13462",
+      "log_path": "/home/pt/SWE-bench/PDDL_work_mem/06_artificial_intelligence/experiments/03_run_outputs_full_first50_nomem_20min/with_mem/reruns/withmem_full50_20min_p1_online_20260307_194549/outputs/run_outputs_full_first50_with_mem_20min/astropy__astropy-13462/astropy__astropy-13462.trace.log",
+      "nonempty_patch": false,
+      "tool_a_calls": 0,
+      "tool_b_calls": 1,
+      "first_tool_a_log_time": null,
+      "last_tool_a_log_time": null,
+      "first_tool_b_log_time": "2026-03-08 13:12:51,605",
+      "last_tool_b_log_time": "2026-03-08 13:12:51,605",
+      "injection_selected_count": 0,
+      "selected_subgraph_count": 0,
+      "candidate_count_after_filter": 0,
+      "planning_tips_count": 0,
+      "planning_tips": [],
+      "abstract_generated": 0,
+      "experience_ids": [],
+      "failure_card_generated": true,
+      "failure_card_reason": "fallback_from_no_task_actions",
+      "failure_card_id": "1dde7ea3-1fa0-4450-8742-0804dfb4fba8",
+      "extraction_triggered": false,
+      "extraction_reason": "fallback_from_no_task_actions",
+      "llm_used": false,
+      "assessment_count": 0,
+      "abstract_added": 0,
+      "repair_patterns_added": 0,
+      "critical_signal": {},
+      "task_summary": "run_done exit_status=exit_error has_submission=False",
+      "synthesized_task": true,
+      "primary_fail_reasons": [
+        "llm_insufficient_balance",
+        "docker_build_255"
+      ],
+      "tool_a_payload_timestamp": null,
+      "tool_b_payload_timestamp": "2026-03-08T12:12:48.800873+00:00"
+    },
+    {
+      "instance_id": "astropy__astropy-13465",
+      "log_path": "/home/pt/SWE-bench/PDDL_work_mem/06_artificial_intelligence/experiments/03_run_outputs_full_first50_nomem_20min/with_mem/reruns/withmem_full50_20min_p1_online_20260307_194549/outputs/run_outputs_full_first50_with_mem_20min/astropy__astropy-13465/astropy__astropy-13465.trace.log",
+      "nonempty_patch": false,
+      "tool_a_calls": 0,
+      "tool_b_calls": 1,
+      "first_tool_a_log_time": null,
+      "last_tool_a_log_time": null,
+      "first_tool_b_log_time": "2026-03-08 13:26:20,932",
+      "last_tool_b_log_time": "2026-03-08 13:26:20,932",
+      "injection_selected_count": 0,
+      "selected_subgraph_count": 0,
+      "candidate_count_after_filter": 0,
+      "planning_tips_count": 0,
+      "planning_tips": [],
+      "abstract_generated": 0,
+      "experience_ids": [],
+      "failure_card_generated": true,
+      "failure_card_reason": "fallback_from_no_task_actions",
+      "failure_card_id": "fe593b1f-33a0-4361-a793-3090c00de794",
+      "extraction_triggered": false,
+      "extraction_reason": "fallback_from_no_task_actions",
+      "llm_used": false,
+      "assessment_count": 0,
+      "abstract_added": 0,
+      "repair_patterns_added": 0,
+      "critical_signal": {},
+      "task_summary": "run_done exit_status=exit_error has_submission=False",
+      "synthesized_task": true,
+      "primary_fail_reasons": [
+        "llm_insufficient_balance",
+        "docker_daemon_unavailable",
+        "docker_pull_sigbus"
+      ],
+      "tool_a_payload_timestamp": null,
+      "tool_b_payload_timestamp": "2026-03-08T12:26:18.804240+00:00"
+    }
+  ]
+}

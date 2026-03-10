@@ -1,0 +1,1 @@
+../06_artificial_intelligence/experiments/02_first50_unlimited/no_mem/scripts/run_lite_first50_nomem.sh
