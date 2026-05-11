@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import tempfile
 from collections import deque
 from types import SimpleNamespace
 
@@ -203,3 +205,136 @@ def test_bridge_hook_soft_blocks_new_ad_hoc_script_creation_after_closure(monkey
     assert "Runtime guard blocked new ad-hoc script creation after closure" in step.action
     assert captured
     assert captured[0]["runtime_guard"]["closure_active"] is True
+
+
+def test_bridge_hook_applies_summary_avoid_actions_to_runtime_guard(monkeypatch):
+    monkeypatch.setenv("SWE_AGENT_MEM_INJECT_ENABLED", "1")
+    hook = ExternalToolBridgeHook()
+    payload = {
+        "event_handled": "plan_generated",
+        "trace_id": "trace:summary",
+        "confidence": 0.9,
+        "planning_tips": [
+            {
+                "type": "attempt_summary_v1",
+                "summary_id": "sum_123",
+                "family_id": "attempt_summary:inst:attempt-01",
+                "recommendation": "Avoid creating new repro scripts after reproduction is confirmed.",
+                "subproblem_type": "reproduce_issue",
+                "strategy_label": "ad_hoc_repro_script_loop",
+                "avoid_actions": ["create_new_repro_script_after_repro_confirmed"],
+            }
+        ],
+    }
+    hook._handle_parsed_tool_payload(tool_name="tool_a", parsed=payload)
+    assert "create_new_repro_script_after_repro_confirmed" in hook._blocked_action_patterns
+    assert hook._active_subproblem_type == "reproduce_issue"
+    assert hook._active_strategy_label == "ad_hoc_repro_script_loop"
+    runtime_guard = hook._runtime_guard_payload()
+    assert runtime_guard["active_subproblem_type"] == "reproduce_issue"
+    assert runtime_guard["active_strategy_label"] == "ad_hoc_repro_script_loop"
+    assert "create_new_repro_script_after_repro_confirmed" in runtime_guard["blocked_action_patterns"]
+
+
+def test_bridge_hook_applies_timeout_governance_card_to_runtime_guard(monkeypatch):
+    monkeypatch.setenv("SWE_AGENT_MEM_INJECT_ENABLED", "1")
+    hook = ExternalToolBridgeHook()
+    payload = {
+        "event_handled": "plan_generated",
+        "trace_id": "trace:timeout-card",
+        "confidence": 0.92,
+        "planning_tips": [
+            {
+                "type": "compiler_card",
+                "card_id": "card_timeout",
+                "card_type": "TimeoutGovernanceCard",
+                "family_id": "timeout_governance:inst",
+                "recommendation": "Do not create new repro scripts after reproduction is confirmed.",
+                "subproblem_type": "reproduce_issue",
+                "strategy_label": "ad_hoc_repro_script_loop",
+                "governance_hardness": "guardrail",
+                "avoid_actions": [
+                    "create_new_repro_script_after_repro_confirmed",
+                    "run_broad_regression_before_patch_candidate_exists",
+                ],
+            }
+        ],
+    }
+    hook._handle_parsed_tool_payload(tool_name="tool_a", parsed=payload)
+    runtime_guard = hook._runtime_guard_payload()
+    assert runtime_guard["active_subproblem_type"] == "reproduce_issue"
+    assert runtime_guard["active_strategy_label"] == "ad_hoc_repro_script_loop"
+    assert "create_new_repro_script_after_repro_confirmed" in runtime_guard["blocked_action_patterns"]
+    assert "run_broad_regression_before_patch_candidate_exists" in runtime_guard["blocked_action_patterns"]
+
+
+def test_bridge_hook_writes_hotpath_success_fact_idempotently(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setenv("AGENT_MEM_V21_ENABLE_SUCCESS_FACT_HOTPATH", "1")
+        monkeypatch.setenv("AGENT_MEM_V21_ENABLE_SIDECAR", "1")
+        monkeypatch.setenv("AGENT_MEM_V21_SIDECAR_DIR", tmpdir)
+        monkeypatch.setenv("SWE_AGENT_EXT_RUN_ID", "run-1")
+        monkeypatch.setenv("SWE_AGENT_EXT_ATTEMPT_ID", "attempt-1")
+        monkeypatch.setenv("SWE_AGENT_EXT_INSTANCE_ID", "inst-1")
+        hook = ExternalToolBridgeHook()
+        hook.on_init(agent=SimpleNamespace(name="main"))
+        step = SimpleNamespace(thought="plan the next action", action="pytest tests/test_target.py -q")
+        hook.on_actions_generated(step=step)
+        executed = SimpleNamespace(action=step.action, observation="1 passed")
+        hook.on_action_executed(step=executed)
+        hook.on_action_executed(step=executed)
+
+        rows = []
+        with open(f"{tmpdir}/episode_ledger.jsonl", "r", encoding="utf-8") as f:
+            for raw in f:
+                rows.append(json.loads(raw))
+        success_rows = [row for row in rows if row.get("event") == "success_fact"]
+        assert len(success_rows) == 1
+        assert success_rows[0]["instance_id"] == "inst-1"
+        assert success_rows[0]["success_like"] is True
+
+
+def test_bridge_hook_soft_blocks_summary_avoid_action_pattern(monkeypatch):
+    hook = ExternalToolBridgeHook()
+    hook._blocked_action_patterns = {"create_new_repro_script_after_repro_confirmed"}
+    hook._active_subproblem_type = "reproduce_issue"
+    hook._active_strategy_label = "ad_hoc_repro_script_loop"
+    captured = []
+
+    def fake_run_cmd(*, cmd, tool_name, payload):
+        captured.append(payload)
+
+    monkeypatch.setattr(hook, "_run_cmd", fake_run_cmd)
+    step = SimpleNamespace(
+        thought="create another reproduction script",
+        action="cat > reproduce_more.py <<'PY'\nprint('x')\nPY",
+    )
+    hook.on_actions_generated(step=step)
+    assert "Runtime guard blocked an action pattern discouraged by previous failed attempts" in step.action
+    assert captured
+    assert captured[0]["runtime_guard"]["active_subproblem_type"] == "reproduce_issue"
+    assert "create_new_repro_script_after_repro_confirmed" in captured[0]["runtime_guard"]["blocked_action_patterns"]
+
+
+def test_bridge_hook_blocks_unrelated_module_expansion_from_summary_pattern(monkeypatch):
+    hook = ExternalToolBridgeHook()
+    hook._blocked_action_patterns = {"expand_search_to_unrelated_module_after_localization"}
+    hook._active_subproblem_type = "localize_fix"
+    hook._active_strategy_label = "cross_module_expansion_after_key_signal"
+    captured = []
+
+    def fake_run_cmd(*, cmd, tool_name, payload):
+        captured.append(payload)
+
+    monkeypatch.setattr(hook, "_run_cmd", fake_run_cmd)
+    step = SimpleNamespace(
+        thought="inspect unrelated module",
+        action="rg -n 'WCSAxes' /testbed/astropy/visualization/wcsaxes",
+    )
+    hook.on_actions_generated(step=step)
+    assert "Runtime guard blocked an action pattern discouraged by previous failed attempts" in step.action
+    assert captured
+    assert (
+        "expand_search_to_unrelated_module_after_localization"
+        in captured[0]["runtime_guard"]["blocked_action_patterns"]
+    )

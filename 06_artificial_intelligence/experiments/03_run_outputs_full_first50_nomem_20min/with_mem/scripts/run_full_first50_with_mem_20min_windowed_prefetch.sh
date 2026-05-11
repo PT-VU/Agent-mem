@@ -34,6 +34,8 @@ METRICS_STOP_INDEX="${METRICS_STOP_INDEX:-${STOP_INDEX}}"
 PYTHON_STANDALONE_DIR="${PYTHON_STANDALONE_DIR:-/root}"
 DEPLOYMENT_STARTUP_TIMEOUT_SEC="${DEPLOYMENT_STARTUP_TIMEOUT_SEC:-600}"
 STARTUP_RETRIES="${STARTUP_RETRIES:-1}"
+RUNTIME_PREWARM="${RUNTIME_PREWARM:-1}"
+MAX_ACTIVE_RUN_BATCHES="${MAX_ACTIVE_RUN_BATCHES:-2}"
 SUBSET_LABEL="${SUBSET_LABEL:-SWE-bench Full (first 50 instances, 20min cap)}"
 EXPERIMENT_ID="${EXPERIMENT_ID:-实验02_full_first50_withmem_20min}"
 RUN_SCRIPT_PATH="${RUN_SCRIPT_PATH:-PDDL_work_mem/06_artificial_intelligence/experiments/03_run_outputs_full_first50_nomem_20min/with_mem/scripts/run_full_first50_with_mem_20min_windowed_prefetch.sh}"
@@ -182,12 +184,15 @@ prefetch_images_for_range() {
     [[ -z "${image}" ]] && continue
     if docker image inspect "${image}" >/dev/null 2>&1; then
       echo "[prefetch] exists: ${image}" | tee -a "${prefetch_log}"
-      continue
+    else
+      echo "[prefetch] pull: ${image}" | tee -a "${prefetch_log}"
+      docker pull "${image}" >>"${prefetch_log}" 2>&1 || {
+        echo "[prefetch] WARN pull failed: ${image}" | tee -a "${prefetch_log}"
+      }
     fi
-    echo "[prefetch] pull: ${image}" | tee -a "${prefetch_log}"
-    docker pull "${image}" >>"${prefetch_log}" 2>&1 || {
-      echo "[prefetch] WARN pull failed: ${image}" | tee -a "${prefetch_log}"
-    }
+    if [[ "${RUNTIME_PREWARM}" == "1" ]]; then
+      runtime_guard_prepare_runtime_image "${prefetch_log}" "${image}" "${PYTHON_STANDALONE_DIR}" "linux/amd64" || true
+    fi
   done < <(images_for_ranges "${start}:${end}")
 }
 
@@ -308,11 +313,15 @@ else
       prefetch_next_pid="$!"
     fi
 
+    runtime_guard_mark_stage "${run_log}" "window_${current_start}_${current_end}:preflight"
     runtime_guard_preflight "${run_log}"
+    runtime_guard_mark_stage "${run_log}" "window_${current_start}_${current_end}:capacity_wait"
+    runtime_guard_wait_for_capacity "${run_log}" "${MAX_ACTIVE_RUN_BATCHES}" 10
     run_status=1
     startup_retry_index=0
     while (( startup_retry_index <= STARTUP_RETRIES )); do
       [[ "${startup_retry_index}" -gt 0 ]] && echo "[retry] startup retry ${startup_retry_index}/${STARTUP_RETRIES} for window ${current_start}:${current_end}" | tee -a "${run_log}"
+      runtime_guard_mark_stage "${run_log}" "window_${current_start}_${current_end}:launch_sweagent_retry_${startup_retry_index}"
       set +e
       run_cmd=(
         "${START_WITH_TOOLS}" --mode with-mem
@@ -338,14 +347,19 @@ else
       run_status=$?
       set -e
       if [[ "${run_status}" -eq 0 ]]; then
+        runtime_guard_mark_stage "${run_log}" "window_${current_start}_${current_end}:sweagent_exit_0"
         break
       fi
+      runtime_guard_mark_stage "${run_log}" "window_${current_start}_${current_end}:sweagent_exit_${run_status}"
       if grep -q "Runtime did not start within timeout" "${run_log}"; then
+        runtime_guard_mark_stage "${run_log}" "window_${current_start}_${current_end}:capture_diag_runtime_timeout"
         runtime_guard_capture_diag "${run_log}" "docker.io/swebench/sweb.eval.x86_64."
+        runtime_guard_mark_stage "${run_log}" "window_${current_start}_${current_end}:cleanup_after_runtime_timeout"
         runtime_guard_cleanup_pattern "${run_log}" "docker.io/swebench/sweb.eval.x86_64."
         (( startup_retry_index++ ))
         continue
       fi
+      runtime_guard_mark_stage "${run_log}" "window_${current_start}_${current_end}:capture_diag_non_runtime_failure"
       runtime_guard_capture_diag "${run_log}" "docker.io/swebench/sweb.eval.x86_64."
       break
     done

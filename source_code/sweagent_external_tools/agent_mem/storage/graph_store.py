@@ -46,6 +46,7 @@ class GraphStore:
         self.failure_cards_v2: Dict[str, Dict[str, Any]] = {}
         self.repair_patterns_v2: Dict[str, Dict[str, Any]] = {}
         self.preventive_rules_v2: Dict[str, Dict[str, Any]] = {}
+        self.compiler_cards_v21: Dict[str, Dict[str, Any]] = {}
 
         # Load existing data if storage directory exists
         if self.storage_dir and self.storage_dir.exists():
@@ -97,6 +98,7 @@ class GraphStore:
             self.failure_cards_v2 = self._load_dict_file("failure_cards_v2.json", id_field="card_id")
             self.repair_patterns_v2 = self._load_dict_file("repair_patterns_v2.json", id_field="pattern_id")
             self.preventive_rules_v2 = self._load_dict_file("preventive_rules_v2.json", id_field="rule_id")
+            self.compiler_cards_v21 = self._load_dict_file("compiler_cards_v21.json", id_field="card_id")
 
         except Exception as e:
             print(f"Warning: Failed to load from storage: {e}")
@@ -208,6 +210,10 @@ class GraphStore:
                 json.dumps(self.preventive_rules_v2, ensure_ascii=False, indent=2),
                 encoding="utf-8",
             )
+            (self.storage_dir / "compiler_cards_v21.json").write_text(
+                json.dumps(self.compiler_cards_v21, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
 
             # Save metadata
             metadata = {
@@ -219,6 +225,7 @@ class GraphStore:
                 "total_failure_cards_v2": len(self.failure_cards_v2),
                 "total_repair_patterns_v2": len(self.repair_patterns_v2),
                 "total_preventive_rules_v2": len(self.preventive_rules_v2),
+                "total_compiler_cards_v21": len(self.compiler_cards_v21),
                 "storage_version": "1.0",
             }
             metadata_file = self.storage_dir / "metadata.json"
@@ -699,6 +706,164 @@ class GraphStore:
             out.append(row)
         return out
 
+    # Compiler card operations
+    def upsert_compiler_card_v21(self, payload: Dict[str, Any]) -> str:
+        now = datetime.now(timezone.utc).isoformat()
+        row = dict(payload)
+        card_id = str(row.get("card_id") or "").strip()
+        if not card_id:
+            card_id = f"card_{len(self.compiler_cards_v21) + 1}_{int(datetime.now(timezone.utc).timestamp())}"
+            row["card_id"] = card_id
+        row.setdefault("schema_version", "1.0")
+        row.setdefault("promotion_state", "candidate")
+        row.setdefault("created_at", now)
+        row["last_updated"] = now
+        row["source_object_ids"] = list(dict.fromkeys([str(x).strip() for x in (row.get("source_object_ids") or []) if str(x).strip()]))
+        row["evidence_refs"] = list(dict.fromkeys([str(x).strip() for x in (row.get("evidence_refs") or []) if str(x).strip()]))
+        row["metadata"] = dict(row.get("metadata") or {})
+        existing = self.compiler_cards_v21.get(card_id)
+        if existing:
+            merged = dict(existing)
+            merged.update(row)
+            merged["source_object_ids"] = list(
+                dict.fromkeys(
+                    [str(x).strip() for x in (existing.get("source_object_ids") or []) if str(x).strip()]
+                    + row["source_object_ids"]
+                )
+            )
+            merged["evidence_refs"] = list(
+                dict.fromkeys(
+                    [str(x).strip() for x in (existing.get("evidence_refs") or []) if str(x).strip()]
+                    + row["evidence_refs"]
+                )
+            )
+            merged_meta = dict(existing.get("metadata") or {})
+            merged_meta.update(row["metadata"])
+            merged["metadata"] = merged_meta
+            self.compiler_cards_v21[card_id] = merged
+            return card_id
+        self.compiler_cards_v21[card_id] = row
+        return card_id
+
+    def list_compiler_cards_v21(
+        self,
+        *,
+        max_results: int = 20,
+        promotion_states: Optional[List[str]] = None,
+    ) -> List[Dict[str, Any]]:
+        rows = list(self.compiler_cards_v21.values())
+        if promotion_states:
+            allowed = {str(x).strip().lower() for x in promotion_states if str(x).strip()}
+            rows = [row for row in rows if str(row.get("promotion_state") or "").strip().lower() in allowed]
+        rows.sort(
+            key=lambda row: (
+                float(row.get("confidence", 0.0) or 0.0),
+                str(row.get("last_updated") or ""),
+            ),
+            reverse=True,
+        )
+        return rows[:max_results]
+
+    def list_candidate_compiler_cards(
+        self,
+        *,
+        instance_id: str,
+        run_id: str = "",
+        attempt_id: str = "",
+        max_results: int = 200,
+    ) -> List[Dict[str, Any]]:
+        rows: List[Dict[str, Any]] = []
+        for card in self.compiler_cards_v21.values():
+            state = str(card.get("promotion_state") or "").strip().lower()
+            if state in {"suppressed", "deprecated"}:
+                continue
+            if str(card.get("instance_id") or "").strip() != str(instance_id or "").strip():
+                continue
+            if run_id and str(card.get("run_id") or "").strip() != str(run_id or "").strip():
+                continue
+            if attempt_id and str(card.get("attempt_id") or "").strip() != str(attempt_id or "").strip():
+                continue
+            rows.append(card)
+        rows.sort(key=lambda row: float(row.get("confidence", 0.0) or 0.0), reverse=True)
+        return rows[:max_results]
+
+    def query_compiler_cards_v21(
+        self,
+        *,
+        query_text: str,
+        query_type: str,
+        max_results: int = 4,
+        promotion_states: Optional[List[str]] = None,
+    ) -> List[Dict[str, Any]]:
+        allowed = None
+        if promotion_states:
+            allowed = {str(x).strip().lower() for x in promotion_states if str(x).strip()}
+        q_tokens = {
+            tok
+            for tok in re.split(r"[^a-zA-Z0-9_./-]+", str(query_text or "").lower())
+            if tok
+        }
+        ranked: List[Tuple[float, Dict[str, Any]]] = []
+        for row in self.compiler_cards_v21.values():
+            state = str(row.get("promotion_state") or "").strip().lower()
+            if allowed is not None and state not in allowed:
+                continue
+            if state in {"suppressed", "deprecated"}:
+                continue
+            card_type = str(row.get("card_type") or "")
+            text = " ".join(
+                [
+                    str(row.get("hint") or ""),
+                    str(row.get("recommendation") or ""),
+                    str(row.get("card_type") or ""),
+                    str(row.get("family_id") or ""),
+                ]
+            ).lower()
+            row_tokens = {
+                tok for tok in re.split(r"[^a-zA-Z0-9_./-]+", text) if tok
+            }
+            overlap = len(q_tokens & row_tokens)
+            score = float(row.get("confidence", 0.0) or 0.0)
+            score += min(0.25, 0.04 * overlap)
+            if query_type == "planning" and card_type == "PlanHintCard":
+                score += 0.08
+            if query_type == "planning" and card_type == "SuccessPathCard":
+                score += 0.12
+            if card_type == "BugInvariantCard":
+                score += 0.15
+            if query_type in {"error_recovery", "test_failure_fix"} and card_type in {"RetryHintCard", "SubtaskRiskCard"}:
+                score += 0.08
+            if query_type in {"planning", "error_recovery", "test_failure_fix", "regression_guard"} and card_type == "TimeoutGovernanceCard":
+                score += 0.1
+            ranked.append((score, row))
+        ranked.sort(key=lambda item: item[0], reverse=True)
+        return [dict(row) for _, row in ranked[:max_results]]
+
+    def update_compiler_card_state(
+        self,
+        card_id: str,
+        *,
+        promotion_state: str,
+        eval_ref: str = "",
+        reason: str = "",
+    ) -> bool:
+        row = self.compiler_cards_v21.get(str(card_id))
+        if not row:
+            return False
+        updated = dict(row)
+        updated["promotion_state"] = promotion_state
+        updated["last_updated"] = datetime.now(timezone.utc).isoformat()
+        metadata = dict(updated.get("metadata") or {})
+        if eval_ref:
+            refs = [str(x).strip() for x in (metadata.get("official_eval_refs") or []) if str(x).strip()]
+            refs.append(str(eval_ref).strip())
+            metadata["official_eval_refs"] = list(dict.fromkeys(refs))
+        if reason:
+            metadata["governance_reason"] = reason
+        updated["metadata"] = metadata
+        self.compiler_cards_v21[str(card_id)] = updated
+        return True
+
     def upsert_attempt_summary_v1(self, summary: Dict[str, Any]) -> str:
         now = datetime.now(timezone.utc).isoformat()
         row = dict(summary)
@@ -1083,13 +1248,20 @@ class GraphStore:
         best_id: Optional[str] = None
         best_score = -1
         for summary_id, row in self.attempt_summaries_v1.items():
+            row_instance = str(row.get("instance_id") or "").strip()
+            row_run = str(row.get("run_id") or "").strip()
+            row_attempt = str(row.get("attempt_id") or "").strip()
+            if instance_norm and row_instance != instance_norm:
+                continue
+            if attempt_norm and row_attempt != attempt_norm:
+                continue
             score = 0
-            if instance_norm and str(row.get("instance_id") or "").strip() == instance_norm:
+            if instance_norm and row_instance == instance_norm:
                 score += 1
-            if run_norm and str(row.get("run_id") or "").strip() == run_norm:
+            if attempt_norm and row_attempt == attempt_norm:
+                score += 5
+            if run_norm and row_run == run_norm:
                 score += 2
-            if attempt_norm and str(row.get("attempt_id") or "").strip() == attempt_norm:
-                score += 3
             if score > best_score and score > 0:
                 best_id = summary_id
                 best_score = score
@@ -1439,6 +1611,15 @@ class GraphStore:
             },
             "repair_patterns_v2": {
                 "total": len(self.repair_patterns_v2),
+            },
+            "compiler_cards_v21": {
+                "total": len(self.compiler_cards_v21),
+                "promoted": sum(
+                    1 for row in self.compiler_cards_v21.values() if str(row.get("promotion_state", "")).lower() == "promoted"
+                ),
+                "candidate": sum(
+                    1 for row in self.compiler_cards_v21.values() if str(row.get("promotion_state", "")).lower() == "candidate"
+                ),
             },
             "networkx": nx_stats,
             "storage_dir": str(self.storage_dir) if self.storage_dir else None,

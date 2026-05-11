@@ -9,6 +9,7 @@ from ..processing.official_eval_bridge import (
     extract_changed_files_from_patch,
     extract_task_summary,
     extract_validation_summary,
+    infer_attempt_id,
     infer_eval_outcome,
 )
 
@@ -28,6 +29,11 @@ def test_build_outcome_map_reads_eval_lists() -> None:
         "c": "incomplete",
         "d": "incomplete",
     }
+
+
+def test_infer_attempt_id_from_run_id() -> None:
+    assert infer_attempt_id("repeat5_single_withmem_closedloop_astropy__astropy-11693_attempt_02") == "attempt-02"
+    assert infer_attempt_id("run-without-attempt") == ""
 
 
 def test_extract_changed_files_and_validation_and_task_summary(tmp_path: Path) -> None:
@@ -93,9 +99,10 @@ def test_extract_changed_files_and_validation_and_task_summary(tmp_path: Path) -
         base_outcome="unresolved",
         report_path="/tmp/report.json",
         instance_dir=instance_dir,
-        run_id="demo-run",
+        run_id="demo-run_attempt_02",
     )
     assert event["official_eval_status"] == "unresolved"
+    assert event["attempt_id"] == "attempt-02"
     assert event["changed_files"] == ["pkg/a.py", "pkg/b.py"]
     assert event["validation_summary"]["commands"]
     assert "Fix crash when parser receives empty input." in event["task_summary"]

@@ -1,0 +1,363 @@
+# 多 Agent 记忆框架升级思路探索
+
+> 本文基于当前 `sweagent_external_tools_v2` 框架的实际架构，结合近期多 Agent 代码修复研究（MarsCode、MASAI、SWE-Debate、Reflection-Driven Control、RepairAgent 等），系统探讨将现有单 agent 记忆框架升级为多 Agent 架构的可能性。
+> 按复杂度从低到高分三个层级，每个方向都包括：核心思路、接入点、预期效果、实现复杂度。
+
+---
+
+## 一、当前框架的核心瓶颈
+
+在讨论多 Agent 升级之前，先明确单 agent 框架目前做不到什么，这些正是多 Agent 可以解决的地方：
+
+| 瓶颈 | 具体表现 |
+|------|---------|
+| **注入内容"一刀切"** | 同一张 BugInvariantCard，无论 agent 当前在探索阶段还是修复阶段，注入的文本完全相同；agent 需要自己判断哪部分与当前状态相关，消耗有效 context |
+| **记忆提取时机滞后** | 所有记忆写入只发生在 attempt 结束后；当前 attempt 内部产生的中间发现（如已定位的 bug 位置）无法实时共享给同步进行的其他 attempt |
+| **策略决策信息稀疏** | ReuseExploreScheduler 只能依赖卡片数量（n_resolved, n_failed）决策，没有利用 agent 当前轨迹的语义内容 |
+| **无跨实例泛化** | 记忆是 per-instance 的，同一项目内多个 bug 的修复经验无法相互传递 |
+| **单点修复路径** | 每次 attempt 只走一条修复路径，即使 BugInvariantCard 暗示了多条可能路径也无法并行探索 |
+
+---
+
+## 二、Tier 1：轻量扩展（不改变整体架构，插入小型 Agent）
+
+这一层的改动都可以通过在现有 BridgeHook 的特定位置插入额外 LLM 调用实现，不需要修改编排器或 Docker 环境。
+
+---
+
+### T1-A：Memory Reformulation Agent（记忆重构 Agent）
+
+**来源：** 用户建议 + Reflection-Driven Control（2024）模式
+
+**核心思路：**
+
+当前 Tool A 返回的记忆卡文本是"通用"的，例如 BugInvariantCard 的 `recommendation` 是一段描述修复方式的自然语言。这段文字是基于过去某次成功 attempt 的上下文写的，但当前 attempt 的执行状态可能完全不同——它可能正卡在某个不同的子问题上。
+
+引入一个 **Reformulation Agent**，在记忆缓冲（`_buffer_memory_hints()`）之后、prompt 注入（`_select_hints_for_injection()`）之前，执行一次"上下文感知的改写"：
+
+```
+输入：
+  - 主 agent 最近 5 步的 (action, observation) 摘要
+  - 原始记忆卡（BugInvariantCard、BugAntiPatternCard 等）
+  - 当前步骤类型（探索中 / 已定位 / 正在修复 / 准备提交）
+
+输出：
+  - 改写后的 hint 文本，突出与当前步骤最相关的部分
+  - 可选：抑制与当前状态无关的内容（例如步骤 5 前不展示详细的 diff）
+```
+
+**具体示例：**
+
+原始 BugInvariantCard hint：
+> "Fix requires modifying `_cstack()` in `separable.py` line 242. The key change is replacing the literal `1` assignment with the actual `right` matrix."
+
+Agent 当前处于 step 3，正在做 `grep -r` 搜索文件位置：
+
+改写后：
+> "[当前状态：定位阶段] 已知修复目标文件：`astropy/modeling/separable.py`，函数 `_cstack()`，第 242 行。可直接跳到该位置，无需继续 grep。"
+
+**接入点：** `bridge_hook.py` → `_buffer_memory_hints()` 结束后，调用一次 LLM API（同 `LLMExperienceExtractor.from_env()`），传入 `trajectory_summary + raw_cards`，替换 hint 文本。
+
+**预期效果：**
+- 减少 agent 在错误阶段使用错误粒度信息导致的偏差
+- 对 VERBATIM_REUSE 策略尤其有效（直接告诉 agent "现在就可以复用，跳过探索"）
+- 节省 agent 解读通用 hint 的 token 消耗
+- 直接针对当前实验中 sympy-13551 型天花板失败：注入了正确内容但 agent 在错误时机读取，导致走偏
+
+**实现复杂度：** ★★☆☆☆（一次额外 LLM call，~3-5s 额外 overhead，纳入 Watchdog 计算）
+
+---
+
+### T1-B：Async Interim Memory Mining（实时中间记忆写入）
+
+**核心思路：**
+
+当前的记忆写入只有两个时机：attempt 结束且官方评测完成。但在一次 attempt 内部，agent 经常会在 step 15-20 完成 bug 定位，然后再花 step 20-40 生成修复。这中间产生的定位信息——"bug 在 `X` 文件的 `Y` 函数"——如果能立即写入记忆，就可以：
+1. 帮助同时运行的其他并行 attempt
+2. 在当前 attempt 自身的后续步骤中，以更高置信度重新注入（step 30 再次确认 step 15 的定位）
+
+**引入 "Interim Mining Agent"：**
+
+```
+触发条件（任一满足）：
+  - 连续 3 步的 observation 中出现文件+行号定位模式
+  - agent 首次成功运行目标测试（observation 出现 "passed"）
+  - is_code_edit_action() 首次触发（agent 已开始修复）
+
+行为：
+  - 异步调用 Tool A 的 "interim_card_write" endpoint（不阻塞主 agent）
+  - 写入轻量 InterimLocalizationCard / InterimProgressCard
+  - 存入独立的 "in_progress_cache"（与 GraphStore 隔离，避免污染已验证卡片）
+  - 同一实例的其他并行 attempt 通过 Tool A 查询时可读取此 cache
+```
+
+**接入点：** `on_step_done()` 中满足触发条件时，非阻塞地启动 Tool A 的 interim 写入（不写入 overhead，不影响 Watchdog）。
+
+**预期效果：**
+- 对 attempt 2 及以后：可在 attempt 1 已定位 bug 的基础上直接跳过探索，预期节省 30-40% tokens
+- 与 T2-A（并行策略 Agent）组合时效果倍增
+
+**实现复杂度：** ★★★☆☆（需要 Tool A 端实现 in_progress_cache，修改 GraphStore 读取逻辑）
+
+---
+
+### T1-C：Pre-submit Critic Agent（提交前语义审查 Agent）
+
+**来源：** RepairAgent（Thompson Sampling + 自我批评）、当前 PatchConsistencyGate 的语义升级
+
+**核心思路：**
+
+当前 PatchConsistencyGate 做的是"哈希比对"——检查 patch 签名是否与已知失败 patch 匹配，这是语法层面的检查。引入 **Critic Agent** 做语义层面的审查：
+
+```
+触发：主 agent 即将 submit
+
+输入：
+  - 当前 patch diff（完整文本）
+  - bug description（原始 issue）
+  - BugInvariantCard（已知成功 patch 的语义描述）
+  - BugAntiPatternCard（已知失败 patch 的语义描述）
+  - 最近 3 次测试的输出
+
+Critic Agent 输出：
+  {
+    "semantic_match_with_invariant": 0.8,    // 与成功卡语义相似度
+    "semantic_match_with_anti_pattern": 0.1, // 与失败卡相似度（越低越好）
+    "verdict": "approve" | "revise" | "reject",
+    "revision_hint": "参数顺序与 invariant 不符，建议调换 left/right"
+  }
+```
+
+- `approve`：直接提交
+- `revise`：将 revision_hint 作为高优先级 hint 注入，给主 agent 一次修改机会（下一步再次 submit 时直接放行）
+- `reject`：触发 force_reuse，从 BugInvariantCard 的 verbatim_diff 直接构造提交
+
+**接入点：** `_v2_check_consistency_gate()` 之后追加，仅在有有效 BugInvariantCard 时触发，无卡时直接 approve。
+
+**预期效果：**
+- 捕获"patch 结构对但细节错"的情况（当前 hash 比对无法检测）
+- 与 T1-A 组合效果最佳：T1-A 确保注入内容是上下文相关的，T1-C 验证执行是否真的遵循了记忆
+
+**实现复杂度：** ★★★☆☆（LLM call 约 5-10s，需处理 Critic 不可用时的 approve fallback）
+
+---
+
+## 三、Tier 2：中度重构（需要编排器配合，改变 attempt 运行方式）
+
+---
+
+### T2-A：Parallel Strategy Agents with Shared Live Memory（并行策略 Agent + 共享实时记忆）
+
+**来源：** AlphaCode 大规模采样 + 当前 ReuseExploreScheduler 的并行化
+
+**核心思路：**
+
+当前框架在同一实例上**串行**跑 10 次 attempt，每次完成后才更新记忆，下次 attempt 才能受益。
+
+改为**并发运行 3 个策略 Agent，共享同一个 live GraphStore**：
+
+```
+同一 bug 实例，同时启动 3 个 attempt：
+
+Agent A: 策略 = VERBATIM_REUSE
+  → 严格复用 BugInvariantCard 的 verbatim_diff
+  → 目标：快速验证成功路径是否可复现（token 消耗最少）
+
+Agent B: 策略 = EXPLORE_AROUND_INVARIANT
+  → 从 BugInvariantCard 的锚点出发，局部变体探索
+  → 目标：发现成功路径的变体
+
+Agent C: 策略 = explore_fresh（仅注入 AntiPattern）
+  → 自由探索，但规避已知错误路径
+  → 目标：发现全新解法，扩展记忆库
+
+三者共享 in_progress_cache（T1-B 引入）：
+  Agent A 在 step 10 定位到新文件路径 → 立即写入 cache
+  Agent B/C 下一步查询 Tool A 时读到此信息 → 调整方向
+
+结果处理：
+  谁先通过本地测试 → 发起官方评测（其余 attempt 继续运行直到预算耗尽）
+  resolved → 所有有效轨迹写入 GraphStore
+  全部 unresolved → 所有失败模式写入 BugAntiPatternCard
+```
+
+**与当前架构的本质差异：**
+- 当前：记忆在 attempt N 结束后才对 attempt N+1 有效（串行）
+- 升级：记忆在 attempt 内部实时共享，三者互相"学习"（并行 + 实时）
+
+**预期效果：**
+- 3 个并行 attempt 的总 token 消耗可能少于当前串行 3 次 attempt（共享中间发现，避免重复探索）
+- 对 nomem 0% 的实例（如 sympy-13031）：explore_fresh 有更多概率找到全新路径，同时 VERBATIM_REUSE 和 EXPLORE 通过 cache 共享定位发现
+
+**实现复杂度：** ★★★★☆（需要编排器支持同一实例 3 个并行 attempt + in_progress_cache 的并发安全读写）
+
+---
+
+### T2-B：Specialist Pipeline（专家流水线，类 MASAI / Agentless）
+
+**来源：** MASAI（2024，28.33% SWE-bench Lite）、Agentless（2024）、MarsCode（39.33%，第 1 名）
+
+**核心思路：**
+
+将"一个 SWE-agent 负责从定位到修复到提交全流程"拆分为三个**专注的短 context Agent**：
+
+```
+Stage 1: Localizer Agent
+  输入：bug description + codebase 结构 + LocalizationCard（如果有）
+  职责：仅定位 bug 位置（文件、函数、行范围）
+  输出：{file, function, line_range, confidence}
+  token 预算：~300s（远少于全流程 1200s）
+
+Stage 2: Fixer Agent
+  输入：精确定位 + bug description + BugInvariantCard + BugAntiPatternCard
+  职责：仅生成 patch（已知定位，不再探索）
+  输出：diff 文本
+  token 预算：~400s
+  优势：context 中无探索阶段的大量 observations，LLM 生成质量更高
+
+Stage 3: Validator Agent
+  输入：patch + 测试套件 + ValidationCard（过往验证经验）
+  职责：运行测试 + 检查副作用 + 决定提交或回退
+  输出：submit | request_revision（附修改建议）
+  token 预算：~300s
+```
+
+**记忆分层存储：**
+- `LocalizationCard`：Stage 1 的定位结果，下次 attempt 的 Localizer 直接跳过搜索
+- `FixCard`（即现有 BugInvariantCard）：Stage 2 注入
+- `ValidationCard`：Stage 3 的测试通过/失败历史
+
+**MASAI 论文的关键发现（直接支持此方案）：** 避免长轨迹是提升 SWE-bench 准确率的核心——每个 Agent 聚焦短任务，context 更干净，错误率更低。本方案的记忆层在此基础上增加了"跨 attempt 的局部经验复用"，使 Localizer 在第 2+ attempt 几乎免费完成定位。
+
+**实现复杂度：** ★★★★☆（需要修改编排器以支持顺序执行不同 agent 配置，以及流水线失败时的 fallback 降级）
+
+---
+
+### T2-C：Debate + Ensemble（辩论机制）
+
+**来源：** SWE-Debate（2025）
+
+**核心思路：**
+
+对于 nomem 解出率处于 20-70% 的"中间难度"实例（记忆框架效果最好的区间），运行辩论机制：
+
+```
+Round 1：3 个独立 Fixer Agent 各自生成 patch 候选（P1, P2, P3）
+  - 每个 Fixer 注入不同视角的 BugInvariantCard（原始 / 仅 anchor / 仅 verbatim_diff）
+
+Round 2：每个 Fixer 看到其他两者的 patch，被要求：
+  a) 指出对方 patch 的潜在问题
+  b) 根据辩论更新自己的候选（P1', P2', P3'）
+
+Round 3：Judge Agent 综合评判：
+  - 三个最终 patch 候选 + 本地测试结果
+  - BugInvariantCard（已知正确模式参照）
+  - BugAntiPatternCard（已知失败模式参照）
+  - 输出：最终提交 patch + 置信度
+```
+
+**预期效果：**
+- 辩论帮助 agent 跳出局部最优（SWE-Debate 核心发现：辩论能识别跨模块依赖问题）
+- 与记忆框架结合后，Judge 有 ground truth 参照（历史成功/失败 patch），判断更可靠
+- 适合"方向对但细节错"的 bug（3 个 agent 相互纠错）
+
+**实现复杂度：** ★★★★☆（多轮 LLM 调用，token 约为当前 3 倍，但可减少 attempt 次数，总成本相当）
+
+---
+
+## 四、Tier 3：架构重构（跨实例知识图谱）
+
+---
+
+### T3-A：Meta-Agent（跨实例模式提取 Agent）
+
+**核心思路：**
+
+当前记忆完全 per-instance 隔离。但同一 Python 项目的多个 bug 往往共享底层模式。引入 **Meta-Agent**，在一批实例完成后异步运行：
+
+```
+输入：同一 project 下所有已解决实例的 BugInvariantCard + SuccessPathCard
+
+操作 1：聚类相似 patch 模式
+  → 识别 "Django model field validation: always check `_meta.get_field()` before modifying" 等规律
+
+操作 2：生成 ProjectPatternCard（新卡片类型）
+  → 不绑定 instance_id，存储在 shared project-level GraphStore
+
+操作 3：为新实例注入 project-level 上下文
+  → 主 agent 启动时，除 instance-level 记忆外，额外注入该项目的 ProjectPatternCard
+```
+
+**对 F3 实验的直接价值：**
+- F3 实验 Django × 3、Sympy × 3、Astropy × 3：如果 Django 第 1 个实例成功，其模式可以帮助 Django 第 2、3 个实例
+- 当前框架完全做不到这一点（每个实例的 GraphStore 完全隔离）
+
+**实现复杂度：** ★★★★★（需要新的 ProjectGraphStore、Meta-Agent 触发逻辑、跨实例 card 注入）
+
+---
+
+### T3-B：Hierarchical Agent Orchestrator（三层 Agent 架构）
+
+```
+Layer 0: Orchestrator（已有，负责调度）
+
+Layer 1: Instance Strategy Agent（新增）
+  输入：instance description + project history + 已有记忆卡片数量
+  输出：{strategy, specialist_pipeline, parallel_count: 1-3}
+  运行时机：每个 instance 开始前，一次性决策
+  类比：MASAI 的任务分解层
+
+Layer 2: Execution Agent（主 SWE-agent，已有）
+
+Layer 3: Memory Curator Agent（新增，异步）
+  职责：合并重复卡片、降级低置信度卡片、聚合相似 AntiPatternCard
+  运行时机：attempt 间隙（不占用 agent 预算）
+```
+
+**实现复杂度：** ★★★★★（需要设计 Agent 间通信协议 + 全新 Layer 1 实现）
+
+---
+
+## 五、综合评估与建议路线
+
+### 性价比矩阵
+
+| 方案 | 预期解题率提升 | Token 效率变化 | 实现复杂度 | 推荐优先级 |
+|------|:---:|:---:|:---:|:---:|
+| T1-A 记忆重构 Agent | 中（+10-15% 相对） | -10% | ★★☆☆☆ | **P0** |
+| T1-C Pre-submit Critic | 中（减少错误提交） | ±0 | ★★★☆☆ | **P1** |
+| T1-B 实时记忆写入 | 中-高 | -20~30% | ★★★☆☆ | **P1** |
+| T2-A 并行策略 Agent | 高 | -15%（总量） | ★★★★☆ | **P2** |
+| T2-B 专家流水线 | 高（定位容易的 bug） | -40% | ★★★★☆ | **P2** |
+| T2-C 辩论机制 | 中（20-70% 区间） | +200%（多次） | ★★★★☆ | **P3** |
+| T3-A 跨实例 Meta-Agent | 高（长期） | ±0 | ★★★★★ | **P3** |
+| T3-B 三层编排器 | 高（长期） | 不确定 | ★★★★★ | **P4** |
+
+### 建议实施顺序
+
+**第一步（可在当前论文实验框架内实现）：T1-A + T1-C**
+- T1-A 只需在 `_buffer_memory_hints()` 后插入一次 LLM call，overhead ≤ 5s，可纳入 Watchdog
+- T1-C 在现有 PatchConsistencyGate 之上扩展，接入点自然
+- 两者组合形成"注入前个性化 → 提交前语义验证"闭环，直接针对 sympy-13551 型天花板失败的根因
+
+**第二步（架构论文方向）：T2-B 专家流水线**
+- 与 MASAI、Agentless 等同类工作形成直接对比点
+- 记忆框架在流水线架构下以分层方式积累 LocalizationCard / FixCard / ValidationCard
+- 核心实验设计：有无持久化分层记忆的 Specialist Pipeline 对比
+
+**第三步（长期研究）：T3-A 跨实例 Meta-Agent**
+- 直接解决 per-instance 记忆的根本局限
+- 与 codebase-level RAG 研究方向融合
+
+---
+
+## 六、与已有研究的对位
+
+| 本框架升级方向 | 对应研究 | 本方案的差异与增量 |
+|------|---------|--------|
+| T1-A 记忆重构 | Reflection-Driven Control（2024） | 彼研究在单次运行内做实时反思；本方案跨 attempt 利用历史记忆做个性化重构，信息更丰富 |
+| T1-B 实时写入 | RepairAgent 的在线学习 | RepairAgent 在单次运行内更新策略；本方案写入持久 GraphStore，对后续 attempt 永久有效 |
+| T2-A 并行 + 共享记忆 | Dual-Cluster Memory Agent（2025） | 彼研究区分"短期工作记忆"和"长期语义记忆"；本方案的 in_progress_cache 是短期记忆的实时跨 attempt 共享 |
+| T2-B 专家流水线 | MASAI（2024）、Agentless | MASAI/Agentless 无跨 attempt 持久记忆；本方案的 LocalizationCard 使 Localizer 第 2 次起几乎免费定位 |
+| T2-C 辩论 | SWE-Debate（2025） | SWE-Debate 依赖代码依赖图做 fault localization；本方案辩论有记忆卡作为 ground truth 参照，裁判更可靠 |
+| T3-A Meta-Agent | MarsCode 的代码知识图谱 | MarsCode 的 KG 是静态 codebase 索引；本方案的 ProjectPatternCard 是动态积累的修复经验 |

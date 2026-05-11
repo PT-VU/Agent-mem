@@ -21,7 +21,8 @@ def _load_metrics_module():
 def _inject_query(hints: list[str]) -> list[dict[str, str]]:
     lines = [
         "[AgentMem Hints]",
-        "Use these hints only when relevant to the current repository state.",
+        "Treat matching hints as high-priority guidance for this attempt.",
+        "Avoid over-exploration: reuse validated repro/fix paths first, and once a minimal plausible patch exists, validate it before broadening the search.",
     ]
     for i, h in enumerate(hints, start=1):
         lines.append(f"{i}. {h}")

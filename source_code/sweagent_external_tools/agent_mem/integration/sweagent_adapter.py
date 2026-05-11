@@ -17,11 +17,22 @@ from pathlib import Path
 from ..core.problem_file import ProblemFile, ActionType, Outcome
 from ..processing.action_logger import ActionLogger
 from ..processing.abstract_experience import AbstractExperienceBuilder
+from ..processing.card_compiler import CardCompiler
 from ..processing.evaluation_feedback import EvaluationFeedbackProcessor
 from ..processing.extraction_orchestrator import ExtractionOrchestrator
 from ..processing.failure_card_builder import FailureCardBuilder
 from ..processing.kg_writer import KGWriter, EmbeddingGenerator
+from ..processing.object_governance_policy import ObjectGovernancePolicy
 from ..processing.rca_agent import RCAAgent
+from ..processing.subtask_edge_builder import SubtaskEdgeBuilder
+from ..processing.subtask_projector import SubtaskProjector
+from ..processing.v21_shared import (
+    RUN_DONE_CONTEXT_FIELD_SPECS,
+    build_success_fact_idempotency_key,
+    classify_success_like,
+    stable_patch_digest,
+)
+from ..storage.episode_ledger_store import EpisodeLedgerStore
 from ..storage.graph_store import GraphStore
 from ..retrieval.memory_agent import MemoryAgent
 
@@ -47,7 +58,8 @@ class SWEAgentAdapter:
                  *,
                  embedding_model: str = "sentence-transformers",
                  embedding_model_name: str = "all-MiniLM-L6-v2",
-                 embedding_dimension: int = 384):
+                 embedding_dimension: int = 384,
+                 v21_config: Optional[Dict[str, Any]] = None):
         """
         Initialize SWEAgentAdapter.
 
@@ -69,10 +81,24 @@ class SWEAgentAdapter:
         self.memory_agent = MemoryAgent(self.graph_store)
         self.abstract_experience_builder = AbstractExperienceBuilder()
         self.extraction_orchestrator = ExtractionOrchestrator.from_env()
-        self.evaluation_feedback = EvaluationFeedbackProcessor(self.graph_store)
+        self.subtask_projector = SubtaskProjector()
+        self.subtask_edge_builder = SubtaskEdgeBuilder()
+        self.card_compiler = CardCompiler()
         self.failure_card_builder = FailureCardBuilder()
         self.rca_agent = RCAAgent(self.graph_store.observation_kg)
         self.enable_online_embeddings = _env_bool("AGENT_MEM_ENABLE_ONLINE_EMBEDDINGS", True)
+        self.v21_config = self._resolve_v21_config(storage_dir=storage_dir, raw=v21_config or {})
+        self.governance_policy = ObjectGovernancePolicy(
+            max_cards_per_query=max(1, int(self.v21_config.get("max_cards_per_query", 4) or 4))
+        )
+        self.episode_ledger_store: Optional[EpisodeLedgerStore] = None
+        if self.v21_config["enable_sidecar"]:
+            self.episode_ledger_store = EpisodeLedgerStore(self.v21_config["sidecar_dir"])
+        self.evaluation_feedback = EvaluationFeedbackProcessor(
+            self.graph_store,
+            governance_policy=self.governance_policy,
+            episode_ledger_store=self.episode_ledger_store,
+        )
 
         # State tracking
         self.current_task_id: Optional[str] = None
@@ -84,6 +110,69 @@ class SWEAgentAdapter:
             storage_path.mkdir(parents=True, exist_ok=True)
             self._state_file = storage_path / "active_tasks.json"
             self._rw_map_file = storage_path / "experience_rw_map.jsonl"
+
+    @staticmethod
+    def _coerce_bool(value: Any, default: bool) -> bool:
+        if value is None:
+            return default
+        if isinstance(value, bool):
+            return value
+        return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+    @staticmethod
+    def _coerce_int(value: Any, default: int) -> int:
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return default
+
+    def _resolve_v21_config(
+        self,
+        *,
+        storage_dir: Optional[str],
+        raw: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        sidecar_default = os.getenv("AGENT_MEM_V21_SIDECAR_DIR")
+        if not sidecar_default:
+            if storage_dir:
+                sidecar_default = str(Path(storage_dir) / "sidecar")
+            else:
+                sidecar_default = "./agent_mem_data/sidecar"
+        return {
+            "enable_success_fact_hotpath": self._coerce_bool(
+                raw.get("enable_success_fact_hotpath"),
+                _env_bool("AGENT_MEM_V21_ENABLE_SUCCESS_FACT_HOTPATH", False),
+            ),
+            "enable_sidecar": self._coerce_bool(
+                raw.get("enable_sidecar"),
+                _env_bool("AGENT_MEM_V21_ENABLE_SIDECAR", False),
+            ),
+            "enable_subtask_projection": self._coerce_bool(
+                raw.get("enable_subtask_projection"),
+                _env_bool("AGENT_MEM_V21_ENABLE_SUBTASK_PROJECTION", False),
+            ),
+            "enable_card_compiler": self._coerce_bool(
+                raw.get("enable_card_compiler"),
+                _env_bool("AGENT_MEM_V21_ENABLE_CARD_COMPILER", False),
+            ),
+            "enable_governance": self._coerce_bool(
+                raw.get("enable_governance"),
+                _env_bool("AGENT_MEM_V21_ENABLE_GOVERNANCE", False),
+            ),
+            "sidecar_dir": str(raw.get("sidecar_dir") or sidecar_default),
+            "hotpath_timeout_ms": self._coerce_int(
+                raw.get("hotpath_timeout_ms"),
+                self._coerce_int(os.getenv("AGENT_MEM_V21_HOTPATH_TIMEOUT_MS"), 50),
+            ),
+            "coldpath_timeout_ms": self._coerce_int(
+                raw.get("coldpath_timeout_ms"),
+                self._coerce_int(os.getenv("AGENT_MEM_V21_COLDPATH_TIMEOUT_MS"), 5000),
+            ),
+            "max_cards_per_query": self._coerce_int(
+                raw.get("max_cards_per_query"),
+                self._coerce_int(os.getenv("AGENT_MEM_V21_MAX_CARDS_PER_QUERY"), 4),
+            ),
+        }
 
     def _maybe_generate_embeddings(self, problem_file: ProblemFile) -> None:
         if not self.enable_online_embeddings:
@@ -230,6 +319,71 @@ class SWEAgentAdapter:
                     return out
         return out
 
+    @staticmethod
+    def _count_tests_from_output(text: str) -> int:
+        raw = str(text or "")
+        if not raw.strip():
+            return 0
+        match = re.search(r"(\d+)\s+(?:passed|failed|skipped|error)", raw.lower())
+        if match:
+            try:
+                return max(1, int(match.group(1)))
+            except Exception:
+                return 1
+        return 1
+
+    def _build_diff_summary(self, actions: List[ProblemFile]) -> Dict[str, Any]:
+        summary = {
+            "files_changed": 0,
+            "lines_added": 0,
+            "lines_deleted": 0,
+            "evidence_refs": [],
+        }
+        files_seen: List[str] = []
+        for action in actions:
+            stats = dict(action.patch_stats or {})
+            summary["files_changed"] += int(stats.get("files_changed", 0) or 0)
+            summary["lines_added"] += int(stats.get("lines_added", 0) or 0)
+            summary["lines_deleted"] += int(stats.get("lines_deleted", 0) or 0)
+            if action.diff_summary_ref and action.diff_summary_ref.location:
+                ref = str(action.diff_summary_ref.location).strip()
+                if ref and ref not in summary["evidence_refs"]:
+                    summary["evidence_refs"].append(ref)
+            for path in action.touched_files:
+                text = str(path).strip()
+                if text and text not in files_seen:
+                    files_seen.append(text)
+        if summary["files_changed"] <= 0:
+            summary["files_changed"] = len(files_seen)
+        summary["evidence_refs"] = summary["evidence_refs"][:8]
+        return summary
+
+    def _build_validation_summary(self, actions: List[ProblemFile]) -> Dict[str, Any]:
+        commands: List[str] = []
+        action_ids: List[str] = []
+        tests_run = 0
+        for action in actions:
+            text = str(action.action_text or "").strip()
+            if action.action_type == ActionType.RUN_TEST or "pytest" in text.lower():
+                if text and text not in commands:
+                    commands.append(text)
+                action_id = str(action.action_id or "").strip()
+                if action_id and action_id not in action_ids:
+                    action_ids.append(action_id)
+                tests_run += int((action.test_stats or {}).get("tests_run", 0) or 0)
+                if action.tests_ref and action.tests_ref.location:
+                    try:
+                        content = self.action_logger.evidence_collector.get_evidence_content(action.tests_ref)
+                    except Exception:
+                        content = None
+                    if content:
+                        tests_run += self._count_tests_from_output(content)
+        return {
+            "commands": commands[:6],
+            "tests_run": tests_run,
+            "test_action_ids": action_ids[:10],
+        }
+
     def _build_run_done_context(
         self,
         *,
@@ -237,34 +391,246 @@ class SWEAgentAdapter:
         actions: List[ProblemFile],
         submission_success: bool,
         exit_status: str,
+        task_closed_cleanly: bool,
     ) -> Dict[str, Any]:
-        changed_files: List[str] = []
+        touched_files: List[str] = []
         ad_hoc_scripts: List[str] = []
         for action in actions:
-            changed_files = self._merge_unique_strings(changed_files, list(action.touched_files or []), limit=20)
+            touched_files = self._merge_unique_strings(touched_files, list(action.touched_files or []), limit=20)
             for text in (action.action_text, action.intent_text):
                 if not isinstance(text, str):
                     continue
                 for match in re.finditer(r"\b((?:test|reproduce)_[\w.\-]+\.py)\b", text, flags=re.IGNORECASE):
                     ad_hoc_scripts = self._merge_unique_strings(ad_hoc_scripts, [match.group(1)], limit=12)
-        validation_commands: List[str] = []
-        if any(action.action_type == ActionType.RUN_TEST for action in actions):
-            validation_commands = self._merge_unique_strings(validation_commands, ["pytest -q"], limit=6)
+        diff_summary = self._build_diff_summary(actions)
+        validation_summary = self._build_validation_summary(actions)
+        patch_digest = stable_patch_digest(
+            {
+                "touched_files": touched_files,
+                "diff_summary": diff_summary,
+                "validation_summary": validation_summary,
+                "exit_status": exit_status,
+                "submission_success": submission_success,
+            }
+        )
         return {
             "task_problem_excerpt": str(self.task_context.get("instruction", "") or self.task_context.get("summary", ""))[:400],
-            "changed_files": changed_files,
+            "touched_files": touched_files,
+            "changed_files": touched_files,
             "step_count": len(actions),
             "ad_hoc_script_count": len(ad_hoc_scripts),
             "ad_hoc_script_names": ad_hoc_scripts[:8],
+            "diff_summary": diff_summary,
+            "patch_digest": patch_digest,
+            "task_closed_cleanly": task_closed_cleanly,
+            "field_specs": RUN_DONE_CONTEXT_FIELD_SPECS,
             "patch_summary": {
-                "changed_file_count": len(changed_files),
+                "changed_file_count": len(touched_files),
                 "has_submission": submission_success,
                 "exit_status": exit_status,
             },
-            "validation_summary": {"commands": validation_commands[:6]},
+            "validation_summary": validation_summary,
             "submission_status": "submitted" if submission_success else exit_status,
             "submission_success": submission_success,
             "official_eval_status": "unknown",
+        }
+
+    def _append_sidecar_rows(
+        self,
+        *,
+        rows: List[Dict[str, Any]],
+        stream: str,
+        id_field: str,
+    ) -> Dict[str, Any]:
+        if not self.episode_ledger_store:
+            return {"enabled": False, "stream": stream, "written": 0, "failed": 0, "results": []}
+        payloads: List[Dict[str, Any]] = []
+        for row in rows:
+            item = dict(row)
+            if not str(item.get("record_id") or "").strip():
+                item["record_id"] = stable_patch_digest(
+                    {
+                        "stream": stream,
+                        "logical_id": str(item.get(id_field) or ""),
+                        "payload": item,
+                    }
+                )
+            payloads.append(item)
+        report = self.episode_ledger_store.append_batch(payloads, stream=stream)
+        report["enabled"] = True
+        return report
+
+    def _build_success_fact_report(
+        self,
+        *,
+        event_data: Dict[str, Any],
+        run_done_context: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        report = {
+            "enabled": bool(self.episode_ledger_store and self.v21_config.get("enable_sidecar")),
+            "hotpath_fact_count": 0,
+            "hotpath_record_ids": [],
+            "coldpath_truth_fields": ["touched_files", "diff_summary", "validation_summary", "patch_digest", "task_closed_cleanly"],
+            "reconciled": False,
+            "sidecar_write_report": {"written": False, "skipped_reason": "disabled"},
+        }
+        if not self.episode_ledger_store:
+            return report
+        filters = {
+            "event": "success_fact",
+            "instance_id": event_data.get("instance_id"),
+            "run_id": event_data.get("run_id") or event_data.get("batch_run_id"),
+            "attempt_id": event_data.get("attempt_id"),
+        }
+        rows = self.episode_ledger_store.load_records(stream="episode_ledger", filters=filters)
+        hotpath_ids = [str(row.get("record_id") or "") for row in rows if str(row.get("record_id") or "").strip()]
+        report["hotpath_fact_count"] = len(hotpath_ids)
+        report["hotpath_record_ids"] = hotpath_ids[:20]
+        report["reconciled"] = bool(hotpath_ids) or bool(run_done_context.get("task_closed_cleanly"))
+        reconcile_event = {
+            "version": "v2.1",
+            "event": "success_fact_report",
+            "record_id": build_success_fact_idempotency_key(
+                str(event_data.get("trace_id") or "run_done"),
+                f"run_done::{event_data.get('attempt_id') or event_data.get('run_id') or 'unknown'}",
+            )
+            or stable_patch_digest({"event": "success_fact_report", "trace_id": event_data.get("trace_id"), "attempt_id": event_data.get("attempt_id")}),
+            "instance_id": event_data.get("instance_id"),
+            "run_id": event_data.get("run_id") or event_data.get("batch_run_id"),
+            "attempt_id": event_data.get("attempt_id"),
+            "trace_id": event_data.get("trace_id"),
+            "hotpath_fact_count": report["hotpath_fact_count"],
+            "hotpath_record_ids": report["hotpath_record_ids"],
+            "patch_digest": run_done_context.get("patch_digest"),
+            "task_closed_cleanly": run_done_context.get("task_closed_cleanly"),
+            "validation_summary": run_done_context.get("validation_summary"),
+        }
+        report["sidecar_write_report"] = self.episode_ledger_store.append(reconcile_event, stream="episode_ledger")
+        return report
+
+    def _project_subtasks(
+        self,
+        *,
+        event_data: Dict[str, Any],
+        task_actions: List[ProblemFile],
+        attempt_summary_payload: Dict[str, Any],
+        run_done_context: Dict[str, Any],
+        submission_success: bool,
+    ) -> Dict[str, Any]:
+        if not self.v21_config.get("enable_subtask_projection"):
+            return {
+                "enabled": False,
+                "subtask_count": 0,
+                "edge_count": 0,
+                "gate": {"passed": False, "reason": "disabled_by_flag"},
+                "sidecar_reports": {},
+                "subtasks": [],
+                "edges": [],
+            }
+        payload = {
+            "attempt_summary_v1": attempt_summary_payload,
+            "actions": task_actions,
+            "run_done_context": run_done_context,
+            "instance_id": event_data.get("instance_id"),
+            "run_id": event_data.get("run_id") or event_data.get("batch_run_id"),
+            "attempt_id": event_data.get("attempt_id"),
+            "trace_id": event_data.get("trace_id"),
+        }
+        subtasks = self.subtask_projector.project(payload)
+        edges = self.subtask_edge_builder.build(subtasks, {"attempt_summary_v1": attempt_summary_payload})
+        governed = self.governance_policy.apply(
+            subtask_instances=subtasks,
+            subtask_edges=edges,
+            context={"submission_success": submission_success},
+        )
+        subtasks = governed.get("subtask_instances", [])
+        edges = governed.get("subtask_edges", [])
+        sidecar_reports = {
+            "subtask_instances": self._append_sidecar_rows(
+                rows=subtasks,
+                stream="subtask_instances",
+                id_field="subtask_instance_id",
+            ),
+            "subtask_edges": self._append_sidecar_rows(
+                rows=edges,
+                stream="subtask_edges",
+                id_field="edge_id",
+            ),
+        }
+        gate = {
+            "passed": bool(subtasks),
+            "reason": "candidate_only_projection_ready" if subtasks else "no_projected_subtasks",
+            "explanatory_stability": "pending_eval",
+            "decision_value": "pending_eval",
+        }
+        return {
+            "enabled": True,
+            "subtask_count": len(subtasks),
+            "edge_count": len(edges),
+            "gate": gate,
+            "sidecar_reports": sidecar_reports,
+            "subtasks": subtasks,
+            "edges": edges,
+        }
+
+    def _compile_and_store_cards(
+        self,
+        *,
+        attempt_summary_payload: Dict[str, Any],
+        failure_card_info: Dict[str, Any],
+        repair_pattern_ids: List[str],
+        subtasks: List[Dict[str, Any]],
+        submission_success: bool,
+    ) -> Dict[str, Any]:
+        if not self.v21_config.get("enable_card_compiler"):
+            return {
+                "enabled": False,
+                "compiled_count": 0,
+                "stored_ids": [],
+                "suppressed_ids": [],
+                "cards": [],
+                "sidecar_report": {"written": 0, "failed": 0, "results": []},
+            }
+        failure_card = None
+        card_id = str(failure_card_info.get("card_id") or "").strip()
+        if card_id:
+            failure_card = dict(self.graph_store.failure_cards_v2.get(card_id, {}))
+        repair_patterns = [
+            dict(self.graph_store.repair_patterns_v2.get(str(pattern_id), {}))
+            for pattern_id in repair_pattern_ids
+            if str(pattern_id).strip() and str(pattern_id) in self.graph_store.repair_patterns_v2
+        ]
+        compiled = self.card_compiler.compile(
+            attempt_summary=attempt_summary_payload,
+            failure_card=failure_card,
+            repair_patterns=repair_patterns,
+            subtasks=subtasks,
+            max_cards=self.v21_config.get("max_cards_per_query", 4),
+        )
+        if self.v21_config.get("enable_governance"):
+            governed = self.governance_policy.apply(
+                compiler_cards=compiled,
+                context={"submission_success": submission_success},
+            )
+            compiled = list(governed.get("compiler_cards", []))
+            governance_report = governed.get("report", {}).get("compiler_cards", {})
+        else:
+            governance_report = {"input_count": len(compiled), "kept_count": len(compiled), "suppressed_ids": []}
+
+        stored_ids: List[str] = []
+        for row in compiled:
+            stored_ids.append(self.graph_store.upsert_compiler_card_v21(row))
+        if stored_ids:
+            self.graph_store.save()
+        sidecar_report = self._append_sidecar_rows(rows=compiled, stream="compiler_cards", id_field="card_id")
+        return {
+            "enabled": True,
+            "compiled_count": len(compiled),
+            "stored_ids": stored_ids,
+            "suppressed_ids": list(governance_report.get("suppressed_ids", []) or []),
+            "cards": compiled,
+            "sidecar_report": sidecar_report,
+            "governance_report": governance_report,
         }
 
     def _build_fallback_attempt_summary(
@@ -276,26 +642,85 @@ class SWEAgentAdapter:
         run_done_context: Dict[str, Any],
         final_outcome: str,
     ) -> Dict[str, Any]:
+        initial_plan_outline: List[str] = []
         actual_execution_outline: List[str] = []
+        failed_strategies: List[str] = []
+        confirmed_signals: List[str] = []
+        best_partial_progress: List[str] = []
         for action in actions:
+            action_text = f"{action.intent_text} {action.action_text}".strip()
             block = self.memory_agent._infer_subproblem_type_for_planning(
-                current_action=f"{action.intent_text} {action.action_text}",
+                current_action=action_text,
                 current_problem_file=action,
             )
-            if block not in actual_execution_outline:
-                actual_execution_outline.append(block)
+            strategy = self.memory_agent._infer_strategy_label_for_planning(
+                current_action=action_text,
+                subproblem_type=block,
+            )
+            outline = block if not strategy else f"{block}:{strategy}"
+            if outline not in actual_execution_outline:
+                actual_execution_outline.append(outline)
             if len(actual_execution_outline) >= 6:
                 break
+        for action in actions[:6]:
+            action_text = f"{action.intent_text} {action.action_text}".strip()
+            block = self.memory_agent._infer_subproblem_type_for_planning(
+                current_action=action_text,
+                current_problem_file=action,
+            )
+            strategy = self.memory_agent._infer_strategy_label_for_planning(
+                current_action=action_text,
+                subproblem_type=block,
+            )
+            template = self._fallback_action_template(action)
+            detail = template if template != "other" else action_text[:72]
+            outline = block
+            if strategy:
+                outline = f"{outline}:{strategy}"
+            outline = f"{outline}:{detail}"
+            if outline not in initial_plan_outline:
+                initial_plan_outline.append(outline)
+        changed_files = list(run_done_context.get("changed_files") or [])[:6]
+        ad_hoc_script_count = int(run_done_context.get("ad_hoc_script_count") or 0)
+        task_excerpt = str(run_done_context.get("task_problem_excerpt") or "")
+        lowered_context = " ".join(
+            [
+                task_excerpt.lower(),
+                " ".join(changed_files).lower(),
+                " ".join(str(action.intent_text or "") for action in actions).lower(),
+                " ".join(str(action.action_text or "") for action in actions).lower(),
+            ]
+        )
+        if changed_files:
+            best_partial_progress.append("edited_candidate_fix_files")
+            confirmed_signals.append("identified_a_concrete_edit_scope")
+        if "quiet" in lowered_context or "all_world2pix" in lowered_context:
+            confirmed_signals.append("identified_a_reproducible_wcs_signal")
+        if any(action.action_type == ActionType.RUN_TEST for action in actions):
+            confirmed_signals.append("ran_targeted_validation_commands")
+        if ad_hoc_script_count >= 2:
+            failed_strategies.append("ad_hoc_repro_script_loop")
+        if any(
+            token in lowered_context
+            for token in ("wcsaxes", "utils.py", "visualization")
+        ) and any(token in lowered_context for token in ("fitswcs.py", "wcs.py")):
+            failed_strategies.append("cross_module_expansion_after_localization")
+        if final_outcome in {"incomplete", "timeout", "failed"} and not failed_strategies:
+            failed_strategies.append("attempt_did_not_reach_a_minimal_validated_fix")
 
         source_action_ids = [
             str(action.action_id).strip()
             for action in actions
             if str(action.action_id).strip()
         ][:20]
-        changed_files = list(run_done_context.get("changed_files") or [])[:6]
         next_best_actions: List[str] = []
         if changed_files:
             next_best_actions.append("validate_current_changed_files_before_broadening_scope")
+            next_best_actions.append("keep_the_patch_scope_on_the_localized_target_path")
+        if ad_hoc_script_count >= 2:
+            next_best_actions.append("reuse_the_best_existing_reproduction_path_instead_of_new_scripts")
+        if "quiet" in lowered_context or "all_world2pix" in lowered_context:
+            next_best_actions.append("turn_the_confirmed_wcs_signal_into_a_minimal_patch_before_more_search")
         if final_outcome == "submitted":
             next_best_actions.append("wait_for_official_eval_before_promoting_this_path")
         elif final_outcome in {"unresolved", "incomplete", "failed", "timeout"}:
@@ -310,19 +735,41 @@ class SWEAgentAdapter:
             "trace_id": str(event_data.get("trace_id") or ""),
             "task_id": task_id,
             "problem_goal": str(run_done_context.get("task_problem_excerpt") or "")[:280],
-            "initial_plan_outline": [],
+            "initial_plan_outline": initial_plan_outline,
             "actual_execution_outline": actual_execution_outline,
             "plan_success": bool(actions),
             "final_outcome": final_outcome,
-            "confirmed_signals": [],
-            "failed_strategies": [],
-            "best_partial_progress": [],
+            "confirmed_signals": confirmed_signals[:6],
+            "failed_strategies": failed_strategies[:6],
+            "best_partial_progress": best_partial_progress[:6],
             "unverified_hypotheses": [],
             "next_best_actions": next_best_actions[:6],
             "source_action_ids": source_action_ids,
             "subblock_analysis": [],
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
+
+    @staticmethod
+    def _fallback_action_template(action: ProblemFile) -> str:
+        text = f"{action.intent_text} {action.action_text}".lower()
+        if action.action_type == ActionType.RUN_TEST or "pytest" in text:
+            return "run_targeted_validation"
+        if action.action_type == ActionType.CODE_EDIT or any(token in text for token in ("patch", "edit", "replace", "write")):
+            return "edit_target_files"
+        if any(token in text for token in ("grep", "search", "inspect", "read", "open", "find")):
+            return "inspect_candidate_files"
+        if any(token in text for token in ("test_", "reproduce_", "plot")):
+            return "create_or_run_repro_script"
+        return "other"
+
+    def _infer_attempt_id_from_run_id(self, run_id: str) -> str:
+        text = str(run_id or "").strip()
+        if not text:
+            return ""
+        match = re.search(r"_attempt_(\d+)(?:\b|$)", text)
+        if not match:
+            return ""
+        return f"attempt-{match.group(1).zfill(2)}"
 
     def _build_action_error_micro_pattern(
         self,
@@ -848,6 +1295,7 @@ class SWEAgentAdapter:
             actions=task_actions,
             submission_success=submission_success,
             exit_status=exit_status,
+            task_closed_cleanly=task_closed_cleanly,
         )
         if task_actions:
             abstractions = self.abstract_experience_builder.build_from_task(
@@ -1093,7 +1541,30 @@ class SWEAgentAdapter:
             attempt_summary_info = {
                 "generated": True,
                 "summary_id": summary_id,
-            }
+                }
+
+        attempt_summary_payload_for_v21 = {}
+        summary_id = str(attempt_summary_info.get("summary_id") or "").strip()
+        if summary_id:
+            attempt_summary_payload_for_v21 = dict(self.graph_store.attempt_summaries_v1.get(summary_id, {}))
+        success_fact_report = self._build_success_fact_report(
+            event_data=event_data,
+            run_done_context=run_done_context,
+        )
+        projection_report = self._project_subtasks(
+            event_data=event_data,
+            task_actions=task_actions,
+            attempt_summary_payload=attempt_summary_payload_for_v21,
+            run_done_context=run_done_context,
+            submission_success=submission_success,
+        )
+        compiler_report = self._compile_and_store_cards(
+            attempt_summary_payload=attempt_summary_payload_for_v21,
+            failure_card_info=failure_card_info,
+            repair_pattern_ids=repair_pattern_ids,
+            subtasks=list(projection_report.get("subtasks", []) or []),
+            submission_success=submission_success,
+        )
 
         write_ids = list(dict.fromkeys(abstract_updates.get("experience_ids", [])))
         if attempt_summary_info.get("summary_id"):
@@ -1101,6 +1572,7 @@ class SWEAgentAdapter:
         if failure_card_info.get("card_id"):
             write_ids.append(str(failure_card_info["card_id"]))
         write_ids.extend([str(pid) for pid in repair_pattern_ids])
+        write_ids.extend([str(card_id) for card_id in compiler_report.get("stored_ids", []) if str(card_id).strip()])
         write_ids = list(dict.fromkeys(write_ids))
         self._append_rw_map(
             event_name="run_done",
@@ -1114,6 +1586,19 @@ class SWEAgentAdapter:
                 "resolved_like_success": resolved_like_success,
                 "synthesized_task": synthesized_task,
                 "belief_update": belief_update,
+                "success_fact_report": {
+                    "hotpath_fact_count": success_fact_report.get("hotpath_fact_count", 0),
+                    "reconciled": success_fact_report.get("reconciled", False),
+                },
+                "projection_report": {
+                    "subtask_count": projection_report.get("subtask_count", 0),
+                    "edge_count": projection_report.get("edge_count", 0),
+                    "gate": projection_report.get("gate", {}),
+                },
+                "compiler_report": {
+                    "compiled_count": compiler_report.get("compiled_count", 0),
+                    "stored_ids": compiler_report.get("stored_ids", []),
+                },
                 "extraction_pipeline": {
                     "triggered": extraction_pipeline.get("triggered", False),
                     "reason": extraction_pipeline.get("reason", ""),
@@ -1139,6 +1624,22 @@ class SWEAgentAdapter:
             "rca_report": rca_report if not task_closed_cleanly else {},
             "failure_card_v2": failure_card_info,
             "attempt_summary_v1": attempt_summary_info,
+            "run_done_context": run_done_context,
+            "success_fact_report": success_fact_report,
+            "subtask_projection": {
+                "enabled": projection_report.get("enabled", False),
+                "subtask_count": projection_report.get("subtask_count", 0),
+                "edge_count": projection_report.get("edge_count", 0),
+                "gate": projection_report.get("gate", {}),
+                "sidecar_reports": projection_report.get("sidecar_reports", {}),
+            },
+            "compiler_cards_v21": {
+                "enabled": compiler_report.get("enabled", False),
+                "compiled_count": compiler_report.get("compiled_count", 0),
+                "stored_ids": compiler_report.get("stored_ids", []),
+                "suppressed_ids": compiler_report.get("suppressed_ids", []),
+                "sidecar_report": compiler_report.get("sidecar_report", {}),
+            },
             "extraction_pipeline": extraction_pipeline,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
@@ -1152,6 +1653,11 @@ class SWEAgentAdapter:
                 "error": "missing_instance_id",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
+
+        run_id = str(event_data.get("run_id") or event_data.get("batch_run_id") or "")
+        attempt_id = str(event_data.get("attempt_id") or "").strip()
+        if not attempt_id:
+            attempt_id = self._infer_attempt_id_from_run_id(run_id)
 
         patch_text = str(event_data.get("patch_text") or "")
         patch_path = str(event_data.get("patch_path") or "").strip()
@@ -1174,17 +1680,70 @@ class SWEAgentAdapter:
                 else None
             ),
             task_summary=str(event_data.get("task_summary") or "")[:300],
-            run_id=str(event_data.get("run_id") or event_data.get("batch_run_id") or ""),
-            attempt_id=str(event_data.get("attempt_id") or ""),
+            run_id=run_id,
+            attempt_id=attempt_id,
             trace_id=str(event_data.get("trace_id") or ""),
         )
         summary_id = self.graph_store.update_attempt_summary_outcome(
             instance_id=instance_id,
-            run_id=str(event_data.get("run_id") or event_data.get("batch_run_id") or ""),
-            attempt_id=str(event_data.get("attempt_id") or ""),
+            run_id=run_id,
+            attempt_id=attempt_id,
             outcome=str(report.get("outcome") or ""),
             eval_ref=str(event_data.get("eval_ref") or event_data.get("report_path") or ""),
         )
+        if not summary_id:
+            fallback_context = {
+                "task_problem_excerpt": str(event_data.get("task_summary") or "")[:400],
+                "touched_files": list(event_data.get("changed_files") or [])[:20]
+                if isinstance(event_data.get("changed_files"), list)
+                else [],
+                "changed_files": list(event_data.get("changed_files") or [])[:20]
+                if isinstance(event_data.get("changed_files"), list)
+                else [],
+                "step_count": 0,
+                "ad_hoc_script_count": 0,
+                "ad_hoc_script_names": [],
+                "diff_summary": event_data.get("patch_summary")
+                if isinstance(event_data.get("patch_summary"), dict)
+                else {"files_changed": 0, "lines_added": 0, "lines_deleted": 0, "evidence_refs": []},
+                "patch_summary": event_data.get("patch_summary")
+                if isinstance(event_data.get("patch_summary"), dict)
+                else {"changed_file_count": 0},
+                "validation_summary": event_data.get("validation_summary")
+                if isinstance(event_data.get("validation_summary"), dict)
+                else {"commands": []},
+                "patch_digest": stable_patch_digest(
+                    {
+                        "changed_files": event_data.get("changed_files") if isinstance(event_data.get("changed_files"), list) else [],
+                        "patch_summary": event_data.get("patch_summary") if isinstance(event_data.get("patch_summary"), dict) else {},
+                        "validation_summary": event_data.get("validation_summary") if isinstance(event_data.get("validation_summary"), dict) else {},
+                    }
+                ),
+                "task_closed_cleanly": str(report.get("outcome") or event_data.get("official_eval_status") or "").strip().lower() == "resolved",
+                "submission_status": str(report.get("outcome") or event_data.get("official_eval_status") or "unknown"),
+                "submission_success": bool(patch_text.strip()),
+                "official_eval_status": str(report.get("outcome") or event_data.get("official_eval_status") or "unknown"),
+            }
+            fallback_summary = self._build_fallback_attempt_summary(
+                task_id=instance_id,
+                event_data={
+                    "instance_id": instance_id,
+                    "run_id": run_id,
+                    "attempt_id": attempt_id,
+                    "trace_id": str(event_data.get("trace_id") or ""),
+                },
+                actions=[],
+                run_done_context=fallback_context,
+                final_outcome=str(report.get("outcome") or event_data.get("official_eval_status") or "unknown"),
+            )
+            summary_id = self.graph_store.upsert_attempt_summary_v1(fallback_summary)
+            summary_id = self.graph_store.update_attempt_summary_outcome(
+                instance_id=instance_id,
+                run_id=run_id,
+                attempt_id=attempt_id,
+                outcome=str(report.get("outcome") or ""),
+                eval_ref=str(event_data.get("eval_ref") or event_data.get("report_path") or ""),
+            ) or summary_id
         if summary_id:
             report["attempt_summary_id"] = summary_id
         self.graph_store.save()
@@ -1194,13 +1753,18 @@ class SWEAgentAdapter:
             event_data=event_data,
             read_ids=list(report.get("related_candidate_ids", [])),
             write_ids=list(report.get("written_ids", []))
+            + list(report.get("written_card_ids", []))
             + list(report.get("promoted_ids", []))
             + list(report.get("suppressed_ids", []))
+            + list(report.get("promoted_card_ids", []))
+            + list(report.get("suppressed_card_ids", []))
             + ([str(summary_id)] if summary_id else [])
             + ([str(report["failure_card_id"])] if report.get("failure_card_id") else []),
             extra={
                 "official_eval_status": report.get("outcome"),
                 "related_candidate_count": report.get("related_candidate_count", 0),
+                "written_card_count": len(report.get("written_card_ids", []) or []),
+                "subtask_eval_updates": report.get("subtask_eval_updates", {}),
             },
         )
         return {
@@ -1215,7 +1779,16 @@ class SWEAgentAdapter:
                              action: str,
                              thought: str,
                              agent_name: str,
-                             output: Optional[str] = None) -> Dict[str, Any]:
+                             output: Optional[str] = None,
+                             *,
+                             instance_id: Optional[str] = None,
+                             run_id: Optional[str] = None,
+                             attempt_id: Optional[str] = None,
+                             trace_id: Optional[str] = None,
+                             step_index: Optional[int] = None,
+                             touched_files: Optional[List[str]] = None,
+                             diff_content: Optional[str] = None,
+                             test_output: Optional[str] = None) -> Dict[str, Any]:
         """
         Handle successful action execution.
 
@@ -1242,19 +1815,24 @@ class SWEAgentAdapter:
             intent_text=thought,
             action_text=action,
             action_family="action_success",
-            instance_id=agent_name,
-            run_id=None,
+            instance_id=instance_id or agent_name,
+            run_id=run_id,
             agent_name=agent_name,
             source_event="action_success",
-            trace_id=None,
+            step_index=step_index,
+            trace_id=trace_id,
             inputs={"action": action},
             tool_calls=[{"type": "action_execution", "content": action}],
             stdout=output,
+            diff_content=diff_content,
+            test_output=test_output,
+            touched_files=touched_files,
             outcome=Outcome.SUCCESS,
             metadata={
                 "event": "action_success",
                 "agent": agent_name,
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "attempt_id": attempt_id,
             }
         )
 

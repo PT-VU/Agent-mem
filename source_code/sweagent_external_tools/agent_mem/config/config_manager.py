@@ -118,6 +118,19 @@ class ConfigManager:
                 "cache_size": 1000,
                 "cache_ttl_seconds": 300,
             },
+            "agent_mem": {
+                "v21": {
+                    "enable_success_fact_hotpath": False,
+                    "enable_sidecar": False,
+                    "enable_subtask_projection": False,
+                    "enable_card_compiler": False,
+                    "enable_governance": False,
+                    "sidecar_dir": os.getenv("AGENT_MEM_V21_SIDECAR_DIR", "./agent_mem_data/sidecar"),
+                    "hotpath_timeout_ms": 50,
+                    "coldpath_timeout_ms": 5000,
+                    "max_cards_per_query": 4,
+                },
+            },
         }
 
     def get(self, key: str, default: Any = None) -> Any:
@@ -174,30 +187,41 @@ class ConfigManager:
     def update_from_env(self) -> None:
         """Update configuration from environment variables."""
         env_mappings = {
-            "AGENT_MEM_STORAGE_DIR": "storage.graph_store_dir",
-            "AGENT_MEM_EVIDENCE_DIR": "storage.evidence_dir",
-            "AGENT_MEM_LOG_LEVEL": "logging.level",
-            "AGENT_MEM_LOG_FILE": "logging.file",
-            "AGENT_MEM_EMBEDDING_MODEL": "embeddings.model",
-            "AGENT_MEM_EMBEDDING_MODEL_NAME": "embeddings.model_name",
-            "AGENT_MEM_EMBEDDING_DIMENSION": "embeddings.dimension",
-            "AGENT_MEM_MAX_SUBGRAPHS": "retrieval.max_planning_subgraphs",
-            "AGENT_MEM_TIMEOUT_SEC": "integration.sweagent.timeout_sec",
+            "AGENT_MEM_STORAGE_DIR": ("storage.graph_store_dir", "str"),
+            "AGENT_MEM_EVIDENCE_DIR": ("storage.evidence_dir", "str"),
+            "AGENT_MEM_LOG_LEVEL": ("logging.level", "str"),
+            "AGENT_MEM_LOG_FILE": ("logging.file", "str"),
+            "AGENT_MEM_EMBEDDING_MODEL": ("embeddings.model", "str"),
+            "AGENT_MEM_EMBEDDING_MODEL_NAME": ("embeddings.model_name", "str"),
+            "AGENT_MEM_EMBEDDING_DIMENSION": ("embeddings.dimension", "int"),
+            "AGENT_MEM_MAX_SUBGRAPHS": ("retrieval.max_planning_subgraphs", "int"),
+            "AGENT_MEM_TIMEOUT_SEC": ("integration.sweagent.timeout_sec", "float"),
+            "AGENT_MEM_V21_ENABLE_SUCCESS_FACT_HOTPATH": ("agent_mem.v21.enable_success_fact_hotpath", "bool"),
+            "AGENT_MEM_V21_ENABLE_SIDECAR": ("agent_mem.v21.enable_sidecar", "bool"),
+            "AGENT_MEM_V21_ENABLE_SUBTASK_PROJECTION": ("agent_mem.v21.enable_subtask_projection", "bool"),
+            "AGENT_MEM_V21_ENABLE_CARD_COMPILER": ("agent_mem.v21.enable_card_compiler", "bool"),
+            "AGENT_MEM_V21_ENABLE_GOVERNANCE": ("agent_mem.v21.enable_governance", "bool"),
+            "AGENT_MEM_V21_SIDECAR_DIR": ("agent_mem.v21.sidecar_dir", "str"),
+            "AGENT_MEM_V21_HOTPATH_TIMEOUT_MS": ("agent_mem.v21.hotpath_timeout_ms", "int"),
+            "AGENT_MEM_V21_COLDPATH_TIMEOUT_MS": ("agent_mem.v21.coldpath_timeout_ms", "int"),
+            "AGENT_MEM_V21_MAX_CARDS_PER_QUERY": ("agent_mem.v21.max_cards_per_query", "int"),
         }
 
-        for env_var, config_key in env_mappings.items():
+        for env_var, (config_key, value_type) in env_mappings.items():
             value = os.getenv(env_var)
             if value is not None:
-                if config_key in {"embeddings.dimension", "retrieval.max_planning_subgraphs"}:
+                if value_type == "int":
                     try:
                         value = int(value)
                     except ValueError:
                         continue
-                elif config_key == "integration.sweagent.timeout_sec":
+                elif value_type == "float":
                     try:
                         value = float(value)
                     except ValueError:
                         continue
+                elif value_type == "bool":
+                    value = value.strip().lower() in {"1", "true", "yes", "on"}
                 self.set(config_key, value)
 
     def validate(self) -> Dict[str, Any]:
@@ -211,6 +235,26 @@ class ConfigManager:
                 Path(storage_dir).mkdir(parents=True, exist_ok=True)
             except Exception as e:
                 issues.append(f"Cannot create storage directory {storage_dir}: {e}")
+
+        if self.get("agent_mem.v21.enable_sidecar", False):
+            sidecar_dir = self.get("agent_mem.v21.sidecar_dir")
+            if sidecar_dir:
+                try:
+                    Path(sidecar_dir).mkdir(parents=True, exist_ok=True)
+                except Exception as e:
+                    issues.append(f"Cannot create v2.1 sidecar directory {sidecar_dir}: {e}")
+
+        hotpath_timeout_ms = int(self.get("agent_mem.v21.hotpath_timeout_ms", 0) or 0)
+        coldpath_timeout_ms = int(self.get("agent_mem.v21.coldpath_timeout_ms", 0) or 0)
+        max_cards_per_query = int(self.get("agent_mem.v21.max_cards_per_query", 0) or 0)
+        if hotpath_timeout_ms < 0:
+            issues.append(f"agent_mem.v21.hotpath_timeout_ms must be >= 0, got {hotpath_timeout_ms}")
+        if coldpath_timeout_ms < 0:
+            issues.append(f"agent_mem.v21.coldpath_timeout_ms must be >= 0, got {coldpath_timeout_ms}")
+        if max_cards_per_query < 0:
+            issues.append(
+                f"agent_mem.v21.max_cards_per_query must be >= 0, got {max_cards_per_query}"
+            )
 
         # Check embedding configuration
         embedding_model = self.get("embeddings.model")
@@ -238,6 +282,7 @@ class ConfigManager:
                 "embedding_model": self.get("embeddings.model"),
                 "max_subgraphs": self.get("retrieval.max_planning_subgraphs"),
                 "auto_save": self.get("storage.auto_save"),
+                "v21_sidecar_enabled": self.get("agent_mem.v21.enable_sidecar", False),
             }
         }
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from collections import Counter
 from pathlib import Path
@@ -48,14 +49,29 @@ def main() -> int:
     cache_file = Path(args.cache_file).resolve() if args.cache_file else None
 
     sys.path.insert(0, str(ws_root))
-    from PDDL_work_mem.source_code.sweagent_external_tools.agent_mem.processing.official_eval_bridge import (  # noqa: E402
-        build_feedback_event,
-        build_outcome_map,
-    )
-    from PDDL_work_mem.source_code.sweagent_external_tools.agent_mem_main import (  # noqa: E402
-        handle_event,
-        setup_agent_mem,
-    )
+    # Use v2 framework when V2_FW_DIR is set (phase9-v2 and later experiments)
+    _v2_fw_dir = os.environ.get("V2_FW_DIR", "").strip()
+    if _v2_fw_dir:
+        _v2_parent = str(Path(_v2_fw_dir).parent)
+        if _v2_parent not in sys.path:
+            sys.path.insert(0, _v2_parent)
+        from sweagent_external_tools_v2.agent_mem.processing.official_eval_bridge import (  # noqa: E402
+            build_feedback_event,
+            build_outcome_map,
+        )
+        from sweagent_external_tools_v2.agent_mem_main import (  # noqa: E402
+            handle_event,
+            setup_agent_mem,
+        )
+    else:
+        from PDDL_work_mem.source_code.sweagent_external_tools.agent_mem.processing.official_eval_bridge import (  # noqa: E402
+            build_feedback_event,
+            build_outcome_map,
+        )
+        from PDDL_work_mem.source_code.sweagent_external_tools.agent_mem_main import (  # noqa: E402
+            handle_event,
+            setup_agent_mem,
+        )
 
     report = _load_json(report_path)
     outcome_map = build_outcome_map(report)

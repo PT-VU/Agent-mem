@@ -151,7 +151,10 @@ def test_orchestrator_attempt_summary_and_conditional_fields_present():
     )
     summary = report["attempt_summary_v1"]
     assert summary["problem_goal"] == "stabilize failing WCS plotting path"
+    assert summary["initial_plan_outline"]
     assert summary["actual_execution_outline"]
+    assert summary["next_best_actions"]
+    assert summary["confirmed_signals"] or summary["failed_strategies"]
     assert report["subblock_analysis"]
     abstracts = report["abstract_experiences"]
     assert abstracts
@@ -160,6 +163,53 @@ def test_orchestrator_attempt_summary_and_conditional_fields_present():
     assert "strategy_label" in row
     assert isinstance(row["prefer_actions"], list)
     assert isinstance(row["avoid_actions"], list)
+
+
+def test_orchestrator_disabled_still_returns_heuristic_attempt_summary():
+    orchestrator = ExtractionOrchestrator(
+        enabled=False,
+        min_item_confidence=0.2,
+        extractor=LLMExperienceExtractor(
+            taxonomy=ErrorTaxonomy(),
+            mode="heuristic",
+        ),
+    )
+    actions = [
+        _action(
+            task_id="t_disabled",
+            step=0,
+            action_type=ActionType.CODE_EDIT,
+            outcome=Outcome.SUCCESS,
+            intent="patch the localized target file",
+            family="planning",
+        ),
+        _action(
+            task_id="t_disabled",
+            step=1,
+            action_type=ActionType.RUN_TEST,
+            outcome=Outcome.SUCCESS,
+            intent="run pytest tests/test_target.py -q",
+            family="test_failure_fix",
+        ),
+    ]
+    report = orchestrator.process_attempt(
+        task_id="t_disabled",
+        actions=actions,
+        success=True,
+        task_summary="submitted for eval",
+        exit_status="submitted",
+        source_instance_id="inst-disabled",
+        source_run_id="run-disabled",
+        source_attempt_id="attempt-disabled",
+        trace_id="trace-disabled",
+        extra_context={"task_problem_excerpt": "fix the localized failure and validate the patch"},
+    )
+    assert report["enabled"] is False
+    assert report["triggered"] is False
+    assert report["reason"] == "disabled_by_config"
+    assert report["subblock_analysis"]
+    assert report["attempt_summary_v1"]["instance_id"] == "inst-disabled"
+    assert report["attempt_summary_v1"]["subblock_analysis"]
 
 
 def test_orchestrator_rebalances_planning_duplicates_and_keeps_validation():

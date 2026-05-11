@@ -85,8 +85,6 @@ class ExtractionOrchestrator:
         trace_id: Optional[str] = None,
         extra_context: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        if not self.enabled:
-            return {"enabled": False, "triggered": False, "reason": "disabled_by_config"}
         if not actions:
             return {"enabled": True, "triggered": False, "reason": "no_actions"}
 
@@ -112,6 +110,15 @@ class ExtractionOrchestrator:
             subblock_analysis=subblock_analysis,
             actions=actions,
         )
+        if not self.enabled:
+            return {
+                "enabled": False,
+                "triggered": False,
+                "reason": "disabled_by_config",
+                "trial_overview": trial_overview,
+                "subblock_analysis": subblock_analysis,
+                "attempt_summary_v1": attempt_summary,
+            }
 
         trigger_reason = self._trigger_reason(actions=actions, success=success)
         if not trigger_reason:
@@ -272,7 +279,7 @@ class ExtractionOrchestrator:
         ctx = extra_context if isinstance(extra_context, dict) else {}
         initial_plan_outline: List[str] = []
         for action in actions[:4]:
-            text = str(action.intent_text or action.action_text or "").strip()
+            text = self._summarize_action(action)
             if not text:
                 continue
             initial_plan_outline.append(text[:140])
@@ -283,10 +290,16 @@ class ExtractionOrchestrator:
         seen_blocks = set()
         for action in actions:
             block = self._infer_subproblem_type(action=action)
-            if block in seen_blocks:
+            strategy = self._infer_strategy_label(
+                actions=[action],
+                context=ctx,
+                subproblem_type=block,
+            )
+            label = f"{block}:{strategy}" if strategy and strategy != "unknown_strategy" else block
+            if label in seen_blocks:
                 continue
-            seen_blocks.add(block)
-            actual_execution_outline.append(block)
+            seen_blocks.add(label)
+            actual_execution_outline.append(label)
             if len(actual_execution_outline) >= 6:
                 break
 
@@ -295,6 +308,14 @@ class ExtractionOrchestrator:
             key_divergences.append("reproduce_issue drifted into multiple ad-hoc scripts")
         if len(actions) >= 40:
             key_divergences.append("attempt became long-running before converging on a minimal patch")
+        texts = " ".join(f"{action.intent_text} {action.action_text}" for action in actions).lower()
+        validation_runs = sum(1 for action in actions if action.action_type == ActionType.RUN_TEST)
+        if validation_runs >= 3 and not any(action.action_type == ActionType.CODE_EDIT for action in actions):
+            key_divergences.append("repeated validation ran before a stable patch candidate was formed")
+        if any(token in texts for token in ("world_to_pixel_values", "all_world2pix", "fitswcs")) and any(
+            token in texts for token in ("wcsaxes", "utils.py", "visualization")
+        ):
+            key_divergences.append("search expanded beyond the target WCS path after likely localization")
         if str(exit_status).strip().lower() in {"submitted"}:
             final_outcome = "submitted"
         else:
@@ -338,12 +359,21 @@ class ExtractionOrchestrator:
             failure_source = "execution"
             if block == "unknown":
                 failure_source = "mixed"
+            positives = self._positive_contribution(block_actions=block_actions, subproblem_type=block)
             negative_contribution: List[str] = []
             if strategy_label in {"ad_hoc_repro_script_loop", "cross_module_expansion_after_key_signal", "broad_test_without_patch"}:
                 negative_contribution.append(f"{strategy_label} consumed effort without converging to a minimal fix")
             if block == "broad_regression_check":
                 negative_contribution.append("broad validation happened before a focused patch path was secured")
+            if block == "localize_fix" and strategy_label == "cross_module_expansion_after_key_signal":
+                negative_contribution.append("localization drifted into adjacent modules before testing the minimal target fix")
+            if block == "target_validation" and not positives:
+                negative_contribution.append("validation effort did not confirm a tighter patch candidate")
             plan_success = any(action.outcome == Outcome.SUCCESS for action in block_actions)
+            if not plan_success and block in {"reproduce_issue", "localize_fix", "form_minimal_patch", "target_validation"}:
+                failure_source = "plan"
+            elif negative_contribution and positives:
+                failure_source = "mixed"
             out.append(
                 {
                     "subproblem_type": block,
@@ -353,7 +383,7 @@ class ExtractionOrchestrator:
                     "plan_success": bool(plan_success),
                     "execution_paths": [strategy_label],
                     "key_actions": [str(action.action_id) for action in block_actions[:6]],
-                    "positive_contribution": self._positive_contribution(block_actions=block_actions, subproblem_type=block),
+                    "positive_contribution": positives,
                     "negative_contribution": negative_contribution[:4],
                     "failure_source": failure_source,
                     "prefer_actions": prefer_actions,
@@ -399,6 +429,31 @@ class ExtractionOrchestrator:
                     }
                 )
             next_best_actions.extend(prefers[:2])
+            if not positives and not negatives and str(block.get("subproblem_type") or "") in {"reproduce_issue", "localize_fix", "target_validation"}:
+                failed_strategies.append(
+                    {
+                        "subproblem_type": str(block.get("subproblem_type") or "unknown"),
+                        "strategy_label": str((block.get("execution_paths") or ["unknown_strategy"])[0]),
+                        "reason": "the subproblem consumed effort without producing a verifiable local improvement",
+                        "avoid_actions": avoids[:4],
+                    }
+                )
+
+        if not confirmed_signals:
+            confirmed_signals.extend([str(x).strip() for x in (trial_overview.get("key_divergences") or []) if str(x).strip()][:2])
+        if not best_partial_progress:
+            for block in subblock_analysis:
+                if block.get("plan_success"):
+                    best_partial_progress.append(
+                        f"{block.get('subproblem_type')}: reached its local goal before the attempt stalled"
+                    )
+                    if len(best_partial_progress) >= 2:
+                        break
+        if not next_best_actions:
+            if any(str(block.get("subproblem_type") or "") == "localize_fix" for block in subblock_analysis):
+                next_best_actions.append("test_the_smallest_fix_on_the_localized_target_before_expanding_scope")
+            if any(str(block.get("subproblem_type") or "") == "reproduce_issue" for block in subblock_analysis):
+                next_best_actions.append("reuse_the_confirmed_reproduction_path_instead_of_creating_new_scripts")
 
         return {
             "schema_version": "1.0",
@@ -525,12 +580,19 @@ class ExtractionOrchestrator:
     def _positive_contribution(*, block_actions: List[ProblemFile], subproblem_type: str) -> List[str]:
         positives: List[str] = []
         texts = " ".join(f"{action.intent_text} {action.action_text}" for action in block_actions).lower()
+        if subproblem_type == "reproduce_issue":
+            if any(token in texts for token in ("quiet=true", "quiet true", "all_world2pix")):
+                positives.append("confirmed a reproducible WCS path and narrowed the behavior difference")
+            if "traceback" in texts or "assert" in texts:
+                positives.append("captured a concrete failing signal for the target path")
         if subproblem_type == "localize_fix" and any(token in texts for token in ("world_to_pixel_values", "all_world2pix", "fitswcs")):
             positives.append("narrowed the likely fix surface to the target WCS path")
         if subproblem_type == "form_minimal_patch" and any(action.action_type == ActionType.CODE_EDIT for action in block_actions):
             positives.append("produced at least one concrete patch candidate")
         if subproblem_type == "target_validation" and any(action.action_type == ActionType.RUN_TEST for action in block_actions):
             positives.append("ran focused validation on the currently suspected failing path")
+        if subproblem_type == "tool_recovery" and any(token in texts for token in ("docker", "retry", "timeout", "reconnect")):
+            positives.append("recovered enough tooling state to continue the attempt")
         return positives[:2]
 
     def _rebalance_abstract_experiences(self, abstracts: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -1108,6 +1170,27 @@ class ExtractionOrchestrator:
                     "confidence": 0.71,
                 }
             )
+        texts = " ".join(f"{action.intent_text} {action.action_text}" for action in actions).lower()
+        if any(token in texts for token in ("world_to_pixel_values", "all_world2pix", "fitswcs")) and any(
+            token in texts for token in ("wcsaxes", "utils.py", "visualization")
+        ):
+            observations.append(
+                {
+                    "strategy_type": "negative_strategy",
+                    "why_failed_or_risky": "Search expanded into adjacent modules after the target WCS path was already localized.",
+                    "recommended_avoidance": "avoid cross-module expansion after localizing the target fix surface",
+                    "confidence": 0.74,
+                }
+            )
+        if validation_count >= 3 and not any(action.action_type == ActionType.CODE_EDIT for action in actions):
+            observations.append(
+                {
+                    "strategy_type": "negative_strategy",
+                    "why_failed_or_risky": "Repeated validation happened before forming a concrete patch candidate.",
+                    "recommended_avoidance": "avoid repeated target validation before preparing a minimal patch candidate",
+                    "confidence": 0.71,
+                }
+            )
         return observations
 
     def _collect_evidence_refs(self, actions: List[ProblemFile], *, critical_step: int) -> List[str]:
@@ -1201,3 +1284,16 @@ class ExtractionOrchestrator:
             if limit is not None and len(out) >= limit:
                 break
         return out
+
+    def _summarize_action(self, action: ProblemFile) -> str:
+        subproblem = self._infer_subproblem_type(action=action)
+        strategy = self._infer_strategy_label(actions=[action], context=None, subproblem_type=subproblem)
+        template = self._action_template(action)
+        detail = str(action.intent_text or action.action_text or "").strip()
+        detail = re.sub(r"\s+", " ", detail)[:96]
+        base = f"{subproblem}:{template}"
+        if strategy and strategy != "unknown_strategy":
+            base = f"{base}:{strategy}"
+        if detail:
+            return f"{base}:{detail}"
+        return base

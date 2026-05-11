@@ -626,6 +626,7 @@ class MemoryAgent:
         recommendation = " ".join(lines).strip()
         if not recommendation:
             return None
+        failed_strategy = failed[0] if failed and isinstance(failed[0], dict) else {}
         return {
             "type": "attempt_summary_v1",
             "summary_id": summary.get("summary_id"),
@@ -633,6 +634,18 @@ class MemoryAgent:
             "recommendation": recommendation[:280],
             "confidence": 0.9,
             "attempt_summary": summary,
+            "subproblem_type": str(failed_strategy.get("subproblem_type") or "").strip(),
+            "strategy_label": str(failed_strategy.get("strategy_label") or "").strip(),
+            "prefer_actions": [
+                str(x).strip()
+                for x in (failed_strategy.get("prefer_actions") or summary.get("next_best_actions") or [])
+                if str(x).strip()
+            ][:5],
+            "avoid_actions": [
+                str(x).strip()
+                for x in (failed_strategy.get("avoid_actions") or [])
+                if str(x).strip()
+            ][:5],
         }
 
     def _collect_embedding_candidates(
@@ -865,6 +878,8 @@ class MemoryAgent:
 
     @staticmethod
     def _recommendation_type_bias(rtype: str) -> float:
+        if rtype == "compiler_card":
+            return 0.15
         if rtype == "attempt_summary_v1":
             return 0.18
         if rtype == "repair_pattern_v2":
@@ -887,6 +902,50 @@ class MemoryAgent:
         critical = float(item.get("critical_alignment_score", 0.0))
         return round(0.45 * score + 0.25 * conf + 0.20 * support + 0.10 * critical, 6)
 
+    def _retrieve_compiler_cards(
+        self,
+        *,
+        query_text: str,
+        query_type: str,
+        max_results: int,
+    ) -> List[Dict[str, Any]]:
+        rows = self.graph_store.query_compiler_cards_v21(
+            query_text=query_text,
+            query_type=query_type,
+            max_results=max_results,
+            promotion_states=["candidate", "promoted"],
+        )
+        out: List[Dict[str, Any]] = []
+        for row in rows:
+            metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+            out.append(
+                {
+                    "type": "compiler_card",
+                    "card_id": row.get("card_id"),
+                    "card_type": row.get("card_type"),
+                    "family_id": row.get("family_id"),
+                    "recommendation": row.get("recommendation") or row.get("hint"),
+                    "hint": row.get("hint") or row.get("recommendation"),
+                    "confidence": float(row.get("confidence", 0.0) or 0.0),
+                    "score": float(row.get("confidence", 0.0) or 0.0),
+                    "evidence_level": row.get("evidence_level"),
+                    "evidence_stage": metadata.get("evidence_stage", ""),
+                    "promotion_state": row.get("promotion_state"),
+                    "support_count": int(row.get("support_count", 0) or 0),
+                    "source_object_ids": list(row.get("source_object_ids") or [])[:6],
+                    "evidence_refs": list(row.get("evidence_refs") or [])[:4],
+                    "changed_file_pattern": list(row.get("changed_file_pattern") or metadata.get("changed_file_pattern") or [])[:4],
+                    "normalized_pattern_type": row.get("normalized_pattern_type") or metadata.get("normalized_pattern_type", ""),
+                    "subproblem_type": row.get("subproblem_type") or metadata.get("subproblem_type", ""),
+                    "strategy_label": row.get("strategy_label") or metadata.get("strategy_label", ""),
+                    "prefer_actions": list(row.get("prefer_actions") or metadata.get("prefer_actions") or [])[:4],
+                    "avoid_actions": list(row.get("avoid_actions") or metadata.get("avoid_actions") or [])[:4],
+                    "budget_hints": row.get("budget_hints") if isinstance(row.get("budget_hints"), dict) else metadata.get("budget_hints", {}),
+                    "governance_hardness": row.get("governance_hardness") or metadata.get("governance_hardness", ""),
+                }
+            )
+        return out
+
     def _dedup_and_rerank_recommendations(
         self,
         recommendations: List[Dict[str, Any]],
@@ -902,14 +961,36 @@ class MemoryAgent:
             for x in runtime_guard.get("blocked_families", [])
             if str(x).strip()
         }
+        blocked_action_patterns = {
+            str(x).strip().lower()
+            for x in runtime_guard.get("blocked_action_patterns", [])
+            if str(x).strip()
+        }
+        active_subproblem_type = str(runtime_guard.get("active_subproblem_type") or "").strip().lower()
+        active_strategy_label = str(runtime_guard.get("active_strategy_label") or "").strip().lower()
         filtered_recommendations: List[Dict[str, Any]] = []
         for row in recommendations:
             family = self._recommendation_family(row).strip().lower()
             pattern = str(row.get("normalized_pattern_type", "")).strip().lower()
+            row_subproblem_type = str(row.get("subproblem_type") or "").strip().lower()
+            row_strategy_label = str(row.get("strategy_label") or "").strip().lower()
+            row_avoid_actions = {
+                str(x).strip().lower()
+                for x in (row.get("avoid_actions") or [])
+                if str(x).strip()
+            }
             if closure_active:
                 if "workflow_step" in blocked_families and family.startswith("workflow_step:"):
                     continue
                 if "planning_loop" in blocked_families and pattern == "planning_loop":
+                    continue
+            if blocked_action_patterns and row_avoid_actions & blocked_action_patterns:
+                continue
+            if active_subproblem_type and row_subproblem_type and row_subproblem_type != active_subproblem_type:
+                if family.startswith("workflow_step:") or pattern == "planning_loop":
+                    continue
+            if active_strategy_label and row_strategy_label and row_strategy_label == active_strategy_label:
+                if row_avoid_actions:
                     continue
             filtered_recommendations.append(row)
 
@@ -1136,6 +1217,20 @@ class MemoryAgent:
             result["evidence_refs"] = refs + result.get("evidence_refs", [])
             result["repair_patterns"] = repair_patterns
 
+        compiler_cards = self._retrieve_compiler_cards(
+            query_text=f"{task_context.get('instruction', '')} {task_context.get('summary', '')} {current_action}",
+            query_type=query_type,
+            max_results=max(1, min(4, budget["recommendation_budget"] // 2)),
+        )
+        if compiler_cards:
+            refs = []
+            for card in compiler_cards:
+                refs.extend(card.get("source_object_ids", [])[:2])
+                refs.extend(card.get("evidence_refs", [])[:2])
+            result["recommendations"] = compiler_cards + result.get("recommendations", [])
+            result["evidence_refs"] = refs + result.get("evidence_refs", [])
+            result["compiler_cards"] = compiler_cards
+
         current_file_hints: List[str] = []
         if current_problem_file is not None:
             for path in current_problem_file.touched_files:
@@ -1205,6 +1300,7 @@ class MemoryAgent:
             "runtime_guard": runtime_guard or {},
             "subproblem_type": current_subproblem_type,
             "strategy_label": current_strategy_label,
+            "compiler_card_count": len(result.get("compiler_cards", []) or []),
         }
         result["agent"] = agent_name
         result["timestamp"] = datetime.now(timezone.utc).isoformat()
@@ -1340,6 +1436,20 @@ class MemoryAgent:
             result["evidence_refs"] = refs + result.get("evidence_refs", [])
             result["repair_patterns"] = repair_patterns
 
+        compiler_cards = self._retrieve_compiler_cards(
+            query_text=f"{error_type} {error_message} {current_action}",
+            query_type=query_type,
+            max_results=max(1, min(4, budget["recommendation_budget"] // 2)),
+        )
+        if compiler_cards:
+            refs = []
+            for card in compiler_cards:
+                refs.extend(card.get("source_object_ids", [])[:2])
+                refs.extend(card.get("evidence_refs", [])[:2])
+            result["recommendations"] = compiler_cards + result.get("recommendations", [])
+            result["evidence_refs"] = refs + result.get("evidence_refs", [])
+            result["compiler_cards"] = compiler_cards
+
         before_rerank = list(result.get("recommendations", []))
         result["recommendations"] = self._dedup_and_rerank_recommendations(
             before_rerank,
@@ -1362,6 +1472,7 @@ class MemoryAgent:
             "ranked_tasks": fusion_debug["ranked_tasks"],
             "fusion_weights": fusion_debug["fusion_weights"],
             "budget": budget,
+            "compiler_card_count": len(result.get("compiler_cards", []) or []),
         }
         result["error_type"] = error_type
         result["timestamp"] = datetime.now(timezone.utc).isoformat()

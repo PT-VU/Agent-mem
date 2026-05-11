@@ -67,6 +67,7 @@ def setup_agent_mem(config_path: Optional[str] = None) -> SWEAgentAdapter:
         embedding_model=embedding_model,
         embedding_model_name=embedding_model_name,
         embedding_dimension=embedding_dimension,
+        v21_config=config_manager.get("agent_mem.v21", {}),
     )
 
     return adapter, config_manager

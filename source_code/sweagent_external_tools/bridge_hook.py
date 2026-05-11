@@ -12,6 +12,43 @@ from sweagent.agent.hooks.abstract import AbstractAgentHook
 from sweagent.types import AgentInfo, StepOutput, Trajectory
 from sweagent.utils.log import get_logger
 
+try:
+    from .agent_mem.processing.v21_shared import (
+        build_success_fact_idempotency_key,
+        classify_success_like,
+    )
+    from .agent_mem.storage.episode_ledger_store import EpisodeLedgerStore
+except Exception:  # pragma: no cover - keep hook import lightweight
+    EpisodeLedgerStore = None
+
+    def build_success_fact_idempotency_key(trace_id: str, step_index: Any) -> str:
+        trace = str(trace_id or "").strip()
+        step = str(step_index if step_index is not None else "").strip()
+        if not trace or not step:
+            return ""
+        return f"{trace}::{step}"
+
+    def classify_success_like(
+        *,
+        observation: str = "",
+        error_type: str = "",
+        exit_status: str = "",
+        has_submission: bool | None = None,
+    ) -> bool:
+        lowered = str(observation or "").lower()
+        if error_type:
+            return False
+        if lowered and any(
+            token in lowered
+            for token in ("error", "exception", "traceback", "assert", "failed", "no such file", "timed out", "non-zero")
+        ):
+            return "simulated command error" in lowered
+        if str(exit_status or "").strip().lower() in {"failed", "error", "timeout", "incomplete", "unresolved"}:
+            return False
+        if has_submission is True:
+            return True
+        return True
+
 from .tools.io_utils import append_json_log
 
 
@@ -81,6 +118,9 @@ class ExternalToolBridgeHook(AbstractAgentHook):
         self._seen_files: set[str] = set()
         self._ad_hoc_script_names: set[str] = set()
         self._closure_active = False
+        self._blocked_action_patterns: set[str] = set()
+        self._active_subproblem_type = ""
+        self._active_strategy_label = ""
         self._active_interventions: list[dict[str, Any]] = []
         self._consecutive_failures = 0
         self._step_index = 0
@@ -93,6 +133,39 @@ class ExternalToolBridgeHook(AbstractAgentHook):
         self._tool_failure_streak: dict[str, int] = {}
         self._tool_circuit_open_until: dict[str, float] = {}
         self._last_success_payload_by_event: dict[str, dict[str, Any]] = {}
+        self._active_step_trace_id = ""
+        self._v21_enable_success_fact_hotpath = self._read_bool_env(
+            "AGENT_MEM_V21_ENABLE_SUCCESS_FACT_HOTPATH",
+            default=False,
+        )
+        self._v21_enable_sidecar = self._read_bool_env("AGENT_MEM_V21_ENABLE_SIDECAR", default=False)
+        sidecar_dir = os.getenv("AGENT_MEM_V21_SIDECAR_DIR", "").strip()
+        if not sidecar_dir:
+            sidecar_dir = os.path.join(".", "agent_mem_data", "sidecar")
+        self._v21_sidecar_dir = sidecar_dir
+        self._episode_ledger_store = None
+        if self._v21_enable_sidecar and EpisodeLedgerStore is not None:
+            try:
+                self._episode_ledger_store = EpisodeLedgerStore(self._v21_sidecar_dir)
+            except Exception:
+                self._episode_ledger_store = None
+        # Step budget state for deterministic timeout governance
+        self._step_budget_state: dict[str, int] = {
+            "steps_since_last_edit": 0,
+            "steps_since_last_patch": 0,
+            "total_steps": 0,
+            "extra_repro_budget": 0,
+        }
+        self._patch_candidate_exists = False
+        self._step_budget_guardrail_steps = self._read_int_env(
+            "AGENT_MEM_STEP_GUARDRAIL_NO_EDIT", default=15, minimum=5
+        )
+        self._step_budget_strong_steps = self._read_int_env(
+            "AGENT_MEM_STEP_STRONG_NO_PATCH", default=25, minimum=10
+        )
+        self._step_budget_hard_stop = self._read_int_env(
+            "AGENT_MEM_STEP_HARD_STOP_TOTAL", default=50, minimum=20
+        )
         self._metrics: dict[str, int] = {
             "plan_generated": 0,
             "action_error_events": 0,
@@ -101,6 +174,8 @@ class ExternalToolBridgeHook(AbstractAgentHook):
             "memory_hint_buffered": 0,
             "memory_injected": 0,
             "tool_timeout_events": 0,
+            "success_fact_hotpath_written": 0,
+            "success_fact_hotpath_skipped": 0,
         }
         self._logger = get_logger("swea-ext-bridge", emoji="🧩")
 
@@ -301,6 +376,10 @@ class ExternalToolBridgeHook(AbstractAgentHook):
             family_id = self._hint_family_from_item(item)
             if family_id.startswith("workflow_step:") and self._step_index > 3:
                 continue
+            card_type = item.get("card_type") if isinstance(item, dict) else None
+            is_semantic_card = card_type in {"BugInvariantCard", "SuccessPathCard"}
+            if not is_semantic_card and family_id and self._hint_family_injected_count.get(family_id, 0) >= 3:
+                continue
             key = hint.lower()
             if key in self._recent_hint_fingerprints:
                 continue
@@ -308,6 +387,7 @@ class ExternalToolBridgeHook(AbstractAgentHook):
                 {
                     "hint": hint,
                     "memory_id": self._memory_id_from_item(item),
+                    "summary_id": item.get("summary_id") if isinstance(item, dict) else None,
                     "family_id": family_id,
                     "source_event": payload.get("event_handled"),
                     "source_event_id": payload.get("trace_id"),
@@ -316,7 +396,20 @@ class ExternalToolBridgeHook(AbstractAgentHook):
                     "batch_confidence": self._try_float(payload.get("confidence")),
                     "selection_score": self._hint_selection_score(item, batch_confidence=batch_confidence),
                     "type": item.get("type") if isinstance(item, dict) else None,
+                    "card_type": item.get("card_type") if isinstance(item, dict) else None,
                     "normalized_pattern_type": item.get("normalized_pattern_type") if isinstance(item, dict) else None,
+                    "subproblem_type": item.get("subproblem_type") if isinstance(item, dict) else None,
+                    "strategy_label": item.get("strategy_label") if isinstance(item, dict) else None,
+                    "prefer_actions": list(item.get("prefer_actions", []))
+                    if isinstance(item, dict) and isinstance(item.get("prefer_actions"), list)
+                    else [],
+                    "avoid_actions": list(item.get("avoid_actions", []))
+                    if isinstance(item, dict) and isinstance(item.get("avoid_actions"), list)
+                    else [],
+                    "budget_hints": dict(item.get("budget_hints", {}))
+                    if isinstance(item, dict) and isinstance(item.get("budget_hints"), dict)
+                    else {},
+                    "governance_hardness": item.get("governance_hardness") if isinstance(item, dict) else None,
                 }
             )
             self._recent_hint_fingerprints.add(key)
@@ -410,7 +503,46 @@ class ExternalToolBridgeHook(AbstractAgentHook):
             "ad_hoc_script_count": len(self._ad_hoc_script_names),
             "recent_triggers": list(self._recent_triggers)[-8:],
             "blocked_families": blocked_families,
+            "blocked_action_patterns": sorted(self._blocked_action_patterns),
+            "active_subproblem_type": self._active_subproblem_type,
+            "active_strategy_label": self._active_strategy_label,
         }
+
+    def _apply_runtime_guard_from_payload(self, payload: dict[str, Any]) -> None:
+        for item in self._collect_hint_items(payload):
+            if not isinstance(item, dict):
+                continue
+            item_type = str(item.get("type", "")).strip().lower()
+            card_type = str(item.get("card_type", "")).strip()
+            hardness = str(item.get("governance_hardness") or "").strip().lower()
+            should_bind_context = item_type == "attempt_summary_v1" or (
+                item_type in {"compiler_card", "abstract_pattern"}
+                and (
+                    bool(item.get("prefer_actions") or item.get("avoid_actions"))
+                    or bool(item.get("subproblem_type") or item.get("strategy_label"))
+                )
+            )
+            if not should_bind_context:
+                continue
+            subproblem_type = str(item.get("subproblem_type") or "").strip().lower()
+            strategy_label = str(item.get("strategy_label") or "").strip().lower()
+            if subproblem_type:
+                self._active_subproblem_type = subproblem_type
+            if strategy_label:
+                self._active_strategy_label = strategy_label
+            should_block_actions = item_type == "attempt_summary_v1" or (
+                item_type in {"compiler_card", "abstract_pattern"}
+                and (
+                    card_type in {"TimeoutGovernanceCard", "ClosureGuardCard"}
+                    or hardness in {"guardrail", "hard_stop"}
+                )
+            )
+            if not should_block_actions:
+                continue
+            for raw in item.get("avoid_actions") or []:
+                pattern = str(raw).strip().lower()
+                if pattern:
+                    self._blocked_action_patterns.add(pattern)
 
     def _enqueue_system_hint(
         self,
@@ -543,6 +675,7 @@ class ExternalToolBridgeHook(AbstractAgentHook):
         self._append_tool_response_summary(tool_name=tool_name, payload=parsed)
         if not self.inject_enabled:
             return
+        self._apply_runtime_guard_from_payload(parsed)
         buffered = self._buffer_memory_hints(parsed)
         if buffered <= 0:
             return
@@ -678,6 +811,57 @@ class ExternalToolBridgeHook(AbstractAgentHook):
                 return True
         return False
 
+    def _blocked_pattern_for_action(self, action_text: str) -> str | None:
+        lowered = action_text.lower()
+        patterns = self._blocked_action_patterns
+        if "create_new_repro_script_after_repro_confirmed" in patterns:
+            if any(tok in lowered for tok in ("cat ", "tee ", "touch ", "printf ", "echo ", "apply_patch")):
+                if any(name in lowered for name in ("reproduce_", "test_", "debug_")):
+                    return "create_new_repro_script_after_repro_confirmed"
+        if "expand_search_to_unrelated_module_after_localization" in patterns:
+            if any(
+                token in lowered
+                for token in (
+                    "utils.py",
+                    "wcsaxes",
+                    "visualization/wcsaxes",
+                    "grep -r",
+                    "rg -n",
+                    "find /testbed",
+                    "ls /testbed/astropy/visualization",
+                )
+            ):
+                return "expand_search_to_unrelated_module_after_localization"
+        if "expand_patch_scope_before_minimal_fix_is_tested" in patterns:
+            if any(
+                token in lowered
+                for token in (
+                    "str_replace_editor insert",
+                    "str_replace_editor replace",
+                    "apply_patch",
+                    "cat >",
+                    "tee ",
+                )
+            ) and any(
+                token in lowered
+                for token in (
+                    "utils.py",
+                    "wcsaxes",
+                    "visualization/wcsaxes",
+                    "conftest.py",
+                )
+            ):
+                return "expand_patch_scope_before_minimal_fix_is_tested"
+        if "run_broad_regression_before_patch_candidate_exists" in patterns:
+            if any(token in lowered for token in ("pytest -q", "python -m pytest", "tox", "nox")) and any(
+                token in lowered for token in ("all", "full", "regression")
+            ):
+                return "run_broad_regression_before_patch_candidate_exists"
+        if "submit_without_target_validation" in patterns:
+            if any(token in lowered for token in ("submit", "exit", "done", "finalize")):
+                return "submit_without_target_validation"
+        return None
+
     def _soft_block_ad_hoc_script_creation(self, step: StepOutput) -> None:
         original_action = step.action
         step.action = (
@@ -695,6 +879,29 @@ class ExternalToolBridgeHook(AbstractAgentHook):
                 "attempt_id": self._attempt_id,
                 "step_index": self._step_index + 1,
                 "block_type": "new_ad_hoc_script_after_closure",
+                "original_action": original_action,
+                "replacement_action": step.action,
+                "runtime_guard": self._runtime_guard_payload(),
+            },
+        )
+
+    def _soft_block_runtime_guard_pattern(self, step: StepOutput, pattern: str) -> None:
+        original_action = step.action
+        step.action = (
+            "printf '%s\\n' "
+            "'Runtime guard blocked an action pattern discouraged by previous failed attempts. "
+            "Validate the current minimal fix or follow the recorded next-best action.'"
+        )
+        append_json_log(
+            "HOOK",
+            {
+                "version": "v1",
+                "event": "runtime_guard_block",
+                "agent": self._agent_name,
+                "instance_id": self._instance_id,
+                "attempt_id": self._attempt_id,
+                "step_index": self._step_index + 1,
+                "block_type": pattern,
                 "original_action": original_action,
                 "replacement_action": step.action,
                 "runtime_guard": self._runtime_guard_payload(),
@@ -801,6 +1008,76 @@ class ExternalToolBridgeHook(AbstractAgentHook):
         self._emit_tool_result(tool_name=tool_name, payload=payload, status="failed", detail=last_failure)
         self._logger.warning("External %s failed after %d attempts (%s)", tool_name, attempts, last_failure)
 
+    @staticmethod
+    def _is_code_edit_action(action_text: str) -> bool:
+        lowered = action_text.lower()
+        return any(
+            tok in lowered
+            for tok in ("str_replace_editor", "edit_file", "apply_patch", "str_replace ", "create_file", "write_file")
+        )
+
+    @staticmethod
+    def _is_patch_submission(action_text: str) -> bool:
+        lowered = action_text.lower()
+        return any(tok in lowered for tok in ("submit", "<submit>", "final answer", "final patch"))
+
+    def _update_step_budget(self, action_text: str) -> None:
+        self._step_budget_state["total_steps"] += 1
+        self._step_budget_state["steps_since_last_edit"] += 1
+        self._step_budget_state["steps_since_last_patch"] += 1
+        if self._step_budget_state["extra_repro_budget"] > 0:
+            self._step_budget_state["extra_repro_budget"] -= 1
+        if self._is_code_edit_action(action_text):
+            self._step_budget_state["steps_since_last_edit"] = 0
+            self._patch_candidate_exists = True
+        if self._is_patch_submission(action_text):
+            self._step_budget_state["steps_since_last_patch"] = 0
+        if re.search(r"repro\w*_confirm|reproduction.*pass|test.*pass.*repro", action_text.lower()):
+            self._step_budget_state["extra_repro_budget"] = max(
+                self._step_budget_state["extra_repro_budget"], 5
+            )
+
+    def _check_step_budget_triggers(self) -> None:
+        steps_no_edit = self._step_budget_state["steps_since_last_edit"]
+        steps_no_patch = self._step_budget_state["steps_since_last_patch"]
+        total = self._step_budget_state["total_steps"]
+        extra_budget = self._step_budget_state["extra_repro_budget"]
+        effective_guardrail = self._step_budget_guardrail_steps + extra_budget
+        if steps_no_edit >= effective_guardrail and steps_no_edit % 5 == 0:
+            self._enqueue_system_hint(
+                hint=(
+                    f"[StepBudget] {steps_no_edit} steps without code edit. "
+                    "You must now generate a patch or submit best candidate. "
+                    "Stop exploring and focus on editing the fix location."
+                ),
+                family_id=f"step_budget:no_edit:{steps_no_edit // 5}",
+                normalized_pattern_type="closure_signal",
+                selection_score=0.99,
+            )
+        if steps_no_patch >= self._step_budget_strong_steps and not self._patch_candidate_exists:
+            self._blocked_action_patterns.add("run_broad_regression_before_patch_candidate_exists")
+            if steps_no_patch % 10 == 0:
+                self._enqueue_system_hint(
+                    hint=(
+                        f"[StepBudget] {steps_no_patch} steps without patch. "
+                        "Broad regression blocked. Form a patch candidate before running further tests."
+                    ),
+                    family_id=f"step_budget:no_patch:{steps_no_patch // 10}",
+                    normalized_pattern_type="closure_signal",
+                    selection_score=1.0,
+                )
+        if total >= self._step_budget_hard_stop and not self._patch_candidate_exists:
+            self._enqueue_system_hint(
+                hint=(
+                    f"[StepBudget:HardStop] {total} steps with no patch submitted. "
+                    "Submit your best current candidate immediately or exit. "
+                    "Further exploration will not help."
+                ),
+                family_id=f"step_budget:hard_stop:{total // 10}",
+                normalized_pattern_type="closure_signal",
+                selection_score=1.0,
+            )
+
     def _select_hints_for_injection(self) -> list[dict[str, Any]]:
         if not self._pending_memory_hints:
             return []
@@ -853,14 +1130,15 @@ class ExternalToolBridgeHook(AbstractAgentHook):
                         kept.append(item)
                         continue
 
-            bucket_limit = 1 if bucket in {"closure", "repair", "validation", "workflow"} else 2
+            bucket_limit = 2 if bucket == "semantic" else (1 if bucket in {"closure", "repair", "validation", "workflow"} else 2)
             if bucket_selected.get(bucket, 0) >= bucket_limit:
                 kept.append(item)
                 continue
 
             hint_cost = len(hint) + 8
-            soft_cap_reached = self.max_hints > 0 and len(selected) >= self.max_hints
-            budget_reached = selected and (used + hint_cost > char_budget)
+            is_semantic = bucket == "semantic"
+            soft_cap_reached = not is_semantic and self.max_hints > 0 and len(selected) >= self.max_hints
+            budget_reached = not is_semantic and selected and (used + hint_cost > char_budget)
             if soft_cap_reached or budget_reached:
                 kept.append(item)
                 continue
@@ -879,10 +1157,13 @@ class ExternalToolBridgeHook(AbstractAgentHook):
 
     @staticmethod
     def _hint_bucket(item: dict[str, Any]) -> str:
+        card_type = str(item.get("card_type", "")).strip()
+        if card_type in {"BugInvariantCard", "SuccessPathCard"}:
+            return "semantic"
         rtype = str(item.get("type", "")).strip().lower()
         family_id = str(item.get("family_id", "")).strip().lower()
         pattern = str(item.get("normalized_pattern_type", "")).strip().lower()
-        if pattern == "closure_signal" or family_id.startswith("closure_signal:"):
+        if pattern == "closure_signal" or family_id.startswith("closure_signal:") or family_id.startswith("step_budget:"):
             return "closure"
         if rtype in {"repair_pattern_v2", "failure_card_v2"} or pattern in {"negative_strategy", "patch_risk"}:
             return "repair"
@@ -896,6 +1177,7 @@ class ExternalToolBridgeHook(AbstractAgentHook):
     def _hint_bucket_priority(cls, item: dict[str, Any]) -> int:
         bucket = cls._hint_bucket(item)
         order = {
+            "semantic": 6,
             "closure": 5,
             "repair": 4,
             "validation": 3,
@@ -953,6 +1235,10 @@ class ExternalToolBridgeHook(AbstractAgentHook):
         for row in self._active_interventions:
             if row in to_close:
                 row["closed"] = True
+                success_count = int(row.get("success_events", 0))
+                error_count = int(row.get("error_events", 0))
+                # Effective when there is at least one success and more successes than errors
+                local_effective = success_count > 0 and success_count >= error_count
                 append_json_log(
                     "HOOK",
                     {
@@ -966,13 +1252,13 @@ class ExternalToolBridgeHook(AbstractAgentHook):
                         "memory_id": row.get("memory_id"),
                         "created_step": row.get("created_step"),
                         "closed_step": self._step_index,
-                        "success_events": row.get("success_events", 0),
-                        "error_events": row.get("error_events", 0),
+                        "success_events": success_count,
+                        "error_events": error_count,
                         "observed_events": row.get("observed_events", [])[-20:],
-                        "local_effective": int(row.get("success_events", 0)) > 0 and int(row.get("error_events", 0)) == 0,
+                        "local_effective": local_effective,
                         "evaluation_effective": None,
                         "feedback_stage": "local",
-                        "effective": int(row.get("success_events", 0)) > 0 and int(row.get("error_events", 0)) == 0,
+                        "effective": local_effective,
                     },
                 )
             else:
@@ -1041,7 +1327,8 @@ class ExternalToolBridgeHook(AbstractAgentHook):
 
         lines = [
             "[AgentMem Hints]",
-            "Use these hints only when relevant to the current repository state.",
+            "Treat matching hints as high-priority guidance for this attempt.",
+            "Avoid over-exploration: reuse validated repro/fix paths first, and once a minimal plausible patch exists, validate it before broadening the search.",
         ]
         for idx, item in enumerate(selected, start=1):
             hint = str(item.get("hint", "")).strip()
@@ -1095,12 +1382,18 @@ class ExternalToolBridgeHook(AbstractAgentHook):
         )
 
     def on_actions_generated(self, *, step: StepOutput):
-        if self._is_new_ad_hoc_script_creation(step.action):
+        blocked_pattern = self._blocked_pattern_for_action(step.action)
+        if blocked_pattern:
+            self._soft_block_runtime_guard_pattern(step, blocked_pattern)
+        elif self._is_new_ad_hoc_script_creation(step.action):
             self._soft_block_ad_hoc_script_creation(step)
         self._step_index += 1
         self._metric_inc("plan_generated", 1)
+        self._update_step_budget(step.action)
+        self._check_step_budget_triggers()
         self._scan_proactive_triggers(step.action)
         trace_id = self._build_trace_id("plan_generated")
+        self._active_step_trace_id = trace_id
         payload = self._build_event_payload(
             "plan_generated",
             trace_id=trace_id,
@@ -1141,6 +1434,7 @@ class ExternalToolBridgeHook(AbstractAgentHook):
         observation = str(step.observation)
         if self._is_error_like_observation(observation):
             self._metric_inc("error_like_observation", 1)
+        self._append_success_fact_hotpath(step=step, observation=observation)
         # Reset failure streak on normal command observations.
         if "simulated command error" not in observation.lower():
             if self._consecutive_failures > 0:
@@ -1167,6 +1461,7 @@ class ExternalToolBridgeHook(AbstractAgentHook):
             row["remaining_steps"] = 0
         self._advance_interventions(event="run_done")
         self._emit_gate_evaluation()
+        self._active_step_trace_id = ""
         append_json_log(
             "HOOK",
             {
@@ -1180,3 +1475,65 @@ class ExternalToolBridgeHook(AbstractAgentHook):
                 "has_submission": bool(info.get("submission")),
             },
         )
+
+    def _append_success_fact_hotpath(self, *, step: StepOutput, observation: str) -> None:
+        if not self._v21_enable_success_fact_hotpath or not self._v21_enable_sidecar:
+            return
+        if self._episode_ledger_store is None:
+            self._metric_inc("success_fact_hotpath_skipped", 1)
+            return
+
+        trace_id = str(self._active_step_trace_id or "").strip()
+        record_id = build_success_fact_idempotency_key(trace_id, self._step_index)
+        if not record_id:
+            self._metric_inc("success_fact_hotpath_skipped", 1)
+            append_json_log(
+                "HOOK",
+                {
+                    "version": "v2.1",
+                    "event": "success_fact_hotpath_skipped",
+                    "instance_id": self._instance_id,
+                    "run_id": self._run_id,
+                    "attempt_id": self._attempt_id,
+                    "step_index": self._step_index,
+                    "reason": "missing_trace_or_step",
+                    "timestamp": time.time(),
+                },
+            )
+            return
+
+        event = {
+            "version": "v2.1",
+            "event": "success_fact",
+            "fact_source": "hotpath",
+            "record_id": record_id,
+            "idempotency_key": record_id,
+            "instance_id": self._instance_id,
+            "run_id": self._run_id,
+            "attempt_id": self._attempt_id,
+            "trace_id": trace_id,
+            "step_index": self._step_index,
+            "action_text": str(step.action or ""),
+            "success_like": classify_success_like(observation=observation),
+            "timestamp": time.time(),
+        }
+        result = self._episode_ledger_store.append(event, stream="episode_ledger")
+        if result.get("written"):
+            self._metric_inc("success_fact_hotpath_written", 1)
+            return
+        self._metric_inc("success_fact_hotpath_skipped", 1)
+        if result.get("skipped_reason") != "duplicate_record_id":
+            append_json_log(
+                "HOOK",
+                {
+                    "version": "v2.1",
+                    "event": "success_fact_hotpath_failed",
+                    "instance_id": self._instance_id,
+                    "run_id": self._run_id,
+                    "attempt_id": self._attempt_id,
+                    "step_index": self._step_index,
+                    "trace_id": trace_id,
+                    "reason": result.get("skipped_reason"),
+                    "timestamp": time.time(),
+                },
+            )

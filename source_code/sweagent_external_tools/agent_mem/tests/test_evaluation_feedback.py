@@ -137,3 +137,37 @@ def test_evaluation_feedback_incomplete_timeout_writes_negative_memory():
         written = [store.abstract_experiences[row_id] for row_id in report["written_ids"]]
         pattern_types = {row["pattern_type"] for row in written}
         assert "negative_strategy_timeout_after_overexploration" in pattern_types
+        assert report["written_card_ids"]
+        timeout_cards = [store.compiler_cards_v21[row_id] for row_id in report["written_card_ids"]]
+        assert any(row["card_type"] == "TimeoutGovernanceCard" for row in timeout_cards)
+        timeout_card = next(row for row in timeout_cards if row["card_type"] == "TimeoutGovernanceCard")
+        assert timeout_card["governance_hardness"] == "guardrail"
+        assert timeout_card["budget_hints"]["max_new_repro_scripts_after_repro_confirmed"] == 0
+        assert "create_new_repro_script_after_repro_confirmed" in timeout_card["avoid_actions"]
+
+
+def test_evaluation_feedback_resolved_writes_success_path_card():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        store = GraphStore(storage_dir=tmpdir)
+        processor = EvaluationFeedbackProcessor(store)
+
+        report = processor.apply_feedback(
+            instance_id="inst-success",
+            outcome="resolved",
+            eval_ref="eval://inst-success",
+            patch_text="+ right = cright[idx]\n+ cright[idx] = right\n",
+            changed_files=["astropy/wcs/wcsapi/fitswcs.py"],
+            validation_summary={"commands": ["pytest tests/test_target.py -q"]},
+            task_summary="resolved with focused validation",
+            run_id="run-1",
+            attempt_id="attempt-1",
+        )
+
+        assert report["written_card_ids"]
+        success_cards = [store.compiler_cards_v21[row_id] for row_id in report["written_card_ids"]]
+        assert any(row["card_type"] == "SuccessPathCard" for row in success_cards)
+        success_card = next(row for row in success_cards if row["card_type"] == "SuccessPathCard")
+        assert success_card["promotion_state"] == "promoted"
+        assert success_card["patch_family"]
+        assert success_card["target_validation"] == ["pytest tests/test_target.py -q"]
+        assert "target_validation_passed" in success_card["submit_preconditions"]

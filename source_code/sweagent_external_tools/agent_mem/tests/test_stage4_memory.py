@@ -285,7 +285,12 @@ def test_memory_agent_retrieves_latest_attempt_summary_for_same_instance():
             current_problem_file=pf,
         )
         assert result.get("attempt_summary", {}).get("instance_id") == "inst-summary"
-        assert any(item.get("type") == "attempt_summary_v1" for item in result.get("recommendations", []))
+        summary_rows = [item for item in result.get("recommendations", []) if item.get("type") == "attempt_summary_v1"]
+        assert summary_rows
+        summary_row = summary_rows[0]
+        assert summary_row.get("subproblem_type") == "reproduce_issue"
+        assert summary_row.get("strategy_label") == "ad_hoc_repro_script_loop"
+        assert summary_row.get("avoid_actions") == ["create_new_repro_script_after_repro_confirmed"]
 
 
 def test_critical_alignment_boost_for_failure_cards():

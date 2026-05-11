@@ -22,6 +22,7 @@
 ## Key Scripts
 - with-mem:
   - `PDDL_work_mem/06_artificial_intelligence/experiments/multi-try_experiment/with_mem/scripts/run_multi_try_with_mem_20min.sh`
+  - `PDDL_work_mem/06_artificial_intelligence/experiments/multi-try_experiment/with_mem/scripts/run_lite_failedcase_repeat10_with_mem_closed_loop.sh`
 - no-mem:
   - `PDDL_work_mem/06_artificial_intelligence/experiments/multi-try_experiment/no_mem/scripts/run_multi_try_no_mem_20min.sh`
 - summary collector:
@@ -48,6 +49,9 @@ cd /home/pt/SWE-bench
 SWEBENCH_SUBSET=full START_INDEX=0 INSTANCE_COUNT=3 REPEATS=5 \
 INSTANCE_TOTAL_EXEC_TIMEOUT_SEC=1200 \
 PDDL_work_mem/06_artificial_intelligence/experiments/multi-try_experiment/with_mem/scripts/run_multi_try_with_mem_20min.sh
+
+# with-mem, Lite 历史失败候选自动选择；若当前 attempt_01 仍失败，则继续跑满 10 次
+PDDL_work_mem/06_artificial_intelligence/experiments/multi-try_experiment/with_mem/scripts/run_lite_failedcase_repeat10_with_mem_closed_loop.sh
 
 # no-mem baseline on the same scope
 SWEBENCH_SUBSET=full START_INDEX=0 INSTANCE_COUNT=3 REPEATS=5 \

@@ -28,7 +28,7 @@ def _inject_msg() -> list[dict[str, str]]:
     return [
         {
             "role": "user",
-            "content": "[AgentMem Hints]\nUse these hints only when relevant.\n1. run pytest -q first",
+            "content": "[AgentMem Hints]\nTreat matching hints as high-priority guidance for this attempt.\nAvoid over-exploration: reuse validated repro/fix paths first, and once a minimal plausible patch exists, validate it before broadening the search.\n1. run pytest -q first",
         }
     ]
 

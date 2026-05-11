@@ -46,6 +46,10 @@ MAX_WORKERS_EVAL="${MAX_WORKERS_EVAL:-1}"
 PYTHON_STANDALONE_DIR="${PYTHON_STANDALONE_DIR:-/root}"
 DEPLOYMENT_STARTUP_TIMEOUT_SEC="${DEPLOYMENT_STARTUP_TIMEOUT_SEC:-600}"
 STARTUP_RETRIES="${STARTUP_RETRIES:-1}"
+RUNTIME_PREWARM="${RUNTIME_PREWARM:-1}"
+MAX_ACTIVE_RUN_BATCHES="${MAX_ACTIVE_RUN_BATCHES:-2}"
+SWEBENCH_SUBSET="${SWEBENCH_SUBSET:-full}"
+SWEBENCH_SPLIT="${SWEBENCH_SPLIT:-test}"
 
 export EXPERIMENT_ID="${EXPERIMENT_ID:-阶段6_smoke_full_first5_withmem_closed_loop}"
 export RUN_SCRIPT_PATH="PDDL_work_mem/06_artificial_intelligence/experiments/03_run_outputs_full_first50_nomem_20min/with_mem/scripts/run_full_first5_with_mem_smoke_stage6.sh"
@@ -96,10 +100,13 @@ maybe_prefetch_image() {
   fi
   if docker image inspect "${image}" >/dev/null 2>&1; then
     echo "[prefetch] exists: ${image}" | tee -a "${log_file}"
-    return 0
+  else
+    echo "[prefetch] pull: ${image}" | tee -a "${log_file}"
+    docker pull "${image}" >>"${log_file}" 2>&1
   fi
-  echo "[prefetch] pull: ${image}" | tee -a "${log_file}"
-  docker pull "${image}" >>"${log_file}" 2>&1
+  if [[ "${RUNTIME_PREWARM}" == "1" ]]; then
+    runtime_guard_prepare_runtime_image "${log_file}" "${image}" "${PYTHON_STANDALONE_DIR}" "linux/amd64" || true
+  fi
 }
 
 aggregate_instance_reports() {
@@ -232,13 +239,35 @@ while IFS=$'\t' read -r idx instance_id image; do
     export SWE_AGENT_EXT_RUN_ID="${RUN_TAG}"
     export SWE_AGENT_EXT_ATTEMPT_ID="attempt-${idx}"
     echo "[run] ${instance_id}" | tee "${run_log}"
+    runtime_guard_mark_stage "${run_log}" "instance_${instance_id}:preflight"
     runtime_guard_preflight "${run_log}"
-    image_pattern="docker.io/swebench/sweb.eval.x86_64.${instance_id/:/-}:latest"
+    image_pattern="${instance_id}"
+    resolved_image=""
+    if [[ "${RUNTIME_PREWARM}" == "1" ]]; then
+      if resolved_image="$(runtime_guard_resolve_swebench_image "${run_log}" "${instance_id}" "${SWEBENCH_SUBSET}" "${SWEBENCH_SPLIT}")"; then
+        image_pattern="${resolved_image}"
+      else
+        echo "[warn] failed to resolve deployment image for ${instance_id}; skip runtime prewarm" | tee -a "${run_log}"
+        resolved_image=""
+      fi
+    fi
+    if [[ "${RUNTIME_PREWARM}" == "1" && -n "${resolved_image}" ]]; then
+      runtime_guard_mark_stage "${run_log}" "instance_${instance_id}:runtime_warmup"
+      if ! runtime_guard_prepare_runtime_image "${run_log}" "${resolved_image}" "${PYTHON_STANDALONE_DIR}" "linux/amd64"; then
+        runtime_guard_mark_stage "${run_log}" "instance_${instance_id}:runtime_warmup_failed"
+        echo "[warn] runtime warmup failed for ${instance_id}; continue with direct launch" | tee -a "${run_log}"
+        runtime_guard_capture_diag "${run_log}" "${image_pattern}"
+      fi
+    fi
+    runtime_guard_mark_stage "${run_log}" "instance_${instance_id}:capacity_wait"
+    runtime_guard_wait_for_capacity "${run_log}" "${MAX_ACTIVE_RUN_BATCHES}" 10
+    runtime_guard_mark_stage "${run_log}" "instance_${instance_id}:cleanup_before_run"
     runtime_guard_cleanup_pattern "${run_log}" "${image_pattern}"
     run_status=1
     startup_retry_index=0
     while (( startup_retry_index <= STARTUP_RETRIES )); do
       [[ "${startup_retry_index}" -gt 0 ]] && echo "[retry] startup retry ${startup_retry_index}/${STARTUP_RETRIES} for ${instance_id}" | tee -a "${run_log}"
+      runtime_guard_mark_stage "${run_log}" "instance_${instance_id}:launch_sweagent_retry_${startup_retry_index}"
       set +e
       run_cmd=(
         "${START_WITH_TOOLS}" --mode with-mem
@@ -264,14 +293,19 @@ while IFS=$'\t' read -r idx instance_id image; do
       run_status=$?
       set -e
       if [[ "${run_status}" -eq 0 ]]; then
+        runtime_guard_mark_stage "${run_log}" "instance_${instance_id}:sweagent_exit_0"
         break
       fi
+      runtime_guard_mark_stage "${run_log}" "instance_${instance_id}:sweagent_exit_${run_status}"
       if grep -q "Runtime did not start within timeout" "${run_log}"; then
+        runtime_guard_mark_stage "${run_log}" "instance_${instance_id}:capture_diag_runtime_timeout"
         runtime_guard_capture_diag "${run_log}" "${image_pattern}"
+        runtime_guard_mark_stage "${run_log}" "instance_${instance_id}:cleanup_after_runtime_timeout"
         runtime_guard_cleanup_pattern "${run_log}" "${image_pattern}"
         (( startup_retry_index++ ))
         continue
       fi
+      runtime_guard_mark_stage "${run_log}" "instance_${instance_id}:capture_diag_non_runtime_failure"
       runtime_guard_capture_diag "${run_log}" "${image_pattern}"
       break
     done
@@ -284,6 +318,7 @@ while IFS=$'\t' read -r idx instance_id image; do
     echo "[run] reuse existing outputs for ${instance_id}" | tee -a "${run_log}"
   fi
 
+  runtime_guard_mark_stage "${run_log}" "instance_${instance_id}:rebuild_predictions"
   tmp_cache="$(mktemp)"
   printf '[\n  "%s"\n]\n' "${instance_id}" > "${tmp_cache}"
   pred_json="${METRICS_DIR}/instance_reports/${instance_id}.predictions.json"
@@ -308,6 +343,7 @@ PY
 )"
 
   if [[ "${pred_count}" -eq 0 ]]; then
+    runtime_guard_mark_stage "${run_log}" "instance_${instance_id}:local_eval_stub"
     local_reason="missing_prediction"
     if [[ "${run_status:-0}" -eq 124 || "${run_status:-0}" -eq 137 ]]; then
       local_reason="timeout_no_prediction"
@@ -321,6 +357,7 @@ PY
       --reason "${local_reason}" \
       --out "${raw_report_link}" >/dev/null
   else
+    runtime_guard_mark_stage "${run_log}" "instance_${instance_id}:official_eval"
     "${PYTHON_BIN}" -m swebench.harness.run_evaluation \
       --dataset_name SWE-bench/SWE-bench \
       --split test \
@@ -339,6 +376,7 @@ PY
     fi
     cp -f "${raw_report_json}" "${raw_report_link}"
   fi
+  runtime_guard_mark_stage "${run_log}" "instance_${instance_id}:summarize_eval"
   "${PYTHON_BIN}" "${COMMON_DIR}/summarize_official_eval.py" \
     --report-json "${raw_report_link}" \
     --run-id "${eval_run_id}" \
@@ -346,6 +384,7 @@ PY
     --scope "Stage6 smoke single-instance ${instance_id}" \
     --summary-out "${instance_summary_json}" >/dev/null
 
+  runtime_guard_mark_stage "${run_log}" "instance_${instance_id}:apply_feedback"
   "${PYTHON_BIN}" "${EVAL_FEEDBACK_APPLIER}" \
     --workspace-root "${WS_ROOT}" \
     --report-json "${raw_report_link}" \
@@ -353,6 +392,8 @@ PY
     --cache-file "${tmp_cache}" \
     --run-id "${eval_run_id}" \
     --output-json "${instance_feedback_json}" >/dev/null
+  runtime_guard_mark_stage "${run_log}" "instance_${instance_id}:cleanup_after_instance"
+  runtime_guard_cleanup_pattern "${run_log}" "${image_pattern}"
   rm -f "${tmp_cache}"
 done < <("${PYTHON_BIN}" - <<'PY' "${CACHE_META_FILE}" "${START_INDEX}" "${STOP_INDEX}"
 import json

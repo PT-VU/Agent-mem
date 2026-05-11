@@ -162,6 +162,16 @@ def infer_eval_outcome(base_outcome: str, instance_dir: Path) -> tuple[str, str]
     return "incomplete", ""
 
 
+def infer_attempt_id(run_id: str) -> str:
+    text = str(run_id or "").strip()
+    if not text:
+        return ""
+    match = re.search(r"_attempt_(\d+)(?:\b|$)", text)
+    if not match:
+        return ""
+    return f"attempt-{match.group(1).zfill(2)}"
+
+
 def build_feedback_event(
     *,
     instance_id: str,
@@ -175,6 +185,7 @@ def build_feedback_event(
     changed_files = extract_changed_files_from_patch(patch_text)
     validation_summary = extract_validation_summary(instance_dir)
     task_summary = extract_task_summary(instance_dir)
+    attempt_id = infer_attempt_id(run_id)
 
     patch_summary = {
         "changed_file_count": len(changed_files),
@@ -196,4 +207,5 @@ def build_feedback_event(
         "validation_summary": validation_summary,
         "task_summary": task_summary,
         "run_id": run_id,
+        "attempt_id": attempt_id,
     }
